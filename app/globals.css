@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+/*
+ * Kumbara palette: warm cream paper, deep teal ink, coral accent for the one
+ * action that matters on each screen. Mobile first; system fonts only.
+ */
+@theme {
+  --color-paper: #fbf7f0;
+  --color-paper-2: #f3ede2;
+  --color-line: #e3dccd;
+  --color-ink: #12313a;
+  --color-ink-2: #3f5b63;
+  --color-muted: #5a6b71;
+  --color-teal: #0f6b6b;
+  --color-teal-2: #0b5555;
+  --color-coral: #e5533d;
+  --color-coral-2: #c9432f;
+  --color-mint: #1f9d6a;
+  --color-amber: #9a6414;
+  --color-danger: #b42318;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  min-height: 100dvh;
+  margin: 0;
+}
+
+@utility card {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: 20px;
+}
+
+@utility btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  background: var(--color-coral);
+  color: #fff;
+  font-weight: 600;
+  min-height: 3.25rem;
+  padding: 0 1.5rem;
+  transition: background 120ms ease, transform 120ms ease;
+  &:hover {
+    background: var(--color-coral-2);
+  }
+  &:active {
+    transform: translateY(1px);
+  }
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+@utility btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line);
+  background: #fff;
+  color: var(--color-ink);
+  font-weight: 600;
+  min-height: 3rem;
+  padding: 0 1.25rem;
+  &:hover {
+    border-color: var(--color-teal);
+  }
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility microlabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+/* Sembol component theming: match the Kumbara palette. */
+:root {
+  --sembol-accent: #0f6b6b;
+  --sembol-accent-hover: #0b5555;
+  --sembol-radius: 14px;
+}

@@ -99,3 +99,29 @@ Note: the "cannot set a memo through the relay" limitation is what makes the mux
 1. **On-ramp to a contract wallet**: ask the anchor team to deliver to C… destinations with a SAC transfer from the treasury (their treasury already submits through RPC), or ship the trustless landing account from §4. Both keep Kumbara non-custodial; the landing account adds three classic transactions and ~25 s per deposit.
 2. **Off-ramp detection**: ask the anchor team to match `invoke_host_function` payments (§5 option 1), or ship the reverse landing account (§5 option 2).
 3. **Relay**: confirm whether Sembol Cloud will exist before the hackathon. Until then Kumbara's server-side relay route forwards to the configured `SEMBOL_CLOUD_URL` with the project key, which today is an OpenZeppelin Channels key.
+
+
+## 6. Landing accounts, final shape: ten deposits and one withdrawal through the relay
+
+Recorded 2026-09-04 with [`spikes/landing.ts`](../spikes/landing.ts) (raw: [`spike-findings/landing.json`](spike-findings/landing.json)). Shape as decided at the Gate 0 review: quote → exact `destination_amount` → sponsor creates the landing account with sponsored reserves and a USDC trustline (zero XLM on the account) → two pre-authorized transactions built for the exact amount, forward at seq+1 and cleanup-merge-to-sponsor at seq+2 → lock (pre-authorized signers weight 1 each, master weight 1, thresholds 2/2/2, master co-signature attached to both envelopes) → on-ramp created with the quote id and the landing address → forward and cleanup submitted through the relay, which fee-bumps them.
+
+Two relay facts shaped the envelopes: OpenZeppelin Channels treats an envelope with zero signatures as a func/auth request and rebuilds it under its own channel account (which breaks source-account authorization), so the pre-authorized envelopes carry the landing master key's co-signature and that signature has to be *needed* (Stellar rejects unused signatures with `txBAD_AUTH_EXTRA`, hence weights 1+1 against threshold 2). The relay also rejects far-future time bounds and Soroban envelopes whose fee exceeds the declared resource fee by more than one base fee, so the pre-authorized transactions carry no time bound and a 100-stroop inclusion fee.
+
+| run | quoted USDC | paid USDC | match | forward | cleanup | sponsor Δ XLM | relay fees XLM | seconds |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 2.0541582 | 2.0541582 | yes | `40570e7c…` (relay) | `a674c2ae…` (relay) | -0.0000900 | 0.0015158 | 43.9 |
+| 2 | 2.0541582 | 2.0541582 | yes | `3895d8c2…` (relay) | `c7359da0…` (relay) | -0.0000900 | 0.0015158 | 49.6 |
+| 3 | 2.0541582 | 2.0541582 | yes | `d85e799b…` (relay) | `4d4d176f…` (relay) | -0.0000900 | 0.0015158 | 45.3 |
+| 4 | 2.0541582 | 2.0541582 | yes | `0b963ce1…` (relay) | `99238547…` (relay) | -0.0000900 | 0.0015158 | 46.9 |
+| 5 | 2.0541582 | 2.0541582 | yes | `3ca73848…` (relay) | `1389cb7c…` (relay) | -0.0000900 | 0.0015158 | 42.3 |
+| 6 | 2.0541582 | 2.0541582 | yes | `7c9941ea…` (relay) | `47cffe61…` (relay) | -0.0000900 | 0.0015158 | 42.2 |
+| 7 | 2.0541582 | 2.0541582 | yes | `7d0b000d…` (relay) | `4edeecc1…` (relay) | -0.0000900 | 0.0015158 | 50.9 |
+| 8 | 2.0541582 | 2.0541582 | yes | `31c107d1…` (relay) | `2fae9e59…` (relay) | -0.0000900 | 0.0015158 | 43.3 |
+| 9 | 2.0541582 | 2.0541582 | yes | `6e758004…` (relay) | `98622214…` (relay) | -0.0000900 | 0.0015158 | 45.5 |
+| 10 | 2.0541582 | 2.0541582 | yes | `247d6eca…` (relay) | `1feecd26…` (relay) | -0.0000900 | 0.0015158 | 40.7 |
+
+- **Amount match: 10/10.** With a locked quote the anchor paid exactly the quoted amount every time.
+- **Net XLM cost per deposit**: sponsor -0.0000900 XLM (the two setup transactions, 900 stroops; all sponsored reserves came back at the merge) plus 0.0015158 XLM paid by the relay (Soroban forward 14858 stroops after refunds, classic cleanup 300). Total ≈ 0.0016 XLM per deposit.
+- **Time**: 40.7–50.9 s per deposit end to end (about 25 s of that is the two sponsor transactions plus the anchor's settlement worker).
+
+**Reverse landing account (withdrawal)**: off-ramp `ofr_ai5okm1w4nvuv09q89th` → landing `GDOD4WQL…` (create `e3e7ef89…`, lock `7d51460f…`) → the smart account paid 2 USDC to it with the passkey via the relay (`c9174308…`) → the pre-authorized classic payment to the treasury with memo id, fee-bumped by the relay (`cee3f93f…`) → the anchor matched it and completed the off-ramp: received 2.0000000 USDC → 96.39 TRY, payout `po_gktucan14xmwxwdi824y` → cleanup via relay (`a3bb546c…`), sponsor Δ -0.0000900 XLM. This closes the off-ramp detection gap from §5 without any anchor change.

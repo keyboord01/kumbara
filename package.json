@@ -9,20 +9,36 @@
     "node": ">=20.19"
   },
   "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
     "spike:anchor": "node --env-file=.env --import tsx spikes/anchor.ts",
     "spike:defindex": "node --env-file=.env --import tsx spikes/defindex.ts",
     "spike:soroswap": "node --env-file=.env --import tsx spikes/soroswap.ts",
     "spike:relay": "node --env-file=.env --import tsx spikes/relay.ts",
-    "typecheck": "tsc --noEmit",
-    "spike:all": "pnpm spike:relay && pnpm spike:anchor && pnpm spike:defindex && pnpm spike:soroswap"
+    "spike:all": "pnpm spike:relay && pnpm spike:anchor && pnpm spike:defindex && pnpm spike:soroswap",
+    "spike:landing": "node --env-file=.env --import tsx spikes/landing.ts",
+    "e2e:onboard": "node scripts/e2e-onboard.mjs"
   },
   "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^20.19.43",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "playwright": "~1.62.1",
+    "postcss": "^8.5.23",
+    "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",
     "typescript": "~5.9.3"
   },
   "dependencies": {
+    "@sembol/passkey-react": "0.3.1",
     "@stellar/stellar-sdk": "^16.3.0",
+    "next": "^16.3.4",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "server-only": "^0.0.1",
     "smart-account-kit": "0.6.2"
   },
   "type": "module"

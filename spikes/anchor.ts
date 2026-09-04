@@ -17,6 +17,7 @@ import { Account, Asset, MuxedAccount } from "@stellar/stellar-sdk";
 import { Anchor, AnchorError } from "./lib/anchor";
 import { assertTestnet, horizonUrl, networkPassphrase } from "./lib/env";
 import { createLandingAccount, submitPreauthorized } from "./lib/forwarder";
+import { relayFromEnv } from "./lib/relay";
 import { ensureWallet, persistAuthenticator } from "./lib/kit";
 import { Findings, accountLink, contractLink, fail, info, ok, sleep, step, txLink, warn } from "./lib/log";
 import { loadState, saveState } from "./lib/state";
@@ -26,6 +27,7 @@ import { transferToken } from "./lib/wallet";
 assertTestnet();
 const findings = new Findings("anchor");
 const anchor = new Anchor();
+const relay = relayFromEnv();
 
 step("Anchor discovery (health + stellar.toml)");
 const health = await anchor.health();
@@ -112,8 +114,8 @@ step("Trustless landing account: quote -> lock account -> on-ramp -> pre-authori
 const quoteL = await anchor.quote({ customer_id: customerId, side: "buy", amount: "100.00", amount_currency: "TRY" });
 const landingAmount = toStroops(quoteL.destination_amount);
 info(`quote ${quoteL.id}: ${quoteL.source_amount} TRY -> ${quoteL.destination_amount} USDC, expires ${quoteL.expires_at}`);
-const plan = await createLandingAccount({ usdc, usdcContract, destinationContract: wallet.contractId, amountStroops: landingAmount, sponsor: funder.publicKey() });
-ok(`landing ${plan.publicKey} locked: trustline ${plan.trustlineTxHash.slice(0, 8)}…, setup ${plan.setupTxHash.slice(0, 8)}… (master weight 0, two pre-authorized signers)`);
+const plan = await createLandingAccount({ sponsor: funder, usdc, usdcContract, kind: { type: "onramp", destinationContract: wallet.contractId, amountStroops: landingAmount } });
+ok(`landing ${plan.publicKey} locked: create ${plan.createTxHash.slice(0, 8)}…, lock ${plan.lockTxHash.slice(0, 8)}… (sponsored reserves, master weight 0, two pre-authorized signers)`);
 if (Date.now() > Date.parse(quoteL.expires_at)) fail("quote expired during landing-account setup; rerun");
 const onrampL = await anchor.createOnramp({ customer_id: customerId, quote_id: quoteL.id, destination_address: plan.publicKey });
 const doneL = await anchor.pollOnramp(onrampL.id);
@@ -121,16 +123,18 @@ if (doneL.status !== "completed" || !doneL.stellar_tx_hash) fail(`landing on-ram
 ok(`anchor paid the landing account via ${doneL.settlement}: ${txLink(doneL.stellar_tx_hash)}`);
 if (toStroops(doneL.amount_usdc) !== landingAmount) fail(`anchor paid ${doneL.amount_usdc} but the pre-authorized forward is for ${fromStroops(landingAmount)}`);
 const cBeforeForward = await tokenBalance(usdcContract, wallet.contractId);
-const forward = await submitPreauthorized(plan.forwardTxXdr);
+const forward = await submitPreauthorized(plan.forwardTxXdr, relay);
 const cAfterForward = await tokenBalance(usdcContract, wallet.contractId);
 if (cAfterForward - cBeforeForward !== landingAmount) fail(`forward moved ${fromStroops(cAfterForward - cBeforeForward)}, expected ${fromStroops(landingAmount)}`);
 ok(`pre-authorized forward landed ${fromStroops(landingAmount)} USDC in the smart account: ${txLink(forward.hash)}`);
-const cleanup = await submitPreauthorized(plan.cleanupTxXdr);
+const cleanup = await submitPreauthorized(plan.cleanupTxXdr, relay);
 ok(`landing account self-destructed (trustline removed, XLM merged to sponsor): ${txLink(cleanup.hash)}`);
 findings.set("trustlessLanding", {
   landingAccount: plan.publicKey,
-  trustlineTx: plan.trustlineTxHash,
-  setupTx: plan.setupTxHash,
+  createTx: plan.createTxHash,
+  lockTx: plan.lockTxHash,
+  forwardVia: forward.via,
+  cleanupVia: cleanup.via,
   anchorPaymentTx: doneL.stellar_tx_hash,
   forwardTx: forward.hash,
   cleanupTx: cleanup.hash,

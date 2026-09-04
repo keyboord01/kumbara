@@ -1,0 +1,39 @@
+{
+  "spike": "relay",
+  "recordedAt": "2026-09-04T21:20:06.657Z",
+  "network": "testnet",
+  "relay": "https://channels.openzeppelin.com/testnet (project=kumbara, mode=openzeppelin-channels)",
+  "createWallet": {
+    "contractId": "CB5TQJAGOSCO5W6DOJRO65DKVX7ULEVRIEN52KOLGBIJNIC263JYVAPX",
+    "tx": {
+      "hash": "79b04c55a15832cea4cfb216d17f24edfdd3d179ff87a98c703509827b8c2ee4",
+      "envelopeType": "envelopeTypeTxFeeBump",
+      "sourceAccount": "GDVBRIKHLS2CTHWOK5XGKGPLWKAFY6WP4QNT4I2HHRVAORYEPIUWUV2D",
+      "feeCharged": "134835",
+      "operationTypes": [
+        "invokeHostFunction"
+      ],
+      "feeSource": "GCNJB6V5YIODDSSCWXZ2VOKMRPRVZ2V723RRQS6STXE6NWTGVOJY35CN"
+    },
+    "smartAccountXlm": "0"
+  },
+  "spendingLimit": {
+    "tx": {
+      "hash": "3372c798e3c2ef325d624d4abc252eba5a6fed864ebb8c73682747451d434ccf",
+      "envelopeType": "envelopeTypeTxFeeBump",
+      "sourceAccount": "GAFG3ZV46DE662PINNIIXXHINMKTWQLRSCF3JDBRTEGA2L4XLKG7WNDF",
+      "feeCharged": "401973",
+      "operationTypes": [
+        "invokeHostFunction"
+      ],
+      "feeSource": "GCNJB6V5YIODDSSCWXZ2VOKMRPRVZ2V723RRQS6STXE6NWTGVOJY35CN"
+    },
+    "ruleId": 1,
+    "limitUsdc": "100.0000000",
+    "periodLedgers": 17280
+  },
+  "wrongKey": "wallet deployment failed: [3004] Unauthorized",
+  "relayDown": "wallet deployment failed: [3004] relay unreachable: fetch failed",
+  "noRelay": "Refusing to source a smart-account deployment from the shared default deployer GAAH4OT36RRCCAGKARGPN2HLHT2NOBVFHO4GUHA6CF7UKQ4MMV24WQ4N. It is sign-only: it may sign the deploy authorization entry, but must never provide the transaction sequence or fees. Configure a `relayerUrl`, or set a dedicated `deployerSecret` you control.",
+  "budgetAllowlist": "not verifiable: no Sembol Cloud deployment; the configured relay's per-key limits apply instead"
+}

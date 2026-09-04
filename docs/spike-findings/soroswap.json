@@ -1,0 +1,16 @@
+{
+  "spike": "soroswap",
+  "recordedAt": "2026-09-04T21:25:30.275Z",
+  "network": "testnet",
+  "assets": {
+    "anchorUsdc": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "vaultAsset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "swapNeeded": false
+  },
+  "routerQuote": {
+    "router": "CCJUD55AG6W5HAI5LRVNKAE5WDP5XGZBUDS5WNTIVDU7O264UZZE7BRD",
+    "ok": true,
+    "raw": "AAAAEAAAAAEAAAACAAAACgAAAAAAAAAAAAAAAACYloAAAAAKAAAAAAAAAAAAAAAAANGDfg=="
+  },
+  "decision": "not required"
+}

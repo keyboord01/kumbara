@@ -1,0 +1,235 @@
+{
+  "spike": "anchor",
+  "recordedAt": "2026-09-04T21:24:00.723Z",
+  "network": "testnet",
+  "discovery": {
+    "issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+    "usdcContract": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+    "treasury": "GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6",
+    "endpoints": {
+      "WEB_AUTH_ENDPOINT": "https://tr-mock-anchor.fly.dev/auth",
+      "TRANSFER_SERVER": "https://tr-mock-anchor.fly.dev/sep6",
+      "KYC_SERVER": "https://tr-mock-anchor.fly.dev/sep12",
+      "ANCHOR_QUOTE_SERVER": "https://tr-mock-anchor.fly.dev/sep38",
+      "SIGNING_KEY": "GDXYO6FJCNXZEWGXD54GT76FGFYLOLSOGSOJLNQ6WGHCGEQPO7NTE73M"
+    },
+    "rates": {
+      "pair": "USDC/TRY",
+      "mid_rate": "48.430010",
+      "buy_rate": "48.672160",
+      "sell_rate": "48.187859",
+      "spread_bps": 50,
+      "source": "reflector"
+    }
+  },
+  "depositInstructions": {
+    "bank_name": "TR Mock Bank A.Ş.",
+    "iban": "TR05 0009 9000 0000 0000 0000 01",
+    "account_holder": "TR Mock Anchor Teknoloji A.Ş.",
+    "reference": "TRMA-HPRU-RC3F",
+    "rails": [
+      "FAST",
+      "EFT",
+      "Havale"
+    ]
+  },
+  "cAddressOnramp": {
+    "accepted": false,
+    "status": 400,
+    "code": "invalid_destination_address",
+    "message": "destination_address must be a Stellar account (G...) or muxed (M...) address. Contract addresses (C...) are not supported: USDC is a classic asset paid via a classic payment, which cannot target a contract."
+  },
+  "gAddressOnramp": {
+    "order": {
+      "id": "onr_xqiqg1yi9xcr9vaq2r1w",
+      "type": "onramp",
+      "customer_id": "cus_or0544l8ol8nkfjdup3m",
+      "quote_id": "qt_pnvgvd1aesysy95ufkrv",
+      "amount_try": "100.00",
+      "amount_usdc": "2.0545626",
+      "rate": "48.672160",
+      "destination_address": "GDJ6ZHJD626V56FXDIXNLYKIF5I7YYE6BWKUQA5GVGAKQL5MP26KN6LU",
+      "memo": null,
+      "status": "completed",
+      "pending_reason": null,
+      "settlement": "payment",
+      "stellar_tx_hash": "6cefb9639af80d95b3c491b120b048c528192715ac5129790beeffa82c208919",
+      "claimable_balance_id": null,
+      "failure_reason": null,
+      "created_at": "2026-09-04T21:20:44.063Z",
+      "updated_at": "2026-09-04T21:20:52.261Z",
+      "completed_at": "2026-09-04T21:20:52.261Z"
+    },
+    "tx": {
+      "hash": "6cefb9639af80d95b3c491b120b048c528192715ac5129790beeffa82c208919",
+      "envelopeType": "envelopeTypeTx",
+      "sourceAccount": "GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6",
+      "feeCharged": "100",
+      "operationTypes": [
+        "payment"
+      ]
+    },
+    "quoteDestinationAmount": "2.0545626"
+  },
+  "classicToContractTransfer": {
+    "tx": "870ac1b768eb0ebffa4e05e6ce6a800762e41d7220f806fc9dc9f31efb00dff7",
+    "before": "0.0000000",
+    "after": "2.0545626"
+  },
+  "trustlessLanding": {
+    "landingAccount": "GCFBKAX7ACAPHABCLMVTIV6SXRGTBMDOF5S62GE6OCTCLWUGSFESAU2C",
+    "trustlineTx": "4041627d1505b905d6e064ef20f72c235c9a8a8744d3cb96128b768662c5469a",
+    "setupTx": "40a1a4250feab7e32eafbfa4765538028f5284e57365811af6937f06cc7ddafd",
+    "anchorPaymentTx": "778215b3a70debb505ad6f9a05946914ae000de4ef2165e1c9ee8e91e3c3a8f1",
+    "forwardTx": "f580e030d4d8e15fe4aca47d07ee131152ae91417ea983459afdbe3ff22c9eab",
+    "cleanupTx": "6223c61c20cd3dc115f67ef5170112cab64e61ac86686545eb18c7927416291d",
+    "amountUsdc": "2.0545626",
+    "smartAccountAfter": "4.1091252"
+  },
+  "offramp": {
+    "paymentTx": "b320a1f02e36218d3f546a04795f9842b0f6741c0eafecb8a5b7cce50642498c",
+    "paymentEnvelope": {
+      "hash": "b320a1f02e36218d3f546a04795f9842b0f6741c0eafecb8a5b7cce50642498c",
+      "envelopeType": "envelopeTypeTxFeeBump",
+      "sourceAccount": "GABFSUCW3FRINCAOCEZHM3JHNMGMI3DFP6FFYBPGKLNNJSIXOIE4LJUM",
+      "feeCharged": "345932",
+      "operationTypes": [
+        "invokeHostFunction"
+      ],
+      "feeSource": "GCNJB6V5YIODDSSCWXZ2VOKMRPRVZ2V723RRQS6STXE6NWTGVOJY35CN"
+    },
+    "offramp": {
+      "id": "ofr_ikwwjdt1dw6zfin2q10s",
+      "type": "offramp",
+      "customer_id": "cus_or0544l8ol8nkfjdup3m",
+      "quote_id": null,
+      "status": "awaiting_deposit",
+      "expected_usdc": "1.0000000",
+      "received_usdc": null,
+      "amount_try": null,
+      "rate": "48.194708",
+      "rate_locked_until": "2026-09-04T21:51:38.752Z",
+      "repriced": false,
+      "deposit": {
+        "network": "stellar",
+        "asset_code": "USDC",
+        "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+        "address": "GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6",
+        "memo_type": "id",
+        "memo": "415114909797",
+        "instructions": "Send USDC to GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6 with memo (type id) 415114909797 (a muxed address with that id also works). The MEMO is what routes your deposit — the amount is flexible (whatever you send, min 1 USDC, is converted). The treasury address is the same for every off-ramp; each off-ramp has its own memo.",
+        "payment_uri": "web+stellar:pay?destination=GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6&amount=1.0000000&asset_code=USDC&asset_issuer=GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5&memo=415114909797&memo_type=MEMO_ID&msg=TR+Mock+Anchor+off-ramp"
+      },
+      "auto_payout": true,
+      "payout_iban": "TR330006100519786457841326",
+      "payout_id": null,
+      "stellar_tx_hash": null,
+      "from_address": null,
+      "failure_reason": null,
+      "created_at": "2026-09-04T21:21:38.752Z",
+      "updated_at": "2026-09-04T21:21:38.752Z",
+      "completed_at": null
+    },
+    "unmatched": {
+      "data": [
+        {
+          "id": "umd_cpgu4m3sh5u0elegi7rk",
+          "tx_hash": "a4dca0a33f1d013fa22573c51e829b23b780f9fc3b4b5ac695577d904a11d39f",
+          "from_address": "GANOAIQDBACBH5B4XKVGAFMUNMIVGYVL7CYZMOD6QHRTTLLEKJDAF2J6",
+          "amount_usdc": "2.0617226",
+          "memo_type": "id",
+          "memo": "723528301213",
+          "to_muxed_id": null,
+          "reason": "no_matching_offramp",
+          "created_at": "2026-08-31T14:19:29.061Z"
+        },
+        {
+          "id": "umd_d18ol7lqt8alm5sm0phm",
+          "tx_hash": "f38a3e86221a38522fc993aba4eb9b8d222920ce335e1fc332e7c4511da8808d",
+          "from_address": "GAZUERPYHLXS2AWSGJV4WJ5AK2Y4VRBPCNJYSKS7AHPJHA3OV3NYDWXJ",
+          "amount_usdc": "20.0000000",
+          "memo_type": "text",
+          "memo": "274530912348",
+          "to_muxed_id": null,
+          "reason": "missing_memo",
+          "created_at": "2026-08-31T14:12:36.199Z"
+        }
+      ],
+      "limit": 50,
+      "offset": 0
+    },
+    "treasuryPaymentsRecent": [
+      "invoke_host_function:b320a1f0",
+      "payment:778215b3",
+      "payment:6cefb963",
+      "payment:9486c0dc",
+      "payment:7ccc8c7a"
+    ],
+    "ourOperations": [
+      {
+        "_links": {
+          "self": {
+            "href": "https://horizon-testnet.stellar.org/operations/19355978789048321"
+          },
+          "transaction": {
+            "href": "https://horizon-testnet.stellar.org/transactions/b320a1f02e36218d3f546a04795f9842b0f6741c0eafecb8a5b7cce50642498c"
+          },
+          "effects": {
+            "href": "https://horizon-testnet.stellar.org/operations/19355978789048321/effects"
+          },
+          "succeeds": {
+            "href": "https://horizon-testnet.stellar.org/effects?order=desc&cursor=19355978789048321"
+          },
+          "precedes": {
+            "href": "https://horizon-testnet.stellar.org/effects?order=asc&cursor=19355978789048321"
+          }
+        },
+        "id": "19355978789048321",
+        "paging_token": "19355978789048321",
+        "transaction_successful": true,
+        "source_account": "GABFSUCW3FRINCAOCEZHM3JHNMGMI3DFP6FFYBPGKLNNJSIXOIE4LJUM",
+        "type": "invoke_host_function",
+        "type_i": 24,
+        "created_at": "2026-09-04T21:21:52Z",
+        "transaction_hash": "b320a1f02e36218d3f546a04795f9842b0f6741c0eafecb8a5b7cce50642498c",
+        "function": "HostFunctionTypeHostFunctionTypeInvokeContract",
+        "parameters": [
+          {
+            "value": "AAAAEgAAAAFQRc1ewHKado/VrQJQWFLfTwKNzoMOWsUiCbpISDsvAQ==",
+            "type": "Address"
+          },
+          {
+            "value": "AAAADwAAAAh0cmFuc2Zlcg==",
+            "type": "Sym"
+          },
+          {
+            "value": "AAAAEgAAAAF7OCQGdITu28NyYu90aq3/RZKxQRvdKcswUJagWvbTig==",
+            "type": "Address"
+          },
+          {
+            "value": "AAAAEgAAAAIAAABgpsbYZZYskhnUzzIMDio95YBNevHHBU39VLJkrAoPhWIOtq35",
+            "type": "Address"
+          },
+          {
+            "value": "AAAACgAAAAAAAAAAAAAAAACYloA=",
+            "type": "I128"
+          }
+        ],
+        "address": "",
+        "salt": "",
+        "asset_balance_changes": [
+          {
+            "asset_type": "credit_alphanum4",
+            "asset_code": "USDC",
+            "asset_issuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5",
+            "type": "transfer",
+            "from": "CB5TQJAGOSCO5W6DOJRO65DKVX7ULEVRIEN52KOLGBIJNIC263JYVAPX",
+            "to": "GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6",
+            "amount": "1.0000000",
+            "destination_muxed_id": "415114909797"
+          }
+        ]
+      }
+    ]
+  }
+}

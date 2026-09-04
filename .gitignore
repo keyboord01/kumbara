@@ -27,3 +27,7 @@ pnpm-debug.log*
 # local tooling
 .stellar/
 *.tsbuildinfo
+
+# spike scratch state (keys for throwaway testnet accounts, run outputs)
+spikes/.state.json
+spikes/.out/

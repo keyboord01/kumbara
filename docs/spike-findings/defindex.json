@@ -1,0 +1,48 @@
+{
+  "spike": "defindex",
+  "recordedAt": "2026-09-04T21:25:27.136Z",
+  "network": "testnet",
+  "vaultDeployTx": "6574f636dcd64a8fb63f8bacae5c96898ebd915e8cb092eb5eec447e2bea2246",
+  "vault": {
+    "id": "CBUEZTX2U7GBOOAWIFQW2QOYW6DVQJNCMSLR2I6JCD3RJQLW67VJ5ZNV",
+    "name": "DeFindex-Vault-Kumbara USDC",
+    "symbol": "KMBRUSDC",
+    "assets": [
+      {
+        "address": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "strategies": []
+      }
+    ],
+    "deployedNow": true,
+    "factory": "CDSCWE4GLNBYYTES2OCYDFQA2LLY4RBIAX6ZI32VSUXD7GO6HRPO4A32"
+  },
+  "deposit": {
+    "tx": "7c5ffaa587b61c7972c5d91baa08f9a1f22c5523c43885e9f37e9b103f6d5f2a",
+    "sharesBefore": "0.0000000",
+    "sharesAfter": "0.9999000",
+    "underlyingUsdc": [
+      "0.9999000"
+    ],
+    "totalManagedFunds": [
+      {
+        "asset": "CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA",
+        "idle_amount": "10000000",
+        "invested_amount": "0",
+        "strategy_allocations": [],
+        "total_amount": "10000000"
+      }
+    ]
+  },
+  "withdraw": {
+    "tx": "a3ba2cc5d8ee850a03cf80e0601fa66004959c74fe09363480d6c1bdcc116fbd",
+    "sharesAfter": "0.0000000",
+    "walletUsdc": "3.1090252",
+    "usdcBeforeDeposit": "3.1091252"
+  },
+  "spendingLimitInteraction": {
+    "limitUsdc": "100.0000000",
+    "spentBefore": "2.0000000",
+    "spentAfter": "2.0000000",
+    "outcome": "not testable: wallet holds 3.1090252 USDC, below the limit+1 (101.0000000)"
+  }
+}

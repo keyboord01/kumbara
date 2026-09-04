@@ -1,0 +1,29 @@
+{
+  "name": "kumbara",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Kumbara by Sembol: a self-custodial USDC piggy bank on Stellar for Turkish users.",
+  "license": "MIT",
+  "packageManager": "pnpm@10.21.0",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "spike:anchor": "node --env-file=.env --import tsx spikes/anchor.ts",
+    "spike:defindex": "node --env-file=.env --import tsx spikes/defindex.ts",
+    "spike:soroswap": "node --env-file=.env --import tsx spikes/soroswap.ts",
+    "spike:relay": "node --env-file=.env --import tsx spikes/relay.ts",
+    "typecheck": "tsc --noEmit",
+    "spike:all": "pnpm spike:relay && pnpm spike:anchor && pnpm spike:defindex && pnpm spike:soroswap"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.13",
+    "typescript": "~5.9.3"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^16.3.0",
+    "smart-account-kit": "0.6.2"
+  },
+  "type": "module"
+}

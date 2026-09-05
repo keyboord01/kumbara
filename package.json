@@ -20,7 +20,9 @@
     "spike:all": "pnpm spike:relay && pnpm spike:anchor && pnpm spike:defindex && pnpm spike:soroswap",
     "spike:landing": "node --env-file=.env --import tsx spikes/landing.ts",
     "e2e:onboard": "node scripts/e2e-onboard.mjs",
-    "test": "NODE_OPTIONS=--expose-gc vitest run"
+    "test": "NODE_OPTIONS=--expose-gc vitest run",
+    "demo:deposit": "node --env-file=.env --import tsx scripts/demo-deposit.ts",
+    "e2e:deposit": "node --env-file=.env scripts/e2e-deposit.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

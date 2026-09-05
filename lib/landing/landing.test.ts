@@ -113,10 +113,12 @@ describe("landing account secret hygiene", () => {
     if (!gc) {
       throw new Error("run the tests with node --expose-gc (pnpm test) so this assertion can force a collection");
     }
-    for (let i = 0; i < 5 && ref!.deref(); i += 1) {
-      gc();
-      await new Promise((r) => setTimeout(r, 10));
-    }
+    // A WeakRef target stays alive until the end of the job that created or
+    // dereferenced it, so leave this job, collect, and only then dereference.
+    await new Promise((r) => setTimeout(r, 0));
+    gc();
+    await new Promise((r) => setTimeout(r, 0));
+    gc();
     expect(ref!.deref()).toBeUndefined();
   });
 

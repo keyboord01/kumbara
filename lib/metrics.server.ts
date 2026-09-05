@@ -7,14 +7,18 @@
 import "server-only";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
+import { assertNoSecret } from "./landing/secret-guard";
 
 export type MetricEvent =
   | { type: "account_created"; ts: number; network: string; projectId: string; ref: string | null; contractId: string | null; hash: string }
-  | { type: "relayed_tx"; ts: number; network: string; projectId: string; ref: string | null; hash: string; contract: string | null };
+  | { type: "relayed_tx"; ts: number; network: string; projectId: string; ref: string | null; hash: string; contract: string | null }
+  | { type: "deposit_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; depositId: string; anchorTx: string | null; forwardTx: string | null; vaultTx: string; usdc: string }
+  | { type: "withdrawal_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; withdrawalId: string; vaultTx: string | null; paymentTx: string | null; usdc: string; try: string | null };
 
 const FILE = path.join(process.cwd(), ".data", "events.ndjson");
 
 export async function recordEvent(event: MetricEvent): Promise<void> {
+  assertNoSecret(event, "metric event");
   try {
     await mkdir(path.dirname(FILE), { recursive: true });
     await appendFile(FILE, `${JSON.stringify(event)}\n`);

@@ -49,7 +49,7 @@ sequenceDiagram
 
 The anchor only pays and watches classic addresses, so each deposit and withdrawal passes through a throwaway classic "landing" account that nobody controls: after setup its only usable authorization is two pre-authorized transactions built for the exact quoted amount. Details, tradeoffs and the threat model are in [`docs/architecture.md`](docs/architecture.md); the measurements are in [`docs/anchor-notes.md`](docs/anchor-notes.md).
 
-Build status: Gate 0 (spikes) and Gate 1 (onboard + savings) are done. Deposit (Gate 2), withdraw (Gate 3), booth mode and metrics (Gate 4) and hardening (Gate 5) follow.
+Build status: Gate 0 (spikes), Gate 1 (onboard + savings) and Gate 2 (deposit round trip with the arrival autopilot) are done. Withdraw (Gate 3), booth mode and metrics (Gate 4) and hardening (Gate 5) follow.
 
 ## Integrations
 
@@ -93,12 +93,17 @@ pnpm build && pnpm start    # production build
 pnpm typecheck
 pnpm spike:all              # Gate 0 spikes against testnet (see spikes/README.md)
 pnpm spike:landing          # ten landing-account deposits + one withdrawal
+pnpm demo:deposit           # play the bank: simulate the TRY transfer for the newest pending deposit
+pnpm test                   # unit tests (landing-account secret hygiene and lock invariants)
 APP_URL=http://localhost:3000 pnpm e2e:onboard   # Chrome + virtual passkey, live testnet
+APP_URL=http://localhost:3000 pnpm e2e:deposit   # onboard → deposit 100 TRY → vault, live testnet
 ```
+
+Deposit rehearsal: open the app, tap Deposit, enter an amount, and when the IBAN screen shows, run `pnpm demo:deposit` in a terminal. The app detects the lira, runs the landing-account on-ramp, moves the USDC into the kumbara, and asks for one Face ID approval to put it in the vault. Records live under `.data/kumbara/` locally.
 
 ## Demo
 
-Live URL and demo video: to be added when Gate 5 lands. Until then, `pnpm e2e:onboard` performs the onboarding in a real browser against testnet and prints the created kumbara's address.
+Live URL and demo video: to be added when Gate 5 lands. Until then, `pnpm e2e:onboard` and `pnpm e2e:deposit` perform the flows in a real browser against testnet and print the created kumbara's address and the transaction links.
 
 ## Resources used
 

@@ -73,6 +73,14 @@ export async function anchorCall<T>(method: string, path: string, body?: unknown
   return json as T;
 }
 
+/**
+ * The sandbox's documented test IBAN. The anchor pays simulated TRY payouts to
+ * the customer's IBAN; Kumbara collects no bank details itself, so every
+ * sandbox customer is created with this value. A production anchor collects
+ * the real IBAN in its own KYC flow.
+ */
+export const SANDBOX_TEST_IBAN = "TR330006100519786457841326";
+
 export class AnchorHttpError extends Error {
   constructor(
     readonly status: number,

@@ -45,6 +45,22 @@ sequenceDiagram
 - **Price**: the TRY equivalent shown on the Savings screen comes from Reflector's foreign-exchange oracle on Stellar mainnet (USD/TRY, 14 decimals, 5-minute resolution), with the anchor's mid rate as fallback.
 - **Booth counter**: `/api/relay` records project id, timestamp, network, booth ref and the transaction hash for every relayed submission. Nothing else is tracked.
 
+## Deposit pipeline (Gate 2)
+
+`lib/deposit.server.ts` runs the deposit as a state machine that advances one step per poll from the browser, so it fits ordinary request handlers and survives reloads (the record lives in the store, the browser resumes the active deposit on load):
+
+| Status | What happened / what the next poll does |
+| --- | --- |
+| `awaiting_transfer` | Indicative quote and the anchor's IBAN + reference are shown. The poll watches the customer's TRY balance rise by at least 50 TRY over the baseline recorded at creation. |
+| `transfer_received` | Firm quote for the received amount, sponsor balance check, landing account created and locked for the quoted USDC, on-ramp created with the quote id and the landing address. |
+| `onramp_pending` | Waits for the anchor's settlement worker. Paid amount must equal the quote; otherwise `failed` with `amount_mismatch` and the funds parked in the ownerless landing account. |
+| `onramp_paid` | Pre-authorized forward submitted through the relay: USDC lands in the smart account. |
+| `forwarded` | Pre-authorized cleanup through the relay: trustline dropped, reserves back to the sponsor (a cleanup failure is recorded, never blocks the user). |
+| `in_wallet` | Arrival autopilot in the browser: `vault.deposit` signed with the passkey and relayed; the browser reports the hash. |
+| `in_vault` | Done. A `deposit_completed` counter event is recorded with the three hashes. |
+
+Anchor or relay outages and an under-funded sponsor are transient: the status stays and the next poll retries (six attempts per step before `failed`). `pnpm demo:deposit` plays the bank for the newest pending deposit so the flow can be rehearsed identically every time; measured in `scripts/e2e-deposit.mjs`, the USDC is in the vault about 60 s after the simulated transfer.
+
 ## Design tradeoffs
 
 **Per-user contract wallets over pooled custody.** A pooled account would make the anchor integration trivial (one G… address) and remove the landing-account machinery. It would also make Kumbara a custodian of user USDC, which is exactly what the regulatory note in the README says it is not. Contract wallets cost one deployment per user (paid by the relay) and the landing-account detour; they keep the user's funds under the user's passkey alone.

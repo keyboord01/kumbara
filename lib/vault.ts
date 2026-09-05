@@ -46,3 +46,36 @@ export async function readVaultPosition(rpcUrl: string, passphrase: string, vaul
   const activeStrategy = assets.some((a) => a.strategies.some((s) => !s.paused));
   return { shares: BigInt(shares), usdc, name, activeStrategy };
 }
+
+/** SEP-41 `balance(id)` of any G… or C… address, in stroops. */
+export async function readTokenBalance(rpcUrl: string, passphrase: string, tokenContract: string, address: string): Promise<bigint> {
+  const server = new rpc.Server(rpcUrl);
+  const value = (await read(server, passphrase, tokenContract, "balance", [Address.fromString(address).toScVal()])) as bigint;
+  return BigInt(value);
+}
+
+export interface VaultTotals {
+  totalSupply: bigint;
+  totalAssets: bigint;
+}
+
+/** Share supply and total managed USDC, for converting an amount into shares. */
+export async function readVaultTotals(rpcUrl: string, passphrase: string, vaultId: string): Promise<VaultTotals> {
+  const server = new rpc.Server(rpcUrl);
+  const [supply, managed] = await Promise.all([
+    read(server, passphrase, vaultId, "total_supply") as Promise<bigint>,
+    read(server, passphrase, vaultId, "fetch_total_managed_funds") as Promise<Array<{ total_amount: bigint }>>,
+  ]);
+  return { totalSupply: BigInt(supply), totalAssets: BigInt(managed[0]?.total_amount ?? 0n) };
+}
+
+/**
+ * Shares to burn so the vault pays out at least `amount` (stroops): the
+ * proportional amount rounded up plus one share of slack. Any excess USDC
+ * simply stays in the kumbara.
+ */
+export function sharesForAmount(amount: bigint, totals: VaultTotals): bigint {
+  if (totals.totalSupply === 0n || totals.totalAssets === 0n) return amount;
+  const exact = (amount * totals.totalSupply + totals.totalAssets - 1n) / totals.totalAssets;
+  return exact + 1n;
+}

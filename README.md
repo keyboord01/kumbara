@@ -49,7 +49,7 @@ sequenceDiagram
 
 The anchor only pays and watches classic addresses, so each deposit and withdrawal passes through a throwaway classic "landing" account that nobody controls: after setup its only usable authorization is two pre-authorized transactions built for the exact quoted amount. Details, tradeoffs and the threat model are in [`docs/architecture.md`](docs/architecture.md); the measurements are in [`docs/anchor-notes.md`](docs/anchor-notes.md).
 
-Build status: Gate 0 (spikes), Gate 1 (onboard + savings) and Gate 2 (deposit round trip with the arrival autopilot) are done. Withdraw (Gate 3), booth mode and metrics (Gate 4) and hardening (Gate 5) follow.
+Build status: Gate 0 (spikes), Gate 1 (onboard + savings), Gate 2 (deposit round trip with the arrival autopilot) and Gate 3 (withdraw round trip to a simulated FAST payout) are done. Booth mode and metrics (Gate 4) and hardening (Gate 5) follow.
 
 ## Integrations
 
@@ -97,6 +97,7 @@ pnpm demo:deposit           # play the bank: simulate the TRY transfer for the n
 pnpm test                   # unit tests (landing-account secret hygiene and lock invariants)
 APP_URL=http://localhost:3000 pnpm e2e:onboard   # Chrome + virtual passkey, live testnet
 APP_URL=http://localhost:3000 pnpm e2e:deposit   # onboard → deposit 100 TRY → vault, live testnet
+APP_URL=http://localhost:3000 pnpm e2e:withdraw  # … → withdraw 1 USDC → simulated FAST payout
 ```
 
 Deposit rehearsal: open the app, tap Deposit, enter an amount, and when the IBAN screen shows, run `pnpm demo:deposit` in a terminal. The app detects the lira, runs the landing-account on-ramp, moves the USDC into the kumbara, and asks for one Face ID approval to put it in the vault. Records live under `.data/kumbara/` locally.

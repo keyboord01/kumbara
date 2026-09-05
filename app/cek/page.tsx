@@ -1,20 +1,401 @@
 "use client";
 
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
+import { buildContractCallTransaction, buildTransferTransaction, toSembolError, usePasskeyWallet, useSignTransaction, useSpendingPolicy, type SembolError } from "@sembol/passkey-react";
+import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
+import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
+import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
+import { useAnchorInfo } from "@/lib/useAnchorInfo";
+import { readVaultPosition, readVaultTotals, sharesForAmount, type VaultPosition } from "@/lib/vault";
 
-export default function SoonPage() {
-  const { t } = useLocale();
+type WithdrawalStatus = "created" | "awaiting_usdc" | "usdc_sent" | "paid" | "completed" | "failed";
+
+interface WithdrawalRecord {
+  id: string;
+  status: WithdrawalStatus;
+  amountUsdc: string;
+  quote: { tryOut: string; rate: string; spreadBps: number };
+  memoId: string;
+  payoutIban: string | null;
+  landing?: { publicKey: string };
+  vaultTxHash?: string;
+  transferTxHash?: string;
+  paymentTxHash?: string;
+  receivedUsdc?: string;
+  amountTry?: string;
+  payoutId?: string;
+  error?: { code: string; message: string };
+  lastError?: { at: string; message: string };
+}
+
+const FINAL: WithdrawalStatus[] = ["completed", "failed"];
+const toStroops = (amount: string): bigint => {
+  const [whole = "0", frac = ""] = amount.replace(",", ".").split(".");
+  return BigInt(whole || "0") * 10_000_000n + BigInt((frac + "0000000").slice(0, 7));
+};
+const floor2 = (stroops: bigint): string => {
+  const cents = stroops / 100_000n;
+  return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
+};
+
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
+  const body = (await res.json()) as T & { error?: { code: string; message: string } };
+  if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+  return body;
+}
+
+function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
-    <RequireWallet>
-      <div className="card mx-auto flex max-w-md flex-col gap-3 p-8 text-center">
-        <p className="text-lg font-semibold">{t.soon.title}</p>
-        <p className="text-sm text-ink-2">{t.soon.body}</p>
-        <Link href="/kumbara" className="btn-secondary mx-auto">
-          {t.soon.back}
+    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-teal hover:underline">
+      {label} · {NETWORK_LABEL} ↗
+    </a>
+  );
+}
+
+function maskIban(iban: string | null): string {
+  if (!iban) return "–";
+  return `${iban.slice(0, 4)} …${iban.slice(-4)}`;
+}
+
+function Withdraw() {
+  const { t, locale } = useLocale();
+  const { kit, address } = usePasskeyWallet();
+  const { info } = useAnchorInfo();
+  const { signAndSubmit } = useSignTransaction();
+  const usdcToken = info ? { contractId: info.usdc.contractId } : ("native" as const);
+  const { policy } = useSpendingPolicy(usdcToken);
+  const [view, setView] = useState<"loading" | "form" | "progress">("loading");
+  const [position, setPosition] = useState<VaultPosition | null>(null);
+  const [amount, setAmount] = useState("1");
+  const [quote, setQuote] = useState<{ tryOut: string; rate: string; spreadBps: number } | null>(null);
+  const [record, setRecord] = useState<WithdrawalRecord | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [client, setClient] = useState<"idle" | "vault" | "transfer" | "needs_tap" | "done">("idle");
+  const [clientError, setClientError] = useState<SembolError | null>(null);
+  const vaultTx = useRef<string | null>(null);
+  const started = useRef(false);
+
+  const loadPosition = useCallback(async () => {
+    if (!info || !address) return;
+    try {
+      setPosition(await readVaultPosition(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id, address));
+    } catch {
+      /* retried by the next call */
+    }
+  }, [info, address]);
+
+  useEffect(() => {
+    if (!address) return;
+    let alive = true;
+    void loadPosition();
+    api<{ active: WithdrawalRecord | null }>(`/api/withdraw?contractId=${address}`)
+      .then((res) => {
+        if (!alive) return;
+        if (res.active) {
+          setRecord(res.active);
+          setView("progress");
+        } else {
+          setView("form");
+        }
+      })
+      .catch((err: unknown) => {
+        if (!alive) return;
+        setError(err instanceof Error ? err.message : String(err));
+        setView("form");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [address, loadPosition]);
+
+  // Indicative sell quote, debounced.
+  useEffect(() => {
+    if (view !== "form" || !address) return;
+    const stroops = toStroops(amount || "0");
+    if (stroops < 10_000_000n) {
+      setQuote(null);
+      return;
+    }
+    const handle = setTimeout(() => {
+      api<{ tryOut: string; rate: string; spreadBps: number }>(`/api/withdraw/quote?contractId=${address}&amountUsdc=${encodeURIComponent(amount.replace(",", "."))}`)
+        .then(setQuote)
+        .catch(() => setQuote(null));
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [amount, address, view]);
+
+  // Poll while the server side has work to do.
+  useEffect(() => {
+    if (!record || FINAL.includes(record.status)) return;
+    const id = setInterval(() => {
+      api<WithdrawalRecord>(`/api/withdraw/${record.id}`)
+        .then((next) => setRecord(next))
+        .catch(() => undefined);
+    }, 3000);
+    return () => clearInterval(id);
+  }, [record?.id, record?.status]);
+
+  // The browser's part: vault withdrawal, then the transfer to the landing account.
+  const runClientSteps = useCallback(async () => {
+    if (!record || !kit || !info || !address) return;
+    setClientError(null);
+    try {
+      const amountStroops = toStroops(record.amountUsdc);
+      if (!vaultTx.current) {
+        setClient("vault");
+        const totals = await readVaultTotals(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id);
+        const shares = sharesForAmount(amountStroops, totals);
+        const tx = await buildContractCallTransaction(kit, {
+          contractId: info.vault.id,
+          method: "withdraw",
+          args: [nativeToScVal(shares, { type: "i128" }), xdr.ScVal.scvVec([nativeToScVal(amountStroops, { type: "i128" })]), Address.fromString(address).toScVal()],
+        });
+        const result = await signAndSubmit(tx);
+        vaultTx.current = result.hash;
+      }
+      if (!record.landing) return; // landing not ready yet; the poll effect re-triggers
+      setClient("transfer");
+      const transfer = await buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing.publicKey, amount: record.amountUsdc });
+      const sent = await signAndSubmit(transfer);
+      const next = await api<WithdrawalRecord>(`/api/withdraw/${record.id}/sent`, { method: "POST", body: JSON.stringify({ vaultTx: vaultTx.current, transferTx: sent.hash }) });
+      setRecord(next);
+      setClient("done");
+    } catch (err) {
+      const sembolError = toSembolError(err);
+      console.error("[kumbara] withdraw client step failed", sembolError.code, sembolError.message);
+      setClientError(sembolError);
+      setClient("needs_tap");
+    }
+  }, [record, kit, info, address, signAndSubmit]);
+
+  useEffect(() => {
+    if (!record || !kit || !info) return;
+    if (record.status === "created" && !started.current) {
+      started.current = true;
+      void runClientSteps(); // vault withdrawal overlaps with the server building the landing account
+    } else if (record.status === "awaiting_usdc" && vaultTx.current && client !== "transfer" && client !== "done" && client !== "needs_tap") {
+      void runClientSteps();
+    }
+  }, [record, kit, info, client, runClientSteps]);
+
+  const start = async () => {
+    if (!address) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const created = await api<WithdrawalRecord>("/api/withdraw", { method: "POST", body: JSON.stringify({ contractId: address, amountUsdc: amount.replace(",", ".") }) });
+      setRecord(created);
+      setView("progress");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const reset = () => {
+    setRecord(null);
+    setClient("idle");
+    vaultTx.current = null;
+    started.current = false;
+    void loadPosition();
+    setView("form");
+  };
+
+  const amountStroops = toStroops(amount || "0");
+  const overLimit = policy ? amountStroops > policy.limit : false;
+  const overBalance = position ? amountStroops > position.usdc : false;
+  const amountValid = amountStroops >= 10_000_000n && !overBalance && !overLimit;
+
+  if (view === "loading") {
+    return (
+      <p className="py-16 text-center text-sm text-muted" role="status">
+        {t.savings.loading}
+      </p>
+    );
+  }
+
+  if (view === "form") {
+    return (
+      <div className="flex flex-col gap-5 py-2">
+        <div className="flex items-baseline justify-between">
+          <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
+          <Link href="/kumbara" className="text-sm text-teal hover:underline">
+            {t.withdraw.backToSavings}
+          </Link>
+        </div>
+        <form
+          className="card flex flex-col gap-4 p-5"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (amountValid) void start();
+          }}
+        >
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-ink-2">
+              {t.withdraw.available}: <strong className="tnum">{position ? `${formatUsdc(position.usdc, locale)} USDC` : "…"}</strong>
+            </p>
+            <NetworkBadge />
+          </div>
+          <label className="flex flex-col gap-2">
+            <span className="font-semibold">{t.withdraw.lead}</span>
+            <span className="microlabel">{t.withdraw.amountLabel}</span>
+            <input
+              type="number"
+              inputMode="decimal"
+              min={1}
+              step="0.01"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              className="tnum rounded-xl border border-line bg-paper px-4 py-3 text-2xl font-semibold outline-none focus:border-teal"
+            />
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => position && setAmount(floor2(position.usdc))} className="btn-secondary min-h-9 px-3 text-sm" disabled={!position || position.usdc < 10_000_000n}>
+              {t.withdraw.all}
+            </button>
+          </div>
+          <p className="text-xs text-muted">{t.withdraw.min}</p>
+          {quote && (
+            <div className="rounded-xl bg-paper-2 p-3">
+              <p className="microlabel">{t.withdraw.quoteTitle}</p>
+              <p className="tnum text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
+              <p className="tnum text-xs text-ink-2">
+                {t.withdraw.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({quote.spreadBps} bps {t.withdraw.spread}) · {t.withdraw.indicative}
+              </p>
+            </div>
+          )}
+          {overLimit && policy && (
+            <p className="rounded-xl border border-amber/40 bg-amber/5 p-3 text-sm text-ink-2" role="alert">
+              {t.withdraw.limitBlocked} ({formatUsdc(policy.limit, locale)} USDC).{" "}
+              <Link href="/kumbara/guvenlik" className="text-teal underline">
+                {t.withdraw.limitLink}
+              </Link>
+            </p>
+          )}
+          {error && (
+            <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
+              {error}
+            </p>
+          )}
+          <p className="text-xs text-muted">{t.withdraw.payoutHint}</p>
+          <button type="submit" disabled={!amountValid || submitting || !address} className="btn-primary w-full text-lg">
+            {submitting ? t.savings.loading : t.withdraw.continue}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  if (!record) return null;
+  const clientLabel = client === "vault" ? t.withdraw.stepVault : client === "transfer" ? t.withdraw.stepTransfer : null;
+
+  return (
+    <div className="flex flex-col gap-5 py-2">
+      <div className="flex items-baseline justify-between">
+        <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
+        <Link href="/kumbara" className="text-sm text-teal hover:underline">
+          {t.withdraw.backToSavings}
         </Link>
       </div>
+
+      <section className="card p-5" aria-label={t.withdraw.quoteTitle}>
+        <div className="flex items-center justify-between">
+          <p className="microlabel">{t.withdraw.quoteTitle}</p>
+          <NetworkBadge />
+        </div>
+        <p className="tnum mt-2 text-3xl font-bold">{formatTry(Number(record.amountTry ?? record.quote.tryOut), locale)}</p>
+        <p className="tnum mt-1 text-sm text-ink-2">
+          {formatUsdc(record.amountUsdc, locale)} USDC · {t.withdraw.rateLine} {Number(record.quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC
+        </p>
+        <p className="mt-1 text-sm text-ink-2">
+          {t.withdraw.payoutTo}: <span className="font-mono">{maskIban(record.payoutIban)}</span>
+        </p>
+      </section>
+
+      <section className="card p-5" aria-label={t.deposit.statusTitle}>
+        <p className="microlabel">{t.deposit.statusTitle}</p>
+        <p className="mt-2 text-base font-semibold" role="status" aria-live="polite" data-testid="withdraw-current">
+          {t.withdraw.steps[record.status]}
+        </p>
+        {clientLabel && record.status !== "completed" && (
+          <p className="mt-1 text-sm text-ink-2" role="status">
+            {clientLabel}
+          </p>
+        )}
+        {client === "needs_tap" && !FINAL.includes(record.status) && (
+          <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
+            <p className="text-sm text-ink-2">
+              {clientError?.code === "spending_limit_exceeded" ? (
+                <>
+                  {t.withdraw.limitBlocked}.{" "}
+                  <Link href="/kumbara/guvenlik" className="text-teal underline">
+                    {t.withdraw.limitLink}
+                  </Link>
+                </>
+              ) : clientError?.code === "user_cancelled" ? (
+                t.withdraw.needsTap
+              ) : (
+                (clientError?.userMessage ?? t.withdraw.needsTap)
+              )}
+            </p>
+            <button type="button" onClick={() => void runClientSteps()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
+              {vaultTx.current ? t.withdraw.tapTransfer : t.withdraw.tapVault}
+            </button>
+          </div>
+        )}
+        {record.status === "failed" && (
+          <p className="mt-2 rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
+            {record.error?.message ?? record.lastError?.message}
+          </p>
+        )}
+        {record.status === "completed" && (
+          <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
+            <dt className="text-muted">{t.withdraw.receivedTry}</dt>
+            <dd className="tnum text-right font-semibold" data-testid="withdraw-try">
+              {formatTry(Number(record.amountTry ?? record.quote.tryOut), locale)}
+            </dd>
+            <dt className="text-muted">{t.withdraw.payout}</dt>
+            <dd className="text-right font-mono text-xs" data-testid="withdraw-payout">
+              {record.payoutId ?? "–"}
+            </dd>
+          </dl>
+        )}
+        {(vaultTx.current || record.vaultTxHash || record.transferTxHash || record.paymentTxHash) && (
+          <div className="mt-4 flex flex-col gap-1">
+            {(record.vaultTxHash ?? vaultTx.current) && <TxLink hash={(record.vaultTxHash ?? vaultTx.current) as string} label={t.withdraw.links.vault} />}
+            {record.transferTxHash && <TxLink hash={record.transferTxHash} label={t.withdraw.links.transfer} />}
+            {record.paymentTxHash && <TxLink hash={record.paymentTxHash} label={t.withdraw.links.payment} />}
+          </div>
+        )}
+      </section>
+
+      <div className="flex flex-col gap-2">
+        {record.status === "completed" && (
+          <Link href="/kumbara" className="btn-primary w-full">
+            {t.withdraw.backToSavings}
+          </Link>
+        )}
+        {FINAL.includes(record.status) && (
+          <button type="button" onClick={reset} className="btn-secondary w-full">
+            {t.withdraw.newWithdrawal}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default function WithdrawPage() {
+  return (
+    <RequireWallet>
+      <Withdraw />
     </RequireWallet>
   );
 }

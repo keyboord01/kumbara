@@ -62,6 +62,20 @@ sequenceDiagram
 
 Anchor or relay outages and an under-funded sponsor are transient: the status stays and the next poll retries (six attempts per step before `failed`). `pnpm demo:deposit` plays the bank for the newest pending deposit so the flow can be rehearsed identically every time; measured in `scripts/e2e-deposit.mjs`, the USDC is in the vault about 60 s after the simulated transfer.
 
+## Withdrawal pipeline (Gate 3)
+
+`lib/withdraw.server.ts` mirrors the deposit pipeline with the reverse landing account:
+
+| Status | What happened / what the next poll does |
+| --- | --- |
+| `created` | Off-ramp opened at the anchor (treasury address + memo id, rate locked 30 min), sell quote shown. The next poll checks the sponsor and builds the landing account whose pre-authorized payment carries the memo id. Meanwhile the browser already withdraws from the vault (first passkey approval). |
+| `awaiting_usdc` | The browser transfers the exact amount from the kumbara to the landing account (second passkey approval; this is the transfer the spending limit applies to) and reports both hashes. |
+| `usdc_sent` | Landing balance verified on-chain, pre-authorized classic payment to the treasury with the memo relayed. |
+| `paid` | Waits for the anchor to match the memo, convert and pay out (simulated FAST to the customer's IBAN). |
+| `completed` | Payout reference and TRY amount recorded, cleanup relayed, `withdrawal_completed` counter event. |
+
+Amounts above the spending limit are refused in the form with a link to the security page, and an on-chain `spending_limit_exceeded` rejection is shown the same way. The vault withdrawal burns just enough shares to pay out at least the requested amount; any excess USDC stays in the kumbara.
+
 ## Design tradeoffs
 
 **Per-user contract wallets over pooled custody.** A pooled account would make the anchor integration trivial (one G… address) and remove the landing-account machinery. It would also make Kumbara a custodian of user USDC, which is exactly what the regulatory note in the README says it is not. Contract wallets cost one deployment per user (paid by the relay) and the landing-account detour; they keep the user's funds under the user's passkey alone.

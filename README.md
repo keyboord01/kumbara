@@ -93,13 +93,36 @@ pnpm build && pnpm start    # production build
 pnpm typecheck
 pnpm spike:all              # Gate 0 spikes against testnet (see spikes/README.md)
 pnpm spike:landing          # ten landing-account deposits + one withdrawal
-pnpm demo:deposit           # play the bank: simulate the TRY transfer for the newest pending deposit
+pnpm demo:deposit           # play the bank: simulate the TRY transfer for the newest pending deposit (or use /booth/admin)
 pnpm test                   # unit tests (landing-account secret hygiene and lock invariants)
 APP_URL=http://localhost:3000 pnpm e2e:onboard   # Chrome + virtual passkey, live testnet
 APP_URL=http://localhost:3000 pnpm e2e:deposit   # onboard → deposit 100 TRY → vault, live testnet
 ```
 
 Deposit rehearsal: open the app, tap Deposit, enter an amount, and when the IBAN screen shows, run `pnpm demo:deposit` in a terminal. The app detects the lira, runs the landing-account on-ramp, moves the USDC into the kumbara, and asks for one Face ID approval to put it in the vault. Records live under `.data/kumbara/` locally.
+
+### Deploy to Fly.io
+
+One machine with a volume; records and counter events live in SQLite on `/data`.
+
+```bash
+fly launch --no-deploy --copy-config --name kumbara     # uses fly.toml and the Dockerfile
+fly volumes create kumbara_data --region fra --size 1
+fly secrets set ANCHOR_API_KEY=trma_test_… SEMBOL_PROJECT_KEY=… SPONSOR_SECRET=S… BOOTH_ADMIN_TOKEN=…
+fly deploy
+```
+
+Non-secret configuration is in `fly.toml` (`[env]`); `NEXT_PUBLIC_STELLAR_NETWORK` is a build argument because it is baked into the browser bundle. `/api/health` is the machine's health check. `DATA_DIR` points the SQLite file elsewhere for local runs (default `./.data`; a relative path resolves against the server's working directory). To run the exact standalone server the image runs, locally:
+
+```bash
+pnpm build
+ln -sfn "$(pwd)/.next/static" .next/standalone/.next/static   # the Dockerfile copies this
+PORT=3100 node --env-file=.env .next/standalone/server.js
+```
+
+### Presenter controls
+
+`/booth/admin` (not linked anywhere, `noindex`) shows the newest deposit waiting for a bank transfer and has one button, "Bankayı oynat / Play the bank", which does exactly what `pnpm demo:deposit` does. It requires `BOOTH_ADMIN_TOKEN` (12+ characters), passed once as `?token=` (removed from the URL immediately) or typed into the page, and sent as a bearer header; nothing is stored in the browser.
 
 ## Demo
 

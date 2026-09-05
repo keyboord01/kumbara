@@ -1,0 +1,53 @@
+# Kumbara on Fly.io: one machine in Frankfurt with a 1 GB volume at /data for
+# the SQLite records and counter events. Secrets are set with `fly secrets set`:
+#   ANCHOR_API_KEY, SEMBOL_PROJECT_KEY, SPONSOR_SECRET, BOOTH_ADMIN_TOKEN
+app = "kumbara"
+primary_region = "fra"
+
+[build]
+  [build.args]
+    NEXT_PUBLIC_STELLAR_NETWORK = "testnet"
+
+[env]
+  PORT = "3000"
+  DATA_DIR = "/data"
+  STELLAR_NETWORK = "testnet"
+  STELLAR_RPC_URL = "https://soroban-testnet.stellar.org"
+  ANCHOR_BASE_URL = "https://tr-mock-anchor.fly.dev"
+  SEMBOL_CLOUD_URL = "https://channels.openzeppelin.com/testnet"
+  SEMBOL_PROJECT_ID = "kumbara"
+  DEFINDEX_VAULT_ID = "CBUEZTX2U7GBOOAWIFQW2QOYW6DVQJNCMSLR2I6JCD3RJQLW67VJ5ZNV"
+  SOROSWAP_ENABLED = "false"
+  ONRAMP_MODE = "landing"
+  OFFRAMP_MODE = "landing"
+  BOOTH_START_TS = "1758268800"
+  MAINNET_DEMO_ENABLED = "false"
+
+[http_service]
+  internal_port = 3000
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 100
+    hard_limit = 200
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "30s"
+    method = "GET"
+    path = "/api/health"
+
+[mounts]
+  source = "kumbara_data"
+  destination = "/data"
+  initial_size = "1gb"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

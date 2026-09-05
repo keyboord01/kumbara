@@ -57,15 +57,28 @@ try {
   const iban = await page.locator("dd .font-mono").first().textContent();
   log("IBAN:", iban?.trim());
 
-  log("simulate the bank transfer (what pnpm demo:deposit does)");
-  const res = await fetch(`${ANCHOR}/v1/sandbox/bank-transfers`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "X-API-Key": KEY },
-    body: JSON.stringify({ reference, amount_try: "100.00", sender_name: "E2E" }),
-  });
-  const bt = await res.json();
-  if (!res.ok) throw new Error(`sandbox transfer failed: ${JSON.stringify(bt)}`);
-  log(`bank transfer ${bt.id} ${bt.status}`);
+  const adminToken = process.env.BOOTH_ADMIN_TOKEN?.trim();
+  if (adminToken) {
+    log("play the bank from the presenter page (/booth/admin)");
+    const admin = await context.newPage();
+    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(adminToken)}`, { waitUntil: "networkidle" });
+    if (admin.url().includes("token=")) throw new Error("admin token was not removed from the URL");
+    await admin.getByText(reference).first().waitFor({ timeout: 20000 });
+    await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
+    await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
+    log("  admin page:", ((await admin.locator("[role=status]").first().textContent()) ?? "").trim());
+    await admin.close();
+  } else {
+    log("simulate the bank transfer directly (what pnpm demo:deposit does)");
+    const res = await fetch(`${ANCHOR}/v1/sandbox/bank-transfers`, {
+      method: "POST",
+      headers: { "content-type": "application/json", "X-API-Key": KEY },
+      body: JSON.stringify({ reference, amount_try: "100.00", sender_name: "E2E" }),
+    });
+    const bt = await res.json();
+    if (!res.ok) throw new Error(`sandbox transfer failed: ${JSON.stringify(bt)}`);
+    log(`bank transfer ${bt.id} ${bt.status}`);
+  }
 
   const transferAt = Date.now();
   let last = "";

@@ -125,3 +125,16 @@ Two relay facts shaped the envelopes: OpenZeppelin Channels treats an envelope w
 - **Time**: 40.7–50.9 s per deposit end to end (about 25 s of that is the two sponsor transactions plus the anchor's settlement worker).
 
 **Reverse landing account (withdrawal)**: off-ramp `ofr_ai5okm1w4nvuv09q89th` → landing `GDOD4WQL…` (create `e3e7ef89…`, lock `7d51460f…`) → the smart account paid 2 USDC to it with the passkey via the relay (`c9174308…`) → the pre-authorized classic payment to the treasury with memo id, fee-bumped by the relay (`cee3f93f…`) → the anchor matched it and completed the off-ramp: received 2.0000000 USDC → 96.39 TRY, payout `po_gktucan14xmwxwdi824y` → cleanup via relay (`a3bb546c…`), sponsor Δ -0.0000900 XLM. This closes the off-ramp detection gap from §5 without any anchor change.
+
+### Envelopes co-signed by the landing key
+
+For the record, and matching the threat model in `architecture.md`, the landing master key produces exactly four signatures, all inside `createLandingAccount` in `lib/landing/landing.ts`, before the key is zeroed in place and dropped:
+
+| # | Envelope | Source | Why the landing key signs |
+| --- | --- | --- | --- |
+| 1 | creation (sponsored `createAccount` + `changeTrust`) | sponsor | the trustline and the `endSponsoringFutureReserves` operations have the landing account as their source |
+| 2 | forward (pre-authorized, seq+1) | landing | co-signature that counts as weight 1 next to the pre-authorized hash when the relay fee-bumps it |
+| 3 | cleanup (pre-authorized, seq+2) | landing | same, for the trustline removal and merge |
+| 4 | lock (`setOptions` ×3 under sponsorship) | sponsor | the signer and threshold changes have the landing account as their source |
+
+Nothing else is ever signed with it, and the unit test asserts that the key's signature hint appears on exactly these four envelopes.

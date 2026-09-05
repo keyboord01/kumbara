@@ -160,6 +160,18 @@ describe("landing account lock invariants", () => {
     const thresholds = lockOps[3] as { masterWeight: number; lowThreshold: number; medThreshold: number; highThreshold: number };
     expect(thresholds).toMatchObject({ masterWeight: 1, lowThreshold: 2, medThreshold: 2, highThreshold: 2 });
 
+    // The landing key signs exactly four envelopes: creation, lock, forward, cleanup.
+    const landingHint = Keypair.fromPublicKey(plan.publicKey).signatureHint();
+    const hintsOf = (tx: Transaction) => tx.signatures.map((sig) => Buffer.from(sig.hint()));
+    const signedByLanding = (tx: Transaction) => hintsOf(tx).filter((h) => h.equals(landingHint)).length;
+    expect(signedByLanding(createTx!)).toBe(1);
+    expect(signedByLanding(lockTx!)).toBe(1);
+    expect(signedByLanding(forward)).toBe(1);
+    expect(signedByLanding(cleanup)).toBe(1);
+    expect(createTx!.signatures.length).toBe(2);
+    expect(lockTx!.signatures.length).toBe(2);
+    expect(fake.submitted.length).toBe(2);
+
     // Sequence numbers, co-signatures, no time bounds, forward fee = resource fee + base fee.
     const landingSeq = BigInt((await fake.deps.server.getAccount(plan.publicKey)).sequenceNumber());
     expect(BigInt(forward.sequence)).toBe(landingSeq + 1n);

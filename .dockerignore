@@ -1,0 +1,12 @@
+node_modules
+.next
+.data
+.data-start.log
+.env
+.env.*
+!.env.example
+.git
+spikes/.out
+spikes/.state.json
+docs/spike-findings
+*.log

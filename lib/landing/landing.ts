@@ -21,9 +21,12 @@
  *      longer be changed. (The co-signature must count: Stellar rejects
  *      envelopes carrying signatures it did not need, and the relay treats an
  *      envelope with no signatures as an unsigned func/auth request.)
- *   D. the landing secret is wiped in place and dropped. Only the public key
- *      and the two signed envelopes leave this function. Nothing here logs,
- *      stores or returns the secret; `assertNoSecret` guards the plan.
+ *   D. the landing secret is wiped in place and dropped. In total it signs
+ *      four envelopes: the two sponsor transactions of steps A and C (as the
+ *      source of its own operations) and the two pre-authorized envelopes of
+ *      step B. Only the public key and those envelopes leave this function.
+ *      Nothing here logs, stores or returns the secret; `assertNoSecret`
+ *      guards the plan.
  *
  * Later, forward and cleanup are submitted through the relay, which fee-bumps
  * them. They carry no time bound (a relay outage delays, never invalidates)

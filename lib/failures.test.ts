@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ApiError } from "./api";
-import { classifyError, classifyRecordError } from "./failures";
+import { StepTimeoutError, classifyError, classifyRecordError, withTimeout } from "./failures";
 
 function sembol(code: string, message: string) {
   return { code, message, userMessage: message, recoverable: true, name: "SembolError" };
@@ -40,6 +40,13 @@ describe("classifyError", () => {
     expect(classifyError(new ApiError(422, "insufficient_vault_balance", "holds 0.5")).kind).toBe("insufficient_balance");
     expect(classifyError(new ApiError(422, "amount_out_of_range", "50..250000")).kind).toBe("invalid_amount");
     expect(classifyError(new ApiError(409, "quote_expired", "quote expired")).kind).toBe("quote_expired");
+  });
+
+  it("turns a hung step into a retryable failure", async () => {
+    await expect(withTimeout(new Promise(() => undefined), 5, "vault deposit")).rejects.toBeInstanceOf(StepTimeoutError);
+    await expect(withTimeout(Promise.resolve(42), 50, "x")).resolves.toBe(42);
+    expect(classifyError(new StepTimeoutError("vault deposit did not finish within 120 s"), "vault").kind).toBe("vault_rejected");
+    expect(classifyError(new StepTimeoutError("deploy did not finish within 120 s"), "relay").kind).toBe("relay_unreachable");
   });
 
   it("classifies stored pipeline failures", () => {

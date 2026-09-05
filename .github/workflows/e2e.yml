@@ -75,7 +75,7 @@ jobs:
           ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
         run: |
-          touch .env
+          mkdir -p .data && touch .env
           node scripts/e2e-onboard.mjs
           node scripts/e2e-deposit.mjs
           node scripts/e2e-withdraw.mjs
@@ -119,7 +119,7 @@ jobs:
       - name: Onboard
         id: onboard
         if: steps.preflight.outputs.skip != 'true'
-        run: touch .env && node scripts/e2e-onboard.mjs
+        run: mkdir -p .data && touch .env && node scripts/e2e-onboard.mjs
       - name: Deposit
         id: deposit
         if: steps.preflight.outputs.skip != 'true'

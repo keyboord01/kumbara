@@ -10,7 +10,7 @@ import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
 import { api } from "@/lib/api";
 import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
-import { classifyError, classifyRecordError, type Failure } from "@/lib/failures";
+import { classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -47,6 +47,8 @@ interface Quote {
 
 const FINAL: WithdrawalStatus[] = ["completed", "failed"];
 const QUOTE_TTL_MS = 120_000;
+/** A client step (simulation + passkey + relay) that takes longer than this becomes a retryable failure. */
+const STEP_TIMEOUT_MS = 120_000;
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 const toStroops = (amount: string): bigint => {
   const [whole = "0", frac = ""] = amount.replace(",", ".").split(".");
@@ -190,14 +192,18 @@ function Withdraw() {
       const amountStroops = toStroops(record.amountUsdc);
       if (!vaultTx.current) {
         setClient("vault");
-        const totals = await readVaultTotals(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id);
+        const totals = await withTimeout(readVaultTotals(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id), STEP_TIMEOUT_MS, "vault totals");
         const shares = sharesForAmount(amountStroops, totals);
-        const tx = await buildContractCallTransaction(kit, {
-          contractId: info.vault.id,
-          method: "withdraw",
-          args: [nativeToScVal(shares, { type: "i128" }), xdr.ScVal.scvVec([nativeToScVal(amountStroops, { type: "i128" })]), Address.fromString(address).toScVal()],
-        });
-        const result = await signAndSubmit(tx);
+        const tx = await withTimeout(
+          buildContractCallTransaction(kit, {
+            contractId: info.vault.id,
+            method: "withdraw",
+            args: [nativeToScVal(shares, { type: "i128" }), xdr.ScVal.scvVec([nativeToScVal(amountStroops, { type: "i128" })]), Address.fromString(address).toScVal()],
+          }),
+          STEP_TIMEOUT_MS,
+          "vault withdrawal simulation",
+        );
+        const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault withdrawal");
         vaultTx.current = result.hash;
         setVaultTxHash(result.hash);
         // Remember it server-side so a reload never repeats the vault withdrawal.
@@ -206,8 +212,8 @@ function Withdraw() {
       if (!record.landing) return; // landing not ready yet; the poll effect re-triggers
       stepContext = "relay";
       setClient("transfer");
-      const transfer = await buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing.publicKey, amount: record.amountUsdc });
-      const sent = await signAndSubmit(transfer);
+      const transfer = await withTimeout(buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing.publicKey, amount: record.amountUsdc }), STEP_TIMEOUT_MS, "transfer simulation");
+      const sent = await withTimeout(signAndSubmit(transfer), STEP_TIMEOUT_MS, "transfer");
       const next = await api<WithdrawalRecord>(`/api/withdraw/${record.id}/sent`, { method: "POST", body: JSON.stringify({ vaultTx: vaultTx.current, transferTx: sent.hash }) });
       setRecord(next);
       setClient("done");

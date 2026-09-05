@@ -10,7 +10,7 @@ import { ResumeNotice } from "@/components/ResumeNotice";
 import { api } from "@/lib/api";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
-import { classifyError, classifyRecordError, type Failure } from "@/lib/failures";
+import { classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
@@ -42,6 +42,8 @@ interface DepositRecord {
 const STEP_ORDER: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded", "in_wallet", "in_vault"];
 const FINAL: DepositStatus[] = ["in_vault", "failed", "cancelled", "abandoned"];
 const WAIT_EXTENSION_MS = 30 * 60_000;
+/** A vault deposit (simulation + passkey + relay) that takes longer than this becomes a retryable failure. */
+const STEP_TIMEOUT_MS = 120_000;
 /** Form failures where "try again" would only repeat the same amount. */
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 
@@ -172,8 +174,8 @@ function Deposit() {
     setAutopilot("signing");
     setAutopilotFailure(null);
     try {
-      const tx = await buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc);
-      const result = await signAndSubmit(tx);
+      const tx = await withTimeout(buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc), STEP_TIMEOUT_MS, "vault deposit simulation");
+      const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault deposit");
       const next = await api<DepositRecord>(`/api/deposit/${record.id}/vault`, { method: "POST", body: JSON.stringify({ hash: result.hash, amountUsdc: record.paidUsdc }) });
       setRecord(next);
       setAutopilot("done");

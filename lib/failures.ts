@@ -144,6 +144,7 @@ function fromApi(err: ApiError, context: FailureContext): Failure {
 /** Map any thrown value to a Failure. `context` says which subsystem the call belonged to. */
 export function classifyError(err: unknown, context: FailureContext = "generic"): Failure {
   if (err instanceof ApiError) return fromApi(err, context);
+  if (err instanceof StepTimeoutError) return { kind: context === "vault" ? "vault_rejected" : context === "relay" ? "relay_unreachable" : "offline", detail: err.message, code: "timeout" };
   if (err && typeof err === "object" && "code" in err && "userMessage" in err) return fromSembol(err as SembolError, context);
   if (err instanceof Error && /^(TypeError)$/.test(err.name) && /fetch/i.test(err.message)) {
     const offline = typeof navigator !== "undefined" && navigator.onLine === false;
@@ -195,6 +196,30 @@ function recordFailure(error: { code: string; message: string }, extra: { expect
         return { ...base, kind: UNREACHABLE_RE.test(message) ? "anchor_unreachable" : "anchor_rejected" };
       }
       return { ...base, kind: fromRelayMessage(message, "unknown") };
+  }
+}
+
+/** Reject after `ms` so a hung RPC or relay call becomes a retryable failure instead of a frozen screen. */
+export function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new StepTimeoutError(`${label} did not finish within ${Math.round(ms / 1000)} s`)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (err: unknown) => {
+        clearTimeout(timer);
+        reject(err);
+      },
+    );
+  });
+}
+
+export class StepTimeoutError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "StepTimeoutError";
   }
 }
 

@@ -31,7 +31,7 @@ const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`,
 
 try {
   log("onboard");
-  await page.goto(`${APP}/?ref=e2e-deposit`, { waitUntil: "networkidle" });
+  await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
   const tapAt = Date.now();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
@@ -56,6 +56,13 @@ try {
   if (!/^TRMA-[A-Z0-9]{4}-[A-Z0-9]{4}$/.test(reference ?? "")) throw new Error(`unexpected reference ${reference}`);
   const iban = await page.locator("dd .font-mono").first().textContent();
   log("IBAN:", iban?.trim());
+
+  // Resumability: reopening the app mid-deposit must return to the same timeline from stored state.
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByTestId("resume-notice").waitFor({ timeout: 30000 });
+  const referenceAfterReload = (await page.getByTestId("deposit-reference").textContent())?.trim();
+  if (referenceAfterReload !== reference) throw new Error(`resumed deposit shows ${referenceAfterReload}, expected ${reference}`);
+  log("✓ reload resumed the same deposit from stored state");
 
   const adminToken = process.env.BOOTH_ADMIN_TOKEN?.trim();
   if (adminToken) {

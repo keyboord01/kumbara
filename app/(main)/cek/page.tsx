@@ -3,10 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
-import { buildContractCallTransaction, buildTransferTransaction, toSembolError, usePasskeyWallet, useSignTransaction, useSpendingPolicy, type SembolError } from "@sembol/passkey-react";
+import { buildContractCallTransaction, buildTransferTransaction, usePasskeyWallet, useSignTransaction, useSpendingPolicy } from "@sembol/passkey-react";
+import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
+import { ResumeNotice } from "@/components/ResumeNotice";
+import { api } from "@/lib/api";
 import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
+import { classifyError, classifyRecordError, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -32,7 +36,18 @@ interface WithdrawalRecord {
   lastError?: { at: string; message: string };
 }
 
+interface Quote {
+  amount: string;
+  tryOut: string;
+  rate: string;
+  spreadBps: number;
+  /** When it was fetched (ms); the anchor's quotes are good for 120 s. */
+  at: number;
+}
+
 const FINAL: WithdrawalStatus[] = ["completed", "failed"];
+const QUOTE_TTL_MS = 120_000;
+const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 const toStroops = (amount: string): bigint => {
   const [whole = "0", frac = ""] = amount.replace(",", ".").split(".");
   return BigInt(whole || "0") * 10_000_000n + BigInt((frac + "0000000").slice(0, 7));
@@ -41,13 +56,6 @@ const floor2 = (stroops: bigint): string => {
   const cents = stroops / 100_000n;
   return `${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
 };
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
-  const body = (await res.json()) as T & { error?: { code: string; message: string } };
-  if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
-  return body;
-}
 
 function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
@@ -72,12 +80,15 @@ function Withdraw() {
   const [view, setView] = useState<"loading" | "form" | "progress">("loading");
   const [position, setPosition] = useState<VaultPosition | null>(null);
   const [amount, setAmount] = useState("1");
-  const [quoteFor, setQuoteFor] = useState<{ amount: string; tryOut: string; rate: string; spreadBps: number } | null>(null);
+  const [quoteFor, setQuoteFor] = useState<Quote | null>(null);
+  const [quoteEpoch, setQuoteEpoch] = useState(0);
+  const [quoteAge, setQuoteAge] = useState(0);
   const [record, setRecord] = useState<WithdrawalRecord | null>(null);
+  const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [client, setClient] = useState<"idle" | "vault" | "transfer" | "needs_tap" | "done">("idle");
-  const [clientError, setClientError] = useState<SembolError | null>(null);
+  const [clientFailure, setClientFailure] = useState<Failure | null>(null);
   const vaultTx = useRef<string | null>(null);
   const [vaultTxHash, setVaultTxHash] = useState<string | null>(null);
   const started = useRef(false);
@@ -91,6 +102,8 @@ function Withdraw() {
     }
   }, [info, address]);
 
+  // Resume an in-flight withdrawal after a reload. A vault withdrawal that
+  // already happened is remembered server-side, so it is never signed twice.
   useEffect(() => {
     if (!address) return;
     let alive = true;
@@ -99,7 +112,12 @@ function Withdraw() {
       .then((res) => {
         if (!alive) return;
         if (res.active) {
+          if (res.active.vaultTxHash) {
+            vaultTx.current = res.active.vaultTxHash;
+            setVaultTxHash(res.active.vaultTxHash);
+          }
           setRecord(res.active);
+          setResumed(true);
           setView("progress");
         } else {
           setView("form");
@@ -107,7 +125,7 @@ function Withdraw() {
       })
       .catch((err: unknown) => {
         if (!alive) return;
-        setError(err instanceof Error ? err.message : String(err));
+        setFailure(classifyError(err, "generic"));
         setView("form");
       });
     return () => {
@@ -123,11 +141,23 @@ function Withdraw() {
     const wanted = amount;
     const handle = setTimeout(() => {
       api<{ tryOut: string; rate: string; spreadBps: number }>(`/api/withdraw/quote?contractId=${address}&amountUsdc=${encodeURIComponent(wanted.replace(",", "."))}`)
-        .then((q) => setQuoteFor({ amount: wanted, ...q }))
+        .then((q) => setQuoteFor({ amount: wanted, ...q, at: Date.now() }))
         .catch(() => undefined);
     }, 400);
     return () => clearTimeout(handle);
-  }, [amount, address, view]);
+  }, [amount, address, view, quoteEpoch]);
+
+  // Quotes expire after 120 s: show their age and fetch a fresh one when they do.
+  const quoteAt = quoteFor?.at ?? 0;
+  useEffect(() => {
+    if (!quoteAt || view !== "form") return;
+    const id = setInterval(() => {
+      const age = Date.now() - quoteAt;
+      setQuoteAge(age);
+      if (age > QUOTE_TTL_MS) setQuoteEpoch((e) => e + 1);
+    }, 5000);
+    return () => clearInterval(id);
+  }, [quoteAt, view]);
   const quote = quoteFor && quoteFor.amount === amount ? quoteFor : null;
 
   // Poll while the server side has work to do.
@@ -146,7 +176,8 @@ function Withdraw() {
   // The browser's part: vault withdrawal, then the transfer to the landing account.
   const runClientSteps = useCallback(async () => {
     if (!record || !kit || !info || !address) return;
-    setClientError(null);
+    setClientFailure(null);
+    let stepContext: "vault" | "relay" = "vault";
     try {
       const amountStroops = toStroops(record.amountUsdc);
       if (!vaultTx.current) {
@@ -161,8 +192,11 @@ function Withdraw() {
         const result = await signAndSubmit(tx);
         vaultTx.current = result.hash;
         setVaultTxHash(result.hash);
+        // Remember it server-side so a reload never repeats the vault withdrawal.
+        await api(`/api/withdraw/${record.id}/vault`, { method: "POST", body: JSON.stringify({ vaultTx: result.hash }) }).catch(() => undefined);
       }
       if (!record.landing) return; // landing not ready yet; the poll effect re-triggers
+      stepContext = "relay";
       setClient("transfer");
       const transfer = await buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing.publicKey, amount: record.amountUsdc });
       const sent = await signAndSubmit(transfer);
@@ -170,9 +204,9 @@ function Withdraw() {
       setRecord(next);
       setClient("done");
     } catch (err) {
-      const sembolError = toSembolError(err);
-      console.error("[kumbara] withdraw client step failed", sembolError.code, sembolError.message);
-      setClientError(sembolError);
+      const classified = classifyError(err, stepContext);
+      console.error("[kumbara] withdraw client step failed", classified.kind, classified.detail);
+      setClientFailure(classified);
       setClient("needs_tap");
     }
   }, [record, kit, info, address, signAndSubmit]);
@@ -194,13 +228,14 @@ function Withdraw() {
   const start = async () => {
     if (!address) return;
     setSubmitting(true);
-    setError(null);
+    setFailure(null);
     try {
       const created = await api<WithdrawalRecord>("/api/withdraw", { method: "POST", body: JSON.stringify({ contractId: address, amountUsdc: amount.replace(",", ".") }) });
       setRecord(created);
+      setResumed(false);
       setView("progress");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setFailure(classifyError(err, "anchor"));
     } finally {
       setSubmitting(false);
     }
@@ -208,7 +243,10 @@ function Withdraw() {
 
   const reset = () => {
     setRecord(null);
+    setResumed(false);
     setClient("idle");
+    setClientFailure(null);
+    setFailure(null);
     vaultTx.current = null;
     setVaultTxHash(null);
     started.current = false;
@@ -270,28 +308,25 @@ function Withdraw() {
             </button>
           </div>
           <p className="text-xs text-muted">{t.withdraw.min}</p>
-          {quote && (
+          {quote ? (
             <div className="rounded-xl bg-paper-2 p-3">
               <p className="microlabel">{t.withdraw.quoteTitle}</p>
               <p className="tnum text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
               <p className="tnum text-xs text-ink-2">
                 {t.withdraw.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({quote.spreadBps} bps {t.withdraw.spread}) · {t.withdraw.indicative}
               </p>
+              <p className="tnum mt-1 text-xs text-muted" data-testid="quote-age">
+                {t.withdraw.quoteAge.replace("{seconds}", String(Math.max(0, Math.round(quoteAge / 1000))))}
+              </p>
             </div>
-          )}
-          {overLimit && policy && (
-            <p className="rounded-xl border border-amber/40 bg-amber/5 p-3 text-sm text-ink-2" role="alert">
-              {t.withdraw.limitBlocked} ({formatUsdc(policy.limit, locale)} USDC).{" "}
-              <Link href="/kumbara/guvenlik" className="text-teal underline">
-                {t.withdraw.limitLink}
-              </Link>
-            </p>
-          )}
-          {error && (
-            <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
-              {error}
-            </p>
-          )}
+          ) : null}
+          {overLimit && policy ? (
+            <FailureScreen failure={{ kind: "limit_exceeded", detail: `limit ${formatUsdc(policy.limit, locale)} USDC per transaction` }} compact />
+          ) : null}
+          {overBalance && position ? (
+            <FailureScreen failure={{ kind: "insufficient_balance", detail: `vault position ${formatUsdc(position.usdc, locale)} USDC` }} compact primary={null} />
+          ) : null}
+          {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
           <p className="text-xs text-muted">{t.withdraw.payoutHint}</p>
           <button type="submit" disabled={!amountValid || submitting || !address} className="btn-primary w-full text-lg">
             {submitting ? t.savings.loading : t.withdraw.continue}
@@ -303,6 +338,8 @@ function Withdraw() {
 
   if (!record) return null;
   const clientLabel = client === "vault" ? t.withdraw.stepVault : client === "transfer" ? t.withdraw.stepTransfer : null;
+  const failed = record.status === "failed" ? classifyRecordError(record.error ?? { code: "step_failed", message: record.lastError?.message ?? "unknown" }, { landingAddress: record.landing?.publicKey }) : null;
+  const retryLabel = vaultTxHash ? t.withdraw.tapTransfer : t.withdraw.tapVault;
 
   return (
     <div className="flex flex-col gap-5 py-2">
@@ -312,6 +349,10 @@ function Withdraw() {
           {t.withdraw.backToSavings}
         </Link>
       </div>
+
+      {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="withdraw" /> : null}
+
+      {failed ? <FailureScreen failure={failed} primary={failed.kind === "usdc_not_received" || failed.kind === "anchor_not_matched" ? undefined : { label: t.withdraw.newWithdrawal, onClick: reset }} secondary={failed.kind === "usdc_not_received" || failed.kind === "anchor_not_matched" ? { label: t.withdraw.newWithdrawal, onClick: reset } : null} /> : null}
 
       <section className="card p-5" aria-label={t.withdraw.quoteTitle}>
         <div className="flex items-center justify-between">
@@ -332,38 +373,30 @@ function Withdraw() {
         <p className="mt-2 text-base font-semibold" role="status" aria-live="polite" data-testid="withdraw-current">
           {t.withdraw.steps[record.status]}
         </p>
-        {clientLabel && record.status !== "completed" && (
+        {clientLabel && record.status !== "completed" ? (
           <p className="mt-1 text-sm text-ink-2" role="status">
             {clientLabel}
           </p>
-        )}
-        {client === "needs_tap" && !FINAL.includes(record.status) && (
-          <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
-            <p className="text-sm text-ink-2">
-              {clientError?.code === "spending_limit_exceeded" ? (
-                <>
-                  {t.withdraw.limitBlocked}.{" "}
-                  <Link href="/kumbara/guvenlik" className="text-teal underline">
-                    {t.withdraw.limitLink}
-                  </Link>
-                </>
-              ) : clientError?.code === "user_cancelled" ? (
-                t.withdraw.needsTap
-              ) : (
-                (clientError?.userMessage ?? t.withdraw.needsTap)
-              )}
-            </p>
-            <button type="button" onClick={() => void runClientSteps()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
-              {vaultTxHash ? t.withdraw.tapTransfer : t.withdraw.tapVault}
-            </button>
-          </div>
-        )}
-        {record.status === "failed" && (
-          <p className="mt-2 rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
-            {record.error?.message ?? record.lastError?.message}
-          </p>
-        )}
-        {record.status === "completed" && (
+        ) : null}
+        {client === "needs_tap" && !FINAL.includes(record.status) ? (
+          clientFailure ? (
+            <FailureScreen
+              failure={clientFailure}
+              compact
+              className="mt-3"
+              primary={clientFailure.kind === "limit_exceeded" ? undefined : { label: retryLabel, onClick: () => void runClientSteps() }}
+              secondary={clientFailure.kind === "limit_exceeded" ? { label: retryLabel, onClick: () => void runClientSteps() } : null}
+            />
+          ) : (
+            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
+              <p className="text-sm text-ink-2">{t.withdraw.needsTap}</p>
+              <button type="button" onClick={() => void runClientSteps()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
+                {retryLabel}
+              </button>
+            </div>
+          )
+        ) : null}
+        {record.status === "completed" ? (
           <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
             <dt className="text-muted">{t.withdraw.receivedTry}</dt>
             <dd className="tnum text-right font-semibold" data-testid="withdraw-try">
@@ -374,27 +407,28 @@ function Withdraw() {
               {record.payoutId ?? "–"}
             </dd>
           </dl>
-        )}
-        {(vaultTxHash || record.vaultTxHash || record.transferTxHash || record.paymentTxHash) && (
+        ) : null}
+        {vaultTxHash || record.vaultTxHash || record.transferTxHash || record.paymentTxHash ? (
           <div className="mt-4 flex flex-col gap-1">
-            {(record.vaultTxHash ?? vaultTxHash) && <TxLink hash={(record.vaultTxHash ?? vaultTxHash) as string} label={t.withdraw.links.vault} />}
-            {record.transferTxHash && <TxLink hash={record.transferTxHash} label={t.withdraw.links.transfer} />}
-            {record.paymentTxHash && <TxLink hash={record.paymentTxHash} label={t.withdraw.links.payment} />}
+            {record.vaultTxHash ?? vaultTxHash ? <TxLink hash={(record.vaultTxHash ?? vaultTxHash) as string} label={t.withdraw.links.vault} /> : null}
+            {record.transferTxHash ? <TxLink hash={record.transferTxHash} label={t.withdraw.links.transfer} /> : null}
+            {record.paymentTxHash ? <TxLink hash={record.paymentTxHash} label={t.withdraw.links.payment} /> : null}
           </div>
-        )}
+        ) : null}
       </section>
 
+      {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
       <div className="flex flex-col gap-2">
-        {record.status === "completed" && (
+        {record.status === "completed" ? (
           <Link href="/kumbara" className="btn-primary w-full">
             {t.withdraw.backToSavings}
           </Link>
-        )}
-        {FINAL.includes(record.status) && (
+        ) : null}
+        {record.status === "completed" ? (
           <button type="button" onClick={reset} className="btn-secondary w-full">
             {t.withdraw.newWithdrawal}
           </button>
-        )}
+        ) : null}
       </div>
     </div>
   );

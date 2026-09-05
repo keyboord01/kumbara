@@ -77,6 +77,7 @@ Until that runs, the public URL keeps serving the previous deployment. Verify be
 | `SEMBOL_CLOUD_URL`, `SEMBOL_PROJECT_ID` | config | `https://channels.openzeppelin.com/testnet`, `kumbara` |
 | `DEFINDEX_VAULT_ID` | config | `CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL` |
 | `SOROSWAP_ENABLED`, `ONRAMP_MODE`, `OFFRAMP_MODE` | config | `false`, `landing`, `landing` |
+| `DEPOSIT_TRANSFER_TIMEOUT_MIN` | config | `30` (minutes before the "transfer has not arrived" screen) |
 | `BOOTH_START_TS`, `MAINNET_DEMO_ENABLED` | config | counter start (unix seconds), `false` |
 | `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` | config | `60` (booth Wi-Fi shares one IP) |
 | `RATE_LIMIT_ACCOUNTS_PER_REF` | config | `300` (the primary abuse guard) |

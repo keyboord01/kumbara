@@ -59,6 +59,14 @@ export interface WithdrawalRecord extends StoredRecord {
   attempts?: Partial<Record<WithdrawalStatus, number>>;
   lastError?: { at: string; message: string };
   error?: { code: string; message: string };
+  /** Every status transition with its time, for the public timing metrics. */
+  history?: Array<{ status: WithdrawalStatus; at: string }>;
+}
+
+/** Append a history entry when the status changed. */
+function withHistory(previous: WithdrawalRecord, next: WithdrawalRecord): WithdrawalRecord {
+  if (next.status === previous.status) return next;
+  return { ...next, history: [...(previous.history ?? []), { status: next.status, at: new Date().toISOString() }] };
 }
 
 interface AnchorQuote {
@@ -142,6 +150,7 @@ export async function createWithdrawal(input: { contractId: string; amountUsdc: 
     payoutIban: offramp.payout_iban,
     createdAt: now,
     updatedAt: now,
+    history: [{ status: "created", at: now }],
   };
   await withdrawalStore.save(record);
   return record;
@@ -172,16 +181,15 @@ export async function advanceWithdrawal(id: string): Promise<WithdrawalRecord> {
     const record = await loadWithdrawal(id);
     if (FINAL_WITHDRAWAL_STATUSES.includes(record.status) || record.status === "awaiting_usdc") return record;
     try {
-      const next = await step(record);
+      const next = withHistory(record, await step(record));
       if (next !== record) await withdrawalStore.save(next);
       return next;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const attempts = { ...(record.attempts ?? {}), [record.status]: (record.attempts?.[record.status] ?? 0) + 1 };
-      const failed: WithdrawalRecord = { ...record, attempts, lastError: { at: new Date().toISOString(), message } };
+      let failed: WithdrawalRecord = { ...record, attempts, lastError: { at: new Date().toISOString(), message } };
       if (!isTransient(err) || attempts[record.status]! >= MAX_STEP_ATTEMPTS) {
-        failed.status = "failed";
-        failed.error = { code: err instanceof LandingError ? err.code : err instanceof AnchorHttpError ? err.code : "step_failed", message };
+        failed = withHistory(record, { ...failed, status: "failed", error: { code: err instanceof LandingError ? err.code : err instanceof AnchorHttpError ? err.code : "step_failed", message } });
       }
       await withdrawalStore.save(failed);
       return failed;
@@ -276,7 +284,24 @@ export async function recordUsdcSent(id: string, input: { vaultTx: string; trans
   return withLease(`withdrawal:${id}`, 30_000, async () => {
     const record = await loadWithdrawal(id);
     if (record.status !== "awaiting_usdc") return record;
-    const next: WithdrawalRecord = { ...record, vaultTxHash: input.vaultTx, transferTxHash: input.transferTx, status: "usdc_sent" };
+    const next = withHistory(record, { ...record, vaultTxHash: input.vaultTx, transferTxHash: input.transferTx, status: "usdc_sent" });
+    await withdrawalStore.save(next);
+    return next;
+  }, () => loadWithdrawal(id));
+}
+
+/**
+ * The browser reports the vault withdrawal the moment it confirms, before the
+ * transfer. A resumed session (phone locked, tab closed) then skips the vault
+ * step instead of burning shares twice. Status is unchanged.
+ */
+export async function recordVaultTx(id: string, vaultTx: string): Promise<WithdrawalRecord> {
+  if (!/^[0-9a-f]{64}$/.test(vaultTx)) throw new WithdrawError(400, "invalid_hash", "vaultTx must be a 64-hex transaction hash");
+  return withLease(`withdrawal:${id}`, 30_000, async () => {
+    const record = await loadWithdrawal(id);
+    if (record.vaultTxHash) return record;
+    if (record.status !== "created" && record.status !== "awaiting_usdc") throw new WithdrawError(409, "not_awaiting_usdc", `withdrawal is ${record.status}`);
+    const next: WithdrawalRecord = { ...record, vaultTxHash: vaultTx };
     await withdrawalStore.save(next);
     return next;
   }, () => loadWithdrawal(id));

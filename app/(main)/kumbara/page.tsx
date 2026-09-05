@@ -3,11 +3,13 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { toSembolError, usePasskeyWallet, useSigners, useSpendingPolicy, useWalletBalance, type SembolError } from "@sembol/passkey-react";
+import { usePasskeyWallet, useSigners, useSpendingPolicy, useWalletBalance } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
+import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
+import { classifyError, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_PERIOD, DEFAULT_LIMIT_USDC } from "@/lib/limits";
@@ -77,7 +79,7 @@ function Savings() {
 
   // Background spending-limit install after onboarding (?setup=limit).
   const [setup, setSetup] = useState<SetupState>("idle");
-  const [setupError, setSetupError] = useState<SembolError | null>(null);
+  const [setupFailure, setSetupFailure] = useState<Failure | null>(null);
   const started = useRef(false);
   // The first policy read completes when isLoading has been true and drops back to false.
   const seenLoading = useRef(false);
@@ -88,15 +90,15 @@ function Savings() {
   const install = useCallback(async () => {
     if (!info) return;
     setSetup("installing");
-    setSetupError(null);
+    setSetupFailure(null);
     try {
       await setLimit({ limit: DEFAULT_LIMIT_USDC, period: DEFAULT_LIMIT_PERIOD, token: { contractId: info.usdc.contractId } });
       setSetup("done");
       router.replace("/kumbara");
     } catch (err) {
-      const sembolError = toSembolError(err);
-      console.error("[kumbara] spending limit install failed", sembolError.code, sembolError.message);
-      setSetupError(sembolError);
+      const classified = classifyError(err, "relay");
+      console.error("[kumbara] spending limit install failed", classified.kind, classified.detail);
+      setSetupFailure(classified);
       setSetup("error");
     }
   }, [info, setLimit, router]);
@@ -143,12 +145,9 @@ function Savings() {
       {setupActive && (
         <section className="card border-teal/30 bg-teal/5 p-4" aria-label={t.savings.limit}>
           {setup === "error" ? (
-            <div role="alert">
+            <div>
               <p className="font-semibold text-danger">{t.savings.limitSetupFailed}</p>
-              <p className="mt-1 text-sm text-ink-2">{setupError?.code === "user_cancelled" ? t.errors.cancelled : setupError?.userMessage}</p>
-              <button type="button" onClick={() => void install()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
-                {t.savings.limitSetupConfirm}
-              </button>
+              {setupFailure ? <FailureScreen failure={setupFailure} compact className="mt-2" primary={{ label: t.savings.limitSetupConfirm, onClick: () => void install() }} /> : null}
             </div>
           ) : (
             <div role="status" aria-live="polite">

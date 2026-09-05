@@ -12,9 +12,10 @@
  *
  * Every step is idempotent against the stored record and serialized per
  * deposit id. Transient failures (anchor or relay unreachable, sponsor
- * under-funded) keep the status and are retried by the next poll; a paid
- * amount that differs from the quote is a hard failure with the funds left
- * in the ownerless landing account.
+ * under-funded, an expired quote) keep the status and are retried by the
+ * next poll; a paid amount that differs from the quote is a hard failure
+ * with the funds left in the ownerless landing account. Each transition is
+ * appended to `history` for the public timing metrics.
  */
 import "server-only";
 import { Asset } from "@stellar/stellar-sdk";
@@ -29,6 +30,24 @@ import { depositStore, getCustomerId, newId, setCustomerId, withLease, type Stor
 export const DEPOSIT_MIN_TRY = 50;
 export const DEPOSIT_MAX_TRY = 250_000;
 const MAX_STEP_ATTEMPTS = 6;
+
+/** Minutes before the Deposit screen offers "keep waiting / cancel" for a transfer that has not arrived. */
+export function transferTimeoutMinutes(): number {
+  const raw = Number(process.env.DEPOSIT_TRANSFER_TIMEOUT_MIN?.trim() ?? "");
+  return Number.isFinite(raw) && raw > 0 ? raw : 30;
+}
+
+/** A pipeline step failure with a stable code; `transient` ones are retried by the next poll. */
+export class StepError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly transient = false,
+  ) {
+    super(message);
+    this.name = "StepError";
+  }
+}
 
 export type DepositStatus = "awaiting_transfer" | "transfer_received" | "onramp_pending" | "onramp_paid" | "forwarded" | "in_wallet" | "in_vault" | "failed" | "cancelled" | "abandoned";
 /** Statuses the Deposit screen treats as finished (a new deposit can start). */
@@ -58,11 +77,21 @@ export interface DepositRecord extends StoredRecord {
   vaultTxHash?: string;
   vaultDepositUsdc?: string;
   attempts?: Partial<Record<DepositStatus, number>>;
-  lastError?: { at: string; message: string };
+  lastError?: { at: string; message: string; code?: string };
   error?: { code: string; message: string };
   /** Set when the user abandoned a deposit the anchor still owes (treasury low); a presenter can resume it. */
   abandonedAt?: string;
   abandonedFrom?: DepositStatus;
+  /** When the Deposit screen starts offering "keep waiting / cancel" for a missing transfer. */
+  transferDeadline?: string;
+  /** Every status transition with its time, for the public timing metrics. */
+  history?: Array<{ status: DepositStatus; at: string }>;
+}
+
+/** Append a history entry when the status changed. */
+function withHistory(previous: DepositRecord, next: DepositRecord): DepositRecord {
+  if (next.status === previous.status) return next;
+  return { ...next, history: [...(previous.history ?? []), { status: next.status, at: new Date().toISOString() }] };
 }
 
 interface AnchorCustomer {
@@ -184,6 +213,8 @@ export async function createDeposit(input: { contractId: string; amountTry: stri
     },
     createdAt: now,
     updatedAt: now,
+    transferDeadline: new Date(Date.now() + transferTimeoutMinutes() * 60_000).toISOString(),
+    history: [{ status: "awaiting_transfer", at: now }],
   };
   await depositStore.save(record);
   return record;
@@ -198,10 +229,16 @@ export async function listDeposits(contractId: string): Promise<DepositRecord[]>
 }
 
 function isTransient(err: unknown): boolean {
+  if (err instanceof StepError) return err.transient;
   if (err instanceof LandingError) return err.code === "sponsor_underfunded" || err.code === "submit_failed";
   if (err instanceof AnchorHttpError) return err.status >= 500 || err.status === 429;
   if (err instanceof Error && /fetch failed|unreachable|timed out|ECONN|ETIMEDOUT/i.test(err.message)) return true;
   return false;
+}
+
+function errorCode(err: unknown): string {
+  if (err instanceof StepError || err instanceof LandingError || err instanceof AnchorHttpError) return err.code;
+  return "step_failed";
 }
 
 /** Lease TTL for one pipeline step; a crashed invocation frees the record after this. */
@@ -223,16 +260,16 @@ export async function advanceDeposit(id: string): Promise<DepositRecord> {
     const record = await loadDeposit(id);
     if (FINAL_STATUSES.includes(record.status) || record.status === "in_wallet") return record;
     try {
-      const next = await step(record);
+      const next = withHistory(record, await step(record));
       if (next !== record) await depositStore.save(next);
       return next;
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const attempts = { ...(record.attempts ?? {}), [record.status]: (record.attempts?.[record.status] ?? 0) + 1 };
-      const failed: DepositRecord = { ...record, attempts, lastError: { at: new Date().toISOString(), message } };
+      const code = errorCode(err);
+      let failed: DepositRecord = { ...record, attempts, lastError: { at: new Date().toISOString(), message, code } };
       if (!isTransient(err) || attempts[record.status]! >= MAX_STEP_ATTEMPTS) {
-        failed.status = "failed";
-        failed.error = { code: err instanceof LandingError ? err.code : err instanceof AnchorHttpError ? err.code : "step_failed", message };
+        failed = withHistory(record, { ...failed, status: "failed", error: { code, message } });
       }
       await depositStore.save(failed);
       return failed;
@@ -253,14 +290,25 @@ async function step(record: DepositRecord): Promise<DepositRecord> {
       await assertSponsorReady();
       const anchor = await discoverAnchor();
       const amountTry = record.receivedTry ?? record.amountTry;
-      const quote = await anchorCall<AnchorQuote>("POST", "/v1/quotes", { customer_id: record.customerId, side: "buy", amount: amountTry, amount_currency: "TRY" });
+      const quoteBody = { customer_id: record.customerId, side: "buy", amount: amountTry, amount_currency: "TRY" };
+      let quote = await anchorCall<AnchorQuote>("POST", "/v1/quotes", quoteBody);
       const amountStroops = toStroops(quote.destination_amount);
       const plan = await createLandingAccount(landingDeps(), {
         usdc: new Asset(anchor.usdc.code, anchor.usdc.issuer),
         usdcContract: anchor.usdc.contractId,
         kind: { type: "onramp", destinationContract: record.contractId, amountStroops },
       });
-      if (Date.now() > Date.parse(quote.expires_at)) throw new Error("quote expired while the landing account was being prepared");
+      if (Date.now() > Date.parse(quote.expires_at) - 5_000) {
+        // The 120 s quote ran out while the landing account was being built. The
+        // forward is pre-authorized for this exact amount, so a fresh quote only
+        // works if the rate did not move; otherwise the next poll starts over
+        // (the stranded landing account's reserve is the sponsor's, never the user's).
+        const fresh = await anchorCall<AnchorQuote>("POST", "/v1/quotes", quoteBody);
+        if (toStroops(fresh.destination_amount) !== amountStroops) {
+          throw new StepError("quote_expired", `quote expired while the landing account was being prepared and the rate moved (${quote.destination_amount} → ${fresh.destination_amount} USDC); fetching a new quote`, true);
+        }
+        quote = fresh;
+      }
       const onramp = await anchorCall<AnchorOnramp>("POST", "/v1/onramps", { customer_id: record.customerId, quote_id: quote.id, destination_address: plan.publicKey });
       return {
         ...record,
@@ -321,10 +369,10 @@ export async function cancelDeposit(id: string): Promise<DepositRecord> {
     const record = await loadDeposit(id);
     if (FINAL_STATUSES.includes(record.status)) return record;
     if (record.status === "awaiting_transfer" || record.status === "transfer_received") {
-      return depositStore.save({ ...record, status: "cancelled", abandonedAt: new Date().toISOString(), abandonedFrom: record.status });
+      return depositStore.save(withHistory(record, { ...record, status: "cancelled", abandonedAt: new Date().toISOString(), abandonedFrom: record.status }));
     }
     if (record.status === "onramp_pending") {
-      return depositStore.save({ ...record, status: "abandoned", abandonedAt: new Date().toISOString(), abandonedFrom: record.status });
+      return depositStore.save(withHistory(record, { ...record, status: "abandoned", abandonedAt: new Date().toISOString(), abandonedFrom: record.status }));
     }
     throw new DepositError(409, "cannot_cancel", `a deposit that is ${record.status} cannot be abandoned; let it finish`);
   }, () => loadDeposit(id));
@@ -337,7 +385,7 @@ export async function resumeDeposit(id: string): Promise<DepositRecord> {
     if (record.status !== "abandoned" || !record.onrampId || !record.landing) {
       throw new DepositError(409, "cannot_resume", `deposit is ${record.status}; only abandoned on-ramps can be resumed`);
     }
-    const resumed: DepositRecord = { ...record, status: "onramp_pending", attempts: {} };
+    const resumed: DepositRecord = withHistory(record, { ...record, status: "onramp_pending", attempts: {} });
     delete resumed.abandonedAt;
     delete resumed.abandonedFrom;
     return depositStore.save(resumed);
@@ -357,7 +405,7 @@ export async function recordVaultDeposit(id: string, input: { hash: string; amou
     const record = await loadDeposit(id);
     if (record.status === "in_vault") return record;
     if (record.status !== "in_wallet") throw new DepositError(409, "not_in_wallet", `deposit is ${record.status}`);
-    const next: DepositRecord = { ...record, vaultTxHash: input.hash, vaultDepositUsdc: input.amountUsdc, status: "in_vault" };
+    const next = withHistory(record, { ...record, vaultTxHash: input.hash, vaultDepositUsdc: input.amountUsdc, status: "in_vault" });
     await depositStore.save(next);
     await recordEvent({
       type: "deposit_completed",

@@ -3,23 +3,25 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toSembolError, useCreateWallet, usePasskeyWallet, type SembolError } from "@sembol/passkey-react";
+import { useCreateWallet, usePasskeyWallet } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
+import { FailureScreen } from "@/components/FailureScreen";
+import { classifyError, type Failure } from "@/lib/failures";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
 
-/** idle → creating (passkey + deploy) → done (navigating to Savings) */
-type Stage = "idle" | "creating" | "done";
+/** idle → creating (passkey + deploy) | connecting (existing passkey) → done (navigating to Savings) */
+type Stage = "idle" | "creating" | "connecting" | "done";
 
 /** Onboard: one button. Face ID → smart account via the relay → spending limit → Savings. */
 export default function OnboardPage() {
   const { t } = useLocale();
   const router = useRouter();
-  const { status, isConnected, address } = usePasskeyWallet();
+  const { status, isConnected, address, capabilities, connect } = usePasskeyWallet();
   const { createWallet, phase: createPhase } = useCreateWallet();
-  const { info } = useAnchorInfo();
+  const { info, failure: infoFailure, retry: retryInfo } = useAnchorInfo();
   const [stage, setStage] = useState<Stage>("idle");
-  const [error, setError] = useState<SembolError | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
 
   // Booth ref: remembered only so the counter can attribute the account.
   useEffect(() => {
@@ -28,8 +30,11 @@ export default function OnboardPage() {
   }, []);
 
   const start = async () => {
-    setError(null);
+    setFailure(null);
     setStage("creating");
+    // Tap time, read by /api/relay when the deployment confirms, for the public
+    // tap-to-kumbara timing. A timestamp only; it expires in ten minutes.
+    document.cookie = `kumbara_tap=${Date.now()}; path=/; max-age=600; SameSite=Lax`;
     try {
       await createWallet({ userName: "kumbara", fund: false });
       // The kumbara exists: show it now. The spending limit installs from the
@@ -37,26 +42,36 @@ export default function OnboardPage() {
       setStage("done");
       router.push("/kumbara?setup=limit");
     } catch (err) {
-      const sembolError = toSembolError(err);
-      console.error("[kumbara] wallet creation failed", sembolError.code, sembolError.message);
-      setError(sembolError);
+      const classified = classifyError(err, "relay");
+      console.error("[kumbara] wallet creation failed", classified.kind, classified.detail);
+      setFailure(classified);
       setStage("idle");
     }
   };
 
-  const busy = stage === "creating" || stage === "done";
-  const phaseLabel = stage === "creating" ? (createPhase === "deploying" ? t.onboard.phaseDeploy : t.onboard.phasePasskey) : t.onboard.phaseDeploy;
-  const errorText = error
-    ? error.code === "user_cancelled"
-      ? t.errors.cancelled
-      : /rate limit|reached its cap/i.test(error.message)
-        ? t.errors.rateLimited
-        : /onboarding paused|sponsor/i.test(error.message)
-          ? t.errors.sponsorLow
-          : error.code === "submission_failed" || error.code === "network_error"
-            ? t.errors.relay
-            : error.userMessage
-    : null;
+  const connectExisting = async () => {
+    setFailure(null);
+    setStage("connecting");
+    try {
+      const wallet = await connect();
+      if (!wallet) {
+        setFailure({ kind: "passkey_lost", code: "wallet_not_found", detail: "connect() found no wallet for this passkey" });
+        setStage("idle");
+        return;
+      }
+      setStage("done");
+      router.push("/kumbara");
+    } catch (err) {
+      const classified = classifyError(err, "passkey");
+      console.error("[kumbara] connect failed", classified.kind, classified.detail);
+      setFailure(classified);
+      setStage("idle");
+    }
+  };
+
+  const busy = stage !== "idle";
+  const phaseLabel = stage === "connecting" ? t.onboard.connecting : stage === "creating" ? (createPhase === "deploying" ? t.onboard.phaseDeploy : t.onboard.phasePasskey) : t.onboard.phaseDeploy;
+  const unsupported = capabilities !== null && capabilities.supported === false;
 
   return (
     <div className="flex flex-col gap-8 py-4">
@@ -83,28 +98,36 @@ export default function OnboardPage() {
           <div className="flex flex-col gap-4">
             <p className="text-sm text-ink-2">{t.onboard.done}</p>
             <AddressCard />
-            {errorText && (
-              <div className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm" role="alert">
-                <p className="font-semibold text-danger">{t.onboard.errorTitle}</p>
-                <p className="mt-1 text-ink-2">{errorText}</p>
-              </div>
-            )}
+            {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
             <Link href="/kumbara" className="btn-primary w-full">
               {t.onboard.existing}
             </Link>
           </div>
+        ) : unsupported ? (
+          <FailureScreen failure={{ kind: "passkey_unsupported", detail: JSON.stringify(capabilities) }} primary={null} compact />
         ) : (
           <div className="flex flex-col gap-4">
+            {infoFailure ? <FailureScreen failure={infoFailure} compact onRetry={retryInfo} /> : null}
             <button type="button" onClick={start} disabled={!info} className="btn-primary w-full text-lg">
               {t.onboard.cta}
             </button>
-            {errorText && (
-              <div className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm" role="alert">
-                <p className="font-semibold text-danger">{t.onboard.errorTitle}</p>
-                <p className="mt-1 text-ink-2">{errorText}</p>
-              </div>
-            )}
+            {failure ? (
+              <FailureScreen
+                failure={failure}
+                compact
+                onRetry={failure.kind === "passkey_lost" ? undefined : start}
+                secondary={failure.kind === "passkey_lost" ? null : { label: t.onboard.haveOne, onClick: () => void connectExisting() }}
+              />
+            ) : null}
             <p className="text-xs leading-relaxed text-muted">{t.onboard.limitNote}</p>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <button type="button" onClick={() => void connectExisting()} className="text-teal underline-offset-2 hover:underline">
+                {t.onboard.haveOne}
+              </button>
+              <Link href="/kurtar" className="text-muted underline-offset-2 hover:underline">
+                {t.onboard.lostPasskey}
+              </Link>
+            </div>
           </div>
         )}
       </section>

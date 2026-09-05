@@ -23,7 +23,8 @@ function Booth() {
   );
   const [svg, setSvg] = useState("");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
-  const url = useMemo(() => (origin ? `${origin}/?ref=${ref}` : ""), [origin, ref]);
+  // The link carries the network so a build for the other network refuses it (components/NetworkGuard.tsx).
+  const url = useMemo(() => (origin ? `${origin}/?ref=${ref}&net=testnet` : ""), [origin, ref]);
 
   useEffect(() => {
     if (!url) return;

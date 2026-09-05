@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { toSembolError, usePasskeyWallet, useSignTransaction, type SembolError } from "@sembol/passkey-react";
+import { usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
+import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
-import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
-import { formatTry, formatUsdc } from "@/lib/format";
+import { ResumeNotice } from "@/components/ResumeNotice";
+import { api } from "@/lib/api";
 import { buildVaultDeposit } from "@/lib/autopilot";
+import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
+import { classifyError, classifyRecordError, type Failure } from "@/lib/failures";
+import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -17,29 +21,29 @@ type DepositStatus = "awaiting_transfer" | "transfer_received" | "onramp_pending
 interface DepositRecord {
   id: string;
   status: DepositStatus;
+  createdAt: string;
   updatedAt: string;
   amountTry: string;
   receivedTry?: string;
   indicative: { usdcOut: string; rate: string; spreadBps: number };
   firmQuote?: { usdcOut: string; rate: string };
   instructions: { bankName: string; iban: string; ibanFormatted: string; accountHolder: string; reference: string };
+  /** Bridge account the anchor pays; visible so a parked amount can be found. */
+  landing?: { publicKey: string };
+  transferDeadline?: string;
   anchorTxHash?: string;
   forwardTxHash?: string;
   vaultTxHash?: string;
   paidUsdc?: string;
   error?: { code: string; message: string };
-  lastError?: { at: string; message: string };
+  lastError?: { at: string; message: string; code?: string };
 }
 
 const STEP_ORDER: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded", "in_wallet", "in_vault"];
 const FINAL: DepositStatus[] = ["in_vault", "failed", "cancelled", "abandoned"];
-
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
-  const body = (await res.json()) as T & { error?: { code: string; message: string } };
-  if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
-  return body;
-}
+const WAIT_EXTENSION_MS = 30 * 60_000;
+/** Form failures where "try again" would only repeat the same amount. */
+const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 
 function CopyButton({ value, label, copiedLabel }: { value: string; label: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
@@ -75,15 +79,19 @@ function Deposit() {
   const [view, setView] = useState<"loading" | "form" | "waiting">("loading");
   const [amount, setAmount] = useState("100");
   const [record, setRecord] = useState<DepositRecord | null>(null);
+  const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
   const [autopilot, setAutopilot] = useState<"idle" | "signing" | "needs_tap" | "done">("idle");
-  const [autopilotError, setAutopilotError] = useState<SembolError | null>(null);
+  const [autopilotFailure, setAutopilotFailure] = useState<Failure | null>(null);
   const autopilotStarted = useRef(false);
   const [usdTry, setUsdTry] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
   /** True once an on-ramp has sat at the anchor for more than 90 s (set from the poll, not during render). */
   const [anchorWaiting, setAnchorWaiting] = useState(false);
+  /** Wall clock as seen by the last poll tick; drives the transfer-timeout screen without reading Date.now() in render. */
+  const [now, setNow] = useState(0);
+  const [waitUntil, setWaitUntil] = useState(0);
 
   useEffect(() => {
     fetch("/api/rates")
@@ -99,13 +107,13 @@ function Deposit() {
       const next = await api<DepositRecord>(`/api/deposit/${record.id}/cancel`, { method: "POST", body: "{}" });
       setRecord(next);
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setFailure(classifyError(err, "generic"));
     } finally {
       setCancelling(false);
     }
   };
 
-  // Resume an in-flight deposit after a reload.
+  // Resume an in-flight deposit after a reload (the phone locked, the tab was closed…).
   useEffect(() => {
     if (!address) return;
     let alive = true;
@@ -114,6 +122,7 @@ function Deposit() {
         if (!alive) return;
         if (res.active) {
           setRecord(res.active);
+          setResumed(true);
           setView("waiting");
         } else {
           setView("form");
@@ -121,7 +130,7 @@ function Deposit() {
       })
       .catch((err: unknown) => {
         if (!alive) return;
-        setError(err instanceof Error ? err.message : String(err));
+        setFailure(classifyError(err, "generic"));
         setView("form");
       });
     return () => {
@@ -134,22 +143,28 @@ function Deposit() {
   const recordStatus = record?.status;
   useEffect(() => {
     if (!recordId || !recordStatus || FINAL.includes(recordStatus)) return;
-    const id = setInterval(() => {
+    const tick = () => {
+      setNow(Date.now());
       api<DepositRecord>(`/api/deposit/${recordId}`)
         .then((next) => {
           setRecord((current) => (current?.status === "in_vault" ? current : next));
           setAnchorWaiting(next.status === "onramp_pending" && Date.now() - Date.parse(next.updatedAt) > 90_000);
         })
         .catch(() => undefined);
-    }, 3000);
-    return () => clearInterval(id);
+    };
+    const first = setTimeout(tick, 0);
+    const id = setInterval(tick, 3000);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [recordId, recordStatus]);
 
   // Arrival autopilot: the USDC is in the smart account; put it in the vault.
   const runAutopilot = useCallback(async () => {
     if (!record || !kit || !info || !address || !record.paidUsdc) return;
     setAutopilot("signing");
-    setAutopilotError(null);
+    setAutopilotFailure(null);
     try {
       const tx = await buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc);
       const result = await signAndSubmit(tx);
@@ -157,9 +172,9 @@ function Deposit() {
       setRecord(next);
       setAutopilot("done");
     } catch (err) {
-      const sembolError = toSembolError(err);
-      console.error("[kumbara] vault deposit failed", sembolError.code, sembolError.message);
-      setAutopilotError(sembolError);
+      const classified = classifyError(err, "vault");
+      console.error("[kumbara] vault deposit failed", classified.kind, classified.detail);
+      setAutopilotFailure(classified);
       setAutopilot("needs_tap");
     }
   }, [record, kit, info, address, signAndSubmit]);
@@ -174,13 +189,14 @@ function Deposit() {
   const start = async () => {
     if (!address) return;
     setSubmitting(true);
-    setError(null);
+    setFailure(null);
     try {
       const created = await api<DepositRecord>("/api/deposit", { method: "POST", body: JSON.stringify({ contractId: address, amountTry: amount }) });
       setRecord(created);
+      setResumed(false);
       setView("waiting");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setFailure(classifyError(err, "anchor"));
     } finally {
       setSubmitting(false);
     }
@@ -188,7 +204,11 @@ function Deposit() {
 
   const reset = () => {
     setRecord(null);
+    setResumed(false);
     setAutopilot("idle");
+    setAutopilotFailure(null);
+    setFailure(null);
+    setWaitUntil(0);
     autopilotStarted.current = false;
     setView("form");
   };
@@ -248,17 +268,13 @@ function Deposit() {
           <p id="deposit-limits" className="text-xs text-muted">
             {t.deposit.limits}
           </p>
-          {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) && <p className="text-sm text-amber">{t.deposit.limitWarning}</p>}
-          {overTreasury && treasuryUsdc !== null && (
+          {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) ? <p className="text-sm text-amber">{t.deposit.limitWarning}</p> : null}
+          {overTreasury && treasuryUsdc !== null ? (
             <p className="rounded-xl border border-amber/40 bg-amber/5 p-3 text-sm text-ink-2" role="alert">
               {t.deposit.treasuryCap.replace("{usdc}", Math.floor(treasuryUsdc).toLocaleString(locale === "tr" ? "tr-TR" : "en-US"))}
             </p>
-          )}
-          {error && (
-            <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
-              {error}
-            </p>
-          )}
+          ) : null}
+          {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
           <button type="submit" disabled={!amountValid || submitting || !address} className="btn-primary w-full text-lg">
             {submitting ? t.savings.loading : t.deposit.continue}
           </button>
@@ -271,6 +287,19 @@ function Deposit() {
   const currentIndex = STEP_ORDER.indexOf(record.status);
   const quote = record.firmQuote ?? record.indicative;
   const tryShown = record.receivedTry ?? record.amountTry;
+  const deadline = record.transferDeadline ? Date.parse(record.transferDeadline) : null;
+  const timedOut = record.status === "awaiting_transfer" && deadline !== null && now > 0 && now > Math.max(deadline, waitUntil);
+  const waitedMinutes = now > 0 ? Math.max(1, Math.round((now - Date.parse(record.createdAt)) / 60_000)) : 0;
+  const quoteRefreshing = record.status === "transfer_received" && record.lastError?.code === "quote_expired";
+  const failed =
+    record.status === "failed"
+      ? classifyRecordError(record.error ?? { code: "step_failed", message: record.lastError?.message ?? "unknown" }, {
+          landingAddress: record.landing?.publicKey,
+          expected: record.firmQuote?.usdcOut,
+          actual: record.paidUsdc,
+        })
+      : null;
+  const parked = failed?.kind === "amount_mismatch" || failed?.kind === "usdc_not_received";
 
   return (
     <div className="flex flex-col gap-5 py-2">
@@ -280,6 +309,24 @@ function Deposit() {
           {t.deposit.backToSavings}
         </Link>
       </div>
+
+      {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="deposit" /> : null}
+
+      {failed ? (
+        <FailureScreen
+          failure={failed}
+          primary={parked ? undefined : { label: t.deposit.newDeposit, onClick: reset }}
+          secondary={parked ? { label: t.deposit.newDeposit, onClick: reset } : null}
+        />
+      ) : null}
+
+      {timedOut ? (
+        <FailureScreen
+          failure={{ kind: "transfer_timeout", values: { minutes: String(waitedMinutes) }, detail: `reference ${record.instructions.reference}; deadline ${record.transferDeadline ?? "?"}` }}
+          primary={{ label: t.failures.kinds.transfer_timeout.action, onClick: () => setWaitUntil(now + WAIT_EXTENSION_MS) }}
+          secondary={{ label: t.failures.kinds.transfer_timeout.secondary, onClick: () => void cancel(), busy: cancelling }}
+        />
+      ) : null}
 
       <section className="card p-5" aria-label={t.deposit.quoteTitle}>
         <div className="flex items-center justify-between">
@@ -292,10 +339,10 @@ function Deposit() {
         <p className="tnum mt-1 text-sm text-ink-2">
           {formatTry(Number(tryShown), locale)} · {t.deposit.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({record.indicative.spreadBps} bps {t.deposit.spread})
         </p>
-        {!record.firmQuote && <p className="mt-1 text-xs text-muted">{t.deposit.indicative}</p>}
+        {!record.firmQuote ? <p className="mt-1 text-xs text-muted">{t.deposit.indicative}</p> : null}
       </section>
 
-      {record.status === "awaiting_transfer" && (
+      {record.status === "awaiting_transfer" ? (
         <section className="card p-5" aria-label={t.deposit.transferTitle}>
           <p className="microlabel">{t.deposit.transferTitle}</p>
           <dl className="mt-3 flex flex-col gap-3 text-sm">
@@ -331,7 +378,7 @@ function Deposit() {
           <p className="mt-3 text-xs text-ink-2">{t.deposit.descriptionHint}</p>
           <p className="mt-2 text-xs text-muted">{t.deposit.sandbox}</p>
         </section>
-      )}
+      ) : null}
 
       <section className="card p-5" aria-label={t.deposit.statusTitle}>
         <p className="microlabel">{t.deposit.statusTitle}</p>
@@ -351,34 +398,44 @@ function Deposit() {
         <p className="mt-3 text-base font-semibold" role="status" aria-live="polite" data-testid="deposit-current">
           {t.deposit.steps[record.status]}
         </p>
-        {record.status === "failed" && (
-          <p className="mt-2 rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
-            {record.error?.message ?? record.lastError?.message}
+        {quoteRefreshing ? (
+          <p className="mt-1 text-sm text-amber" role="status">
+            {t.failures.quoteRefreshing}
           </p>
-        )}
-        {record.status === "in_wallet" && autopilot === "signing" && (
+        ) : null}
+        {record.status === "in_wallet" && autopilot === "signing" ? (
           <p className="mt-2 text-sm text-ink-2" role="status">
             {t.deposit.autopilotSigning}
           </p>
-        )}
-        {record.status === "in_wallet" && autopilot === "needs_tap" && (
-          <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
-            <p className="text-sm text-ink-2">{autopilotError?.code === "user_cancelled" ? t.deposit.autopilotNeedsTap : (autopilotError?.userMessage ?? t.deposit.autopilotNeedsTap)}</p>
-            <button type="button" onClick={() => void runAutopilot()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
-              {t.deposit.autopilotButton}
-            </button>
-          </div>
-        )}
-        {(record.anchorTxHash || record.forwardTxHash || record.vaultTxHash) && (
+        ) : null}
+        {record.status === "in_wallet" && autopilot === "needs_tap" ? (
+          autopilotFailure ? (
+            <FailureScreen
+              failure={autopilotFailure}
+              compact
+              className="mt-3"
+              primary={autopilotFailure.kind === "limit_exceeded" ? undefined : { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() }}
+              secondary={autopilotFailure.kind === "limit_exceeded" ? { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() } : null}
+            />
+          ) : (
+            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
+              <p className="text-sm text-ink-2">{t.deposit.autopilotNeedsTap}</p>
+              <button type="button" onClick={() => void runAutopilot()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
+                {t.deposit.autopilotButton}
+              </button>
+            </div>
+          )
+        ) : null}
+        {record.anchorTxHash || record.forwardTxHash || record.vaultTxHash ? (
           <div className="mt-4 flex flex-col gap-1">
-            {record.anchorTxHash && <TxLink hash={record.anchorTxHash} label={t.deposit.links.anchor} />}
-            {record.forwardTxHash && <TxLink hash={record.forwardTxHash} label={t.deposit.links.forward} />}
-            {record.vaultTxHash && <TxLink hash={record.vaultTxHash} label={t.deposit.links.vault} />}
+            {record.anchorTxHash ? <TxLink hash={record.anchorTxHash} label={t.deposit.links.anchor} /> : null}
+            {record.forwardTxHash ? <TxLink hash={record.forwardTxHash} label={t.deposit.links.forward} /> : null}
+            {record.vaultTxHash ? <TxLink hash={record.vaultTxHash} label={t.deposit.links.vault} /> : null}
           </div>
-        )}
+        ) : null}
       </section>
 
-      {record.status === "onramp_pending" && anchorWaiting && (
+      {record.status === "onramp_pending" && anchorWaiting ? (
         <section className="card border-amber/40 bg-amber/5 p-4" aria-label={t.deposit.abandonTitle}>
           <p className="font-semibold text-ink">{t.deposit.abandonTitle}</p>
           <p className="mt-1 text-sm text-ink-2">{t.deposit.abandonBody}</p>
@@ -386,27 +443,28 @@ function Deposit() {
             {cancelling ? t.savings.loading : t.deposit.abandon}
           </button>
         </section>
-      )}
+      ) : null}
+      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
       <div className="flex flex-col gap-2">
-        {record.status === "in_vault" && (
+        {record.status === "in_vault" ? (
           <Link href="/kumbara" className="btn-primary w-full">
             {t.deposit.backToSavings}
           </Link>
-        )}
-        {record.status === "abandoned" && <p className="text-center text-sm text-ink-2">{t.deposit.abandoned}</p>}
-        {FINAL.includes(record.status) && (
+        ) : null}
+        {record.status === "abandoned" ? <p className="text-center text-sm text-ink-2">{t.deposit.abandoned}</p> : null}
+        {FINAL.includes(record.status) && record.status !== "failed" ? (
           <button type="button" onClick={reset} className="btn-secondary w-full">
             {t.deposit.newDeposit}
           </button>
-        )}
-        {record.status === "awaiting_transfer" && (
+        ) : null}
+        {record.status === "awaiting_transfer" && !timedOut ? (
           <>
             <button type="button" onClick={() => void cancel()} disabled={cancelling} className="btn-secondary w-full">
               {cancelling ? t.savings.loading : t.deposit.cancel}
             </button>
             <p className="text-center text-xs text-muted">{t.deposit.cancelHint}</p>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   );

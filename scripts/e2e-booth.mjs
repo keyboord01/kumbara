@@ -29,7 +29,7 @@ try {
   await page.locator("svg").first().waitFor({ timeout: 20000 });
   const url = ((await page.locator("p.font-mono").first().textContent()) ?? "").trim();
   log("QR encodes:", url);
-  if (!url.endsWith("/?ref=booth-7")) throw new Error(`QR url unexpected: ${url}`);
+  if (!url.endsWith("/?ref=booth-7&net=testnet")) throw new Error(`QR url unexpected: ${url}`);
   const counter = ((await page.getByTestId("booth-counter").textContent()) ?? "").trim();
   log("counter:", counter);
   if (!/^\d+$/.test(counter)) throw new Error(`counter not numeric: ${counter}`);
@@ -72,10 +72,12 @@ try {
   const seeded = last.match(/C[A-Z2-7]{55}/)?.[0];
   log("seeded contract:", seeded);
 
-  log("metrics (public endpoint is edge-cached for 30 s; polling until the seeded account appears)");
+  log("metrics (public endpoint is edge-cached for 30 s; polling until the seeded account appears; seed is hidden unless included)");
+  const hidden = await (await fetch(`${APP}/api/metrics`)).json();
+  if (hidden.accounts.items.some((a) => a.contractId === seeded) || hidden.accounts.byRef.seed) throw new Error("seed account leaked into the default metrics");
   let metrics = null;
   for (let i = 0; i < 20; i += 1) {
-    metrics = await (await fetch(`${APP}/api/metrics`)).json();
+    metrics = await (await fetch(`${APP}/api/metrics?include=seed`)).json();
     if (metrics.accounts.items.some((a) => a.contractId === seeded)) break;
     await new Promise((r) => setTimeout(r, 5000));
   }
@@ -86,7 +88,7 @@ try {
   const dep = metrics.deposits.items.find((d) => d.contractId === seeded);
   if (!dep?.vaultTx) throw new Error("seed deposit not in vault in metrics");
   log("✓ metrics list the seeded account and its vault deposit with hashes");
-  const filtered = await (await fetch(`${APP}/api/metrics?ref=seed`)).json();
+  const filtered = await (await fetch(`${APP}/api/metrics?ref=seed&include=seed`)).json();
   if (filtered.accounts.sinceStart < 1 || filtered.deposits.inVault < 1) throw new Error("ref filter failed");
   log("✓ ref filter works:", JSON.stringify({ accounts: filtered.accounts.sinceStart, inVault: filtered.deposits.inVault }));
   console.log("\nE2E BOOTH OK. console errors:", consoleErrors.length ? consoleErrors : "none");

@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { api } from "./api";
+import { classifyError, type Failure } from "./failures";
 
 export interface AnchorInfo {
   network: "testnet" | "public";
@@ -16,26 +18,33 @@ export interface AnchorInfo {
 
 let cached: AnchorInfo | null = null;
 
-/** Discovery data from /api/anchor/info (USDC issuer from the anchor's toml, vault id). */
-export function useAnchorInfo(): { info: AnchorInfo | null; error: string | null } {
+/**
+ * Discovery data from /api/anchor/info (USDC issuer from the anchor's toml,
+ * vault id). A failure is classified (anchor down, Vercel login page, offline)
+ * so screens can show the matching state; `retry` fetches again.
+ */
+export function useAnchorInfo(): { info: AnchorInfo | null; error: string | null; failure: Failure | null; retry: () => void } {
   const [info, setInfo] = useState<AnchorInfo | null>(cached);
-  const [error, setError] = useState<string | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [epoch, setEpoch] = useState(0);
   useEffect(() => {
     if (cached) return;
     let alive = true;
-    fetch("/api/anchor/info")
-      .then(async (res) => {
-        const body = (await res.json()) as AnchorInfo & { error?: string };
-        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
+    api<AnchorInfo>("/api/anchor/info")
+      .then((body) => {
         cached = body;
         if (alive) setInfo(body);
       })
       .catch((err: unknown) => {
-        if (alive) setError(err instanceof Error ? err.message : String(err));
+        if (alive) setFailure(classifyError(err, "anchor"));
       });
     return () => {
       alive = false;
     };
+  }, [epoch]);
+  const retry = useCallback(() => {
+    setFailure(null);
+    setEpoch((e) => e + 1);
   }, []);
-  return { info, error };
+  return { info, error: failure?.detail ?? null, failure, retry };
 }

@@ -25,8 +25,8 @@ page.on("response", (r) => {
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 try {
-  log("open /?ref=e2e-booth");
-  await page.goto(`${APP}/?ref=e2e-booth`, { waitUntil: "networkidle" });
+  log("open /?ref=e2e");
+  await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   const title = await page.locator("h1").first().textContent();
   log("h1:", title?.trim());
   const footer = await page.locator("footer").textContent();

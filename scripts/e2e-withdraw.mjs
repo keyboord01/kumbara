@@ -67,7 +67,7 @@ async function waitFor(testId, doneRe, failRe, maxPolls, onTick) {
 
 try {
   log("onboard");
-  await page.goto(`${APP}/?ref=e2e-withdraw`, { waitUntil: "networkidle" });
+  await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });

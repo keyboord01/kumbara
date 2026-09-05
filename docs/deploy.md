@@ -53,7 +53,13 @@ vercel deploy --prod --yes --token "$VERCEL_TOKEN"
 vercel alias set <deployment-url> kumbara.vercel.app --token "$VERCEL_TOKEN"
 ```
 
-`kumbara.vercel.app` is a deployment alias, not a project domain (the project's own domain is `kumbara-theta.vercel.app`), so it does **not** move on its own: after every production deploy, including the ones the GitHub integration makes on a push to `main`, run the `vercel alias set` line above or the public URL keeps serving the previous deployment. Check with `curl -s "https://kumbara.vercel.app/api/anchor/info?cb=$(date +%s)"` (the vault id) before running the E2Es.
+**A production deploy is not finished until the `kumbara.vercel.app` alias is re-pointed.** `kumbara.vercel.app` is a deployment alias, not a project domain (the project's own domain is `kumbara-theta.vercel.app`), so it does **not** move on its own. After every production deploy, including the ones the GitHub integration makes on a push to `main`, run:
+
+```bash
+vercel alias set "$(vercel ls kumbara --prod --token "$VERCEL_TOKEN" 2>/dev/null | grep -oE 'https://kumbara-[a-z0-9]+-keyboord01s-projects\.vercel\.app' | head -1)" kumbara.vercel.app --token "$VERCEL_TOKEN"
+```
+
+Until that runs, the public URL keeps serving the previous deployment. Verify before running the E2Es: `curl -s "https://kumbara.vercel.app/api/anchor/info?cb=$(date +%s)"` must show the vault id from the table below, and `/api/health` must answer `ok:true`.
 
 ### Environment variables (production)
 

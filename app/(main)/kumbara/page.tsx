@@ -7,7 +7,7 @@ import { toSembolError, usePasskeyWallet, useSigners, useSpendingPolicy, useWall
 import { AddressCard } from "@/components/AddressCard";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
-import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
+import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_PERIOD, DEFAULT_LIMIT_USDC } from "@/lib/limits";
@@ -203,7 +203,7 @@ function Savings() {
         </div>
         <p className="mt-1 font-semibold">{position?.name ?? t.savings.loading}</p>
         <p className="mt-2 text-sm text-ink-2">{t.savings.yieldLine}</p>
-        {position && !position.activeStrategy && <p className="mt-1 text-sm text-amber">{t.savings.noStrategy}</p>}
+        {NETWORK === "testnet" && <p className="mt-1 text-sm text-amber">{t.savings.noYield}</p>}
         <p className="mt-2 text-xs leading-relaxed text-muted">{t.savings.risk}</p>
       </section>
 

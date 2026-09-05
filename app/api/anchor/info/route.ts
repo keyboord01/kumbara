@@ -21,10 +21,11 @@ export async function GET(): Promise<Response> {
         usdc: anchor.usdc,
         vault: { id: serverEnv.defindexVaultId() },
         treasury: anchor.treasury,
+        treasuryUsdc: anchor.treasuryUsdc,
         onrampMode: serverEnv.onrampMode(),
         offrampMode: serverEnv.offrampMode(),
       },
-      { headers: { "cache-control": "public, max-age=300, stale-while-revalidate=600" } },
+      { headers: { "cache-control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300" } },
     );
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "anchor discovery failed" }, { status: 503 });

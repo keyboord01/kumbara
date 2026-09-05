@@ -9,6 +9,7 @@ export interface AnchorInfo {
   usdc: { code: string; issuer: string; contractId: string };
   vault: { id: string };
   treasury: string | null;
+  treasuryUsdc: string | null;
   onrampMode: "landing" | "direct";
   offrampMode: "landing" | "direct";
 }

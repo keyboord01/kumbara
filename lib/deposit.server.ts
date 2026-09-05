@@ -30,8 +30,9 @@ export const DEPOSIT_MIN_TRY = 50;
 export const DEPOSIT_MAX_TRY = 250_000;
 const MAX_STEP_ATTEMPTS = 6;
 
-export type DepositStatus = "awaiting_transfer" | "transfer_received" | "onramp_pending" | "onramp_paid" | "forwarded" | "in_wallet" | "in_vault" | "failed";
-export const FINAL_STATUSES: DepositStatus[] = ["in_vault", "failed"];
+export type DepositStatus = "awaiting_transfer" | "transfer_received" | "onramp_pending" | "onramp_paid" | "forwarded" | "in_wallet" | "in_vault" | "failed" | "cancelled" | "abandoned";
+/** Statuses the Deposit screen treats as finished (a new deposit can start). */
+export const FINAL_STATUSES: DepositStatus[] = ["in_vault", "failed", "cancelled", "abandoned"];
 
 export interface DepositRecord extends StoredRecord {
   status: DepositStatus;
@@ -59,6 +60,9 @@ export interface DepositRecord extends StoredRecord {
   attempts?: Partial<Record<DepositStatus, number>>;
   lastError?: { at: string; message: string };
   error?: { code: string; message: string };
+  /** Set when the user abandoned a deposit the anchor still owes (treasury low); a presenter can resume it. */
+  abandonedAt?: string;
+  abandonedFrom?: DepositStatus;
 }
 
 interface AnchorCustomer {
@@ -302,6 +306,49 @@ async function step(record: DepositRecord): Promise<DepositRecord> {
     default:
       return record;
   }
+}
+
+/**
+ * Give up on a deposit so the user can start another. Before any lira moved
+ * it is simply cancelled. Once the anchor holds an on-ramp that is waiting on
+ * its treasury, the record is kept whole (on-ramp id, landing plan) as
+ * `abandoned`: the anchor will still pay the landing account when it can, and
+ * a presenter can resume the record from the console. Funds that are already
+ * moving (paid, forwarded, in the wallet) cannot be abandoned.
+ */
+export async function cancelDeposit(id: string): Promise<DepositRecord> {
+  return withLease(`deposit:${id}`, 30_000, async () => {
+    const record = await loadDeposit(id);
+    if (FINAL_STATUSES.includes(record.status)) return record;
+    if (record.status === "awaiting_transfer" || record.status === "transfer_received") {
+      return depositStore.save({ ...record, status: "cancelled", abandonedAt: new Date().toISOString(), abandonedFrom: record.status });
+    }
+    if (record.status === "onramp_pending") {
+      return depositStore.save({ ...record, status: "abandoned", abandonedAt: new Date().toISOString(), abandonedFrom: record.status });
+    }
+    throw new DepositError(409, "cannot_cancel", `a deposit that is ${record.status} cannot be abandoned; let it finish`);
+  }, () => loadDeposit(id));
+}
+
+/** Presenter action: put an abandoned on-ramp deposit back into the pipeline. */
+export async function resumeDeposit(id: string): Promise<DepositRecord> {
+  return withLease(`deposit:${id}`, 30_000, async () => {
+    const record = await loadDeposit(id);
+    if (record.status !== "abandoned" || !record.onrampId || !record.landing) {
+      throw new DepositError(409, "cannot_resume", `deposit is ${record.status}; only abandoned on-ramps can be resumed`);
+    }
+    const resumed: DepositRecord = { ...record, status: "onramp_pending", attempts: {} };
+    delete resumed.abandonedAt;
+    delete resumed.abandonedFrom;
+    return depositStore.save(resumed);
+  }, () => loadDeposit(id));
+}
+
+/** Deposits the anchor still owes: waiting on its treasury for more than two minutes, or abandoned. */
+export async function listStuckDeposits(limit = 10): Promise<DepositRecord[]> {
+  const [pending, abandoned] = await Promise.all([depositStore.listByStatus<DepositRecord>("onramp_pending", limit), depositStore.listByStatus<DepositRecord>("abandoned", limit)]);
+  const old = Date.now() - 2 * 60_000;
+  return [...pending.filter((d) => Date.parse(d.updatedAt) < old), ...abandoned];
 }
 
 export async function recordVaultDeposit(id: string, input: { hash: string; amountUsdc: string; ref?: string | null }): Promise<DepositRecord> {

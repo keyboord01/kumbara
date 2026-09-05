@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin.server";
 import { listPendingDeposits } from "@/lib/demo-bank";
+import { listStuckDeposits } from "@/lib/deposit.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,5 +11,12 @@ export const maxDuration = 30;
 export async function GET(request: Request): Promise<Response> {
   const denied = requireAdmin(request);
   if (denied) return denied;
-  return NextResponse.json({ pending: await listPendingDeposits(10) }, { headers: { "cache-control": "no-store" } });
+  const [pending, stuck] = await Promise.all([listPendingDeposits(10), listStuckDeposits(10)]);
+  return NextResponse.json(
+    {
+      pending,
+      stuck: stuck.map((d) => ({ id: d.id, status: d.status, contractId: d.contractId, amountTry: d.receivedTry ?? d.amountTry, usdc: d.firmQuote?.usdcOut ?? null, onrampId: d.onrampId ?? null, updatedAt: d.updatedAt, abandonedAt: d.abandonedAt ?? null })),
+    },
+    { headers: { "cache-control": "no-store" } },
+  );
 }

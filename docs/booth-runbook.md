@@ -44,6 +44,9 @@ The sponsor dropped below `SPONSOR_MIN_XLM`. On the admin page tap "Fund via Fri
 **Rate limited ("No new kumbaras from this device or booth for now").**
 Per-IP cap is 5 accounts per hour (booth Wi-Fi shares one IP: raise `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` in `fly.toml` before the event, e.g. to 60) and the per-ref cap is 300; both are env-configurable.
 
+**Deposit stuck on "The anchor is sending USDC" (order `pending`, reason `treasury_low`).**
+The amount was larger than the anchor's shared testnet USDC treasury (the anchor dot on the admin page shows the balance; the deposit form now refuses amounts above about 90% of it). The anchor keeps the order and pays when its treasury is refilled; the app cannot cancel it on the anchor's side. After 90 seconds the Deposit screen offers "Abandon and start over": the visitor can then make a smaller deposit, and the abandoned one appears under "Waiting at the anchor / abandoned" on the admin page with a Resume button for after the refill. Keep booth deposits between 100 and 2,000 TRY.
+
 **Vault red, everything else green.**
 The vault contract does not answer simulations (RPC hiccup or a testnet reset). Deposits stop at "USDC arrived; putting it in the vault" and withdrawals cannot start; the USDC stays in the visitor's kumbara. Retry after a minute; if a testnet reset happened, the contract set in `fly.toml` must be redeployed (see `docs/anchor-notes.md`).
 

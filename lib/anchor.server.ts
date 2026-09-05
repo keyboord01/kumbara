@@ -11,6 +11,8 @@ export interface AnchorDiscovery {
   endpoints: Record<string, string>;
   networkPassphrase: string;
   treasury: string | null;
+  /** The anchor's USDC treasury balance at discovery time (it pays on-ramps from it). */
+  treasuryUsdc: string | null;
   fetchedAt: number;
 }
 
@@ -33,9 +35,11 @@ export async function discoverAnchor(): Promise<AnchorDiscovery> {
   const issuer = block?.match(/^issuer="([^"]+)"/m)?.[1];
   if (!issuer) throw new Error("anchor stellar.toml has no USDC currency");
   let treasury: string | null = null;
+  let treasuryUsdc: string | null = null;
   try {
-    const health = (await (await fetch(`${base}/health`, { next: { revalidate: 300 } })).json()) as { treasury?: { address?: string } };
+    const health = (await (await fetch(`${base}/health`, { next: { revalidate: 60 } })).json()) as { treasury?: { address?: string; usdc_balance?: string } };
     treasury = health.treasury?.address ?? null;
+    treasuryUsdc = health.treasury?.usdc_balance ?? null;
   } catch {
     treasury = null;
   }
@@ -44,6 +48,7 @@ export async function discoverAnchor(): Promise<AnchorDiscovery> {
     endpoints,
     networkPassphrase: passphrase,
     treasury,
+    treasuryUsdc,
     fetchedAt: Date.now(),
   };
 }

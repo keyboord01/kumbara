@@ -12,11 +12,12 @@ import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
 
-type DepositStatus = "awaiting_transfer" | "transfer_received" | "onramp_pending" | "onramp_paid" | "forwarded" | "in_wallet" | "in_vault" | "failed";
+type DepositStatus = "awaiting_transfer" | "transfer_received" | "onramp_pending" | "onramp_paid" | "forwarded" | "in_wallet" | "in_vault" | "failed" | "cancelled" | "abandoned";
 
 interface DepositRecord {
   id: string;
   status: DepositStatus;
+  updatedAt: string;
   amountTry: string;
   receivedTry?: string;
   indicative: { usdcOut: string; rate: string; spreadBps: number };
@@ -31,7 +32,7 @@ interface DepositRecord {
 }
 
 const STEP_ORDER: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded", "in_wallet", "in_vault"];
-const FINAL: DepositStatus[] = ["in_vault", "failed"];
+const FINAL: DepositStatus[] = ["in_vault", "failed", "cancelled", "abandoned"];
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
@@ -79,6 +80,30 @@ function Deposit() {
   const [autopilot, setAutopilot] = useState<"idle" | "signing" | "needs_tap" | "done">("idle");
   const [autopilotError, setAutopilotError] = useState<SembolError | null>(null);
   const autopilotStarted = useRef(false);
+  const [usdTry, setUsdTry] = useState<number | null>(null);
+  const [cancelling, setCancelling] = useState(false);
+  /** True once an on-ramp has sat at the anchor for more than 90 s (set from the poll, not during render). */
+  const [anchorWaiting, setAnchorWaiting] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/rates")
+      .then((r) => (r.ok ? (r.json() as Promise<{ usdTry: number }>) : null))
+      .then((r) => r && setUsdTry(r.usdTry))
+      .catch(() => undefined);
+  }, []);
+
+  const cancel = async () => {
+    if (!record) return;
+    setCancelling(true);
+    try {
+      const next = await api<DepositRecord>(`/api/deposit/${record.id}/cancel`, { method: "POST", body: "{}" });
+      setRecord(next);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   // Resume an in-flight deposit after a reload.
   useEffect(() => {
@@ -111,7 +136,10 @@ function Deposit() {
     if (!recordId || !recordStatus || FINAL.includes(recordStatus)) return;
     const id = setInterval(() => {
       api<DepositRecord>(`/api/deposit/${recordId}`)
-        .then((next) => setRecord((current) => (current?.status === "in_vault" ? current : next)))
+        .then((next) => {
+          setRecord((current) => (current?.status === "in_vault" ? current : next));
+          setAnchorWaiting(next.status === "onramp_pending" && Date.now() - Date.parse(next.updatedAt) > 90_000);
+        })
         .catch(() => undefined);
     }, 3000);
     return () => clearInterval(id);
@@ -166,7 +194,10 @@ function Deposit() {
   };
 
   const amountNumber = Number(amount.replace(",", "."));
-  const amountValid = Number.isFinite(amountNumber) && amountNumber >= 50 && amountNumber <= 250_000;
+  const treasuryUsdc = info?.treasuryUsdc ? Number(info.treasuryUsdc) : null;
+  const estimatedUsdc = usdTry ? amountNumber / (usdTry * 1.005) : null;
+  const overTreasury = treasuryUsdc !== null && estimatedUsdc !== null && estimatedUsdc > treasuryUsdc * 0.9;
+  const amountValid = Number.isFinite(amountNumber) && amountNumber >= 50 && amountNumber <= 250_000 && !overTreasury;
 
   if (view === "loading") {
     return (
@@ -218,6 +249,11 @@ function Deposit() {
             {t.deposit.limits}
           </p>
           {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) && <p className="text-sm text-amber">{t.deposit.limitWarning}</p>}
+          {overTreasury && treasuryUsdc !== null && (
+            <p className="rounded-xl border border-amber/40 bg-amber/5 p-3 text-sm text-ink-2" role="alert">
+              {t.deposit.treasuryCap.replace("{usdc}", Math.floor(treasuryUsdc).toLocaleString(locale === "tr" ? "tr-TR" : "en-US"))}
+            </p>
+          )}
           {error && (
             <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
               {error}
@@ -342,18 +378,35 @@ function Deposit() {
         )}
       </section>
 
+      {record.status === "onramp_pending" && anchorWaiting && (
+        <section className="card border-amber/40 bg-amber/5 p-4" aria-label={t.deposit.abandonTitle}>
+          <p className="font-semibold text-ink">{t.deposit.abandonTitle}</p>
+          <p className="mt-1 text-sm text-ink-2">{t.deposit.abandonBody}</p>
+          <button type="button" onClick={() => void cancel()} disabled={cancelling} className="btn-secondary mt-3 w-full">
+            {cancelling ? t.savings.loading : t.deposit.abandon}
+          </button>
+        </section>
+      )}
       <div className="flex flex-col gap-2">
         {record.status === "in_vault" && (
           <Link href="/kumbara" className="btn-primary w-full">
             {t.deposit.backToSavings}
           </Link>
         )}
+        {record.status === "abandoned" && <p className="text-center text-sm text-ink-2">{t.deposit.abandoned}</p>}
         {FINAL.includes(record.status) && (
           <button type="button" onClick={reset} className="btn-secondary w-full">
             {t.deposit.newDeposit}
           </button>
         )}
-        {record.status === "awaiting_transfer" && <p className="text-center text-xs text-muted">{t.deposit.cancelHint}</p>}
+        {record.status === "awaiting_transfer" && (
+          <>
+            <button type="button" onClick={() => void cancel()} disabled={cancelling} className="btn-secondary w-full">
+              {cancelling ? t.savings.loading : t.deposit.cancel}
+            </button>
+            <p className="text-center text-xs text-muted">{t.deposit.cancelHint}</p>
+          </>
+        )}
       </div>
     </div>
   );

@@ -16,6 +16,16 @@ interface Pending {
   createdAt: string;
   reference: string;
 }
+interface Stuck {
+  id: string;
+  status: string;
+  contractId: string;
+  amountTry: string;
+  usdc: string | null;
+  onrampId: string | null;
+  updatedAt: string;
+  abandonedAt: string | null;
+}
 interface PlayResult {
   depositId: string;
   reference: string;
@@ -59,6 +69,8 @@ export default function BoothAdminPage() {
   const { signAndSubmit } = useSignTransaction();
   const [token, setToken] = useState("");
   const [pending, setPending] = useState<Pending[] | null>(null);
+  const [stuck, setStuck] = useState<Stuck[]>([]);
+  const [resumed, setResumed] = useState<string | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [sponsor, setSponsor] = useState<Sponsor | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -83,12 +95,13 @@ export default function BoothAdminPage() {
     if (!token) return;
     try {
       const [p, h, s] = await Promise.all([
-        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; error?: { message: string } } })),
+        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; error?: { message: string } } })),
         fetch("/api/health").then((r) => r.json() as Promise<Health>),
         fetch("/api/booth/admin/sponsor", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as Sponsor & { error?: { message: string } } })),
       ]);
       if (!p.ok) throw new Error(p.body.error?.message ?? "unauthorized");
       setPending(p.body.pending ?? []);
+      setStuck(p.body.stuck ?? []);
       setHealth(h);
       setSponsor(s.ok ? s.body : null);
       setError(s.ok ? null : (s.body.error?.message ?? null));
@@ -114,6 +127,23 @@ export default function BoothAdminPage() {
       const body = (await res.json()) as PlayResult & { error?: { message: string } };
       if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
       setResult(body);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const resume = async (depositId: string) => {
+    setBusy("play");
+    setError(null);
+    setResumed(null);
+    try {
+      const res = await fetch("/api/booth/admin/resume", auth({ method: "POST", body: JSON.stringify({ depositId }) }));
+      const body = (await res.json()) as { error?: { message: string } };
+      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      setResumed(depositId);
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -310,6 +340,36 @@ export default function BoothAdminPage() {
               </p>
             )}
           </section>
+
+          {stuck.length > 0 && (
+            <section className="card flex flex-col gap-3 p-5" aria-label={t.admin.stuck}>
+              <p className="microlabel">{t.admin.stuck}</p>
+              <ul className="flex flex-col gap-2 text-sm">
+                {stuck.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-paper-2 p-3">
+                    <div>
+                      <p className="tnum font-semibold">
+                        ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : t.deposit.steps.onramp_pending}
+                      </p>
+                      <p className="font-mono text-xs text-muted">
+                        {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.onrampId ?? ""}
+                      </p>
+                    </div>
+                    {d.status === "abandoned" && (
+                      <button type="button" onClick={() => void resume(d.id)} disabled={busy !== ""} className="btn-secondary min-h-9 px-3 text-xs">
+                        {t.admin.resume}
+                      </button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              {resumed && (
+                <p className="text-sm text-mint" role="status">
+                  {t.admin.resumed}
+                </p>
+              )}
+            </section>
+          )}
 
           <section className="card flex flex-col gap-3 p-5" aria-label={t.admin.seed}>
             <p className="microlabel">{t.admin.seed}</p>

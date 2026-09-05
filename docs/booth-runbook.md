@@ -4,13 +4,13 @@ Rise In × Stellar Pro Hackathon, Istanbul, 19–20 September 2026. Everything b
 
 ## Pre-doors checklist (30 minutes before)
 
-1. **Alias re-pointed.** A production deploy is not finished until `kumbara.vercel.app` points at it: `curl -s "https://kumbara.vercel.app/api/anchor/info?cb=$(date +%s)"` must show the vault id from `docs/deploy.md`, and `/api/health` must answer `ok:true`. If not, run the `vercel alias set` line in `docs/deploy.md`.
+1. **The domain serves the latest deploy.** `kumbara.sembol.xyz` is the project's production domain, so every production deploy reaches it by itself (no alias step). Check `curl -s "https://kumbara.sembol.xyz/api/anchor/info?cb=$(date +%s)"` shows the vault id from `docs/deploy.md` and `/api/health` answers `ok:true`. Passkeys are bound to this domain: accounts made on the old `kumbara.vercel.app` address (which now redirects here) do not open on it, so seed the demo account fresh (step 8).
 2. **CI green.** The last "Production round trip (scheduled)" run under GitHub → Actions → E2E is green, and `/booth/admin` shows no red "Last CI run failed" banner. If it is red, open the linked run: the failing step names the subsystem (onboard = relay, deposit = anchor or landing, withdraw = anchor payout, booth = admin/sponsor, stats = metrics).
 3. **Sponsor topped up.** The sponsor card on `/booth/admin` says "Sufficient"; keep it around 20 XLM (Fund via Friendbot on testnet). Below 3 XLM onboarding pauses; the scheduled CI run skips itself below 8 XLM.
-4. **Rate limits set.** Booth Wi-Fi shares one IP: `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR=60` and `RATE_LIMIT_ACCOUNTS_PER_REF=300` in the production environment (see `docs/deploy.md`). Changing them is an env change plus a deploy plus the alias step.
-5. **Admin token loaded on the presenter phone.** Open `https://kumbara.vercel.app/booth/admin?token=<BOOTH_ADMIN_TOKEN>`; the token leaves the URL immediately. Keep the tab open; the four dots must be green.
-6. **Stats page open.** Second screen: `https://kumbara.vercel.app/stats?mode=tv` (projector mode: big numbers, live feed, auto-cycling chart). Phone or laptop: `https://kumbara.vercel.app/stats` for the full page with contracts and how-it-works.
-7. **Booth QR screen.** `https://kumbara.vercel.app/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`. The link carries `&net=testnet`, so a mainnet build would refuse it.
+4. **Rate limits set.** Booth Wi-Fi shares one IP: `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR=60` and `RATE_LIMIT_ACCOUNTS_PER_REF=300` in the production environment (see `docs/deploy.md`). Changing them is an env change plus a deploy.
+5. **Admin token loaded on the presenter phone.** Open `https://kumbara.sembol.xyz/booth/admin?token=<BOOTH_ADMIN_TOKEN>`; the token leaves the URL immediately. Keep the tab open; the four dots must be green.
+6. **Stats page open.** Second screen: `https://kumbara.sembol.xyz/stats?mode=tv` (projector mode: big numbers, live feed, auto-cycling chart). Phone or laptop: `https://kumbara.sembol.xyz/stats` for the full page with contracts and how-it-works.
+7. **Booth QR screen.** `https://kumbara.sembol.xyz/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`. The link carries `&net=testnet`, so a mainnet build would refuse it.
 8. **Demo account seeded.** On the admin page tap "Seed a demo account" (Face ID on the presenter's device, then a second Face ID when the USDC arrives). About 90 seconds. Leave that account connected on the presenter's phone for the jury withdraw.
 9. **Backup videos ready.** The phone recording of the round trip, and the fallback `docs/demo/round-trip.mp4` with its captions.
 
@@ -44,7 +44,7 @@ Red Anchor dot, "The anchor is not answering", deposits stuck on "Waiting for yo
 
 ### Relay down
 
-Red Relay dot; "The relay is not answering", "The relay refused the request" or "The relay's fee budget is used up". Nothing that needs a signature can go through: no new accounts, no vault deposits, no withdrawals. Do not ask anyone for XLM; the app never will. Use the seeded account to walk through Savings and the security page, and show the backup video for the round trip. Pre-authorized landing transactions have no expiry, so in-flight deposits complete once the relay is back. Budget exhausted: top up the project's budget on the relay (OpenZeppelin Channels: the channel accounts' XLM) and retry. If only the hosted Channels service is down, switching `SEMBOL_CLOUD_URL` to another relay, redeploying and re-pointing the alias takes about three minutes.
+Red Relay dot; "The relay is not answering", "The relay refused the request" or "The relay's fee budget is used up". Nothing that needs a signature can go through: no new accounts, no vault deposits, no withdrawals. Do not ask anyone for XLM; the app never will. Use the seeded account to walk through Savings and the security page, and show the backup video for the round trip. Pre-authorized landing transactions have no expiry, so in-flight deposits complete once the relay is back. Budget exhausted: top up the project's budget on the relay (OpenZeppelin Channels: the channel accounts' XLM) and retry. If only the hosted Channels service is down, switching `SEMBOL_CLOUD_URL` to another relay and redeploying takes about three minutes.
 
 ### Passkey refused
 
@@ -56,7 +56,7 @@ Red Relay dot; "The relay is not answering", "The relay refused the request" or 
 
 ### Rate limited
 
-"Too many kumbaras from this connection" (per-IP cap, 60 per hour on booth Wi-Fi) or "This booth reached its limit" (per-ref cap, 300 per booth link). Wait, or raise `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` / `RATE_LIMIT_ACCOUNTS_PER_REF` (env change + deploy + alias). A second booth link (`/booth?n=2`) has its own per-ref count.
+"Too many kumbaras from this connection" (per-IP cap, 60 per hour on booth Wi-Fi) or "This booth reached its limit" (per-ref cap, 300 per booth link). Wait, or raise `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` / `RATE_LIMIT_ACCOUNTS_PER_REF` (env change + deploy). A second booth link (`/booth?n=2`) has its own per-ref count.
 
 ### Deposit stuck at the anchor (treasury low)
 
@@ -93,7 +93,7 @@ Red "Last CI run failed at step X" banner on `/booth/admin`: the 6-hourly produc
 
 ## After the event
 
-`https://kumbara.vercel.app/stats` and `https://kumbara.vercel.app/api/metrics?since=<BOOTH_START_TS>` are the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals with transaction links, TRY in/out, the live vault total and the timings. Both are public; the seeded demo account and the automated E2E runs are excluded unless `?include=seed,e2e`.
+`https://kumbara.sembol.xyz/stats` and `https://kumbara.sembol.xyz/api/metrics?since=<BOOTH_START_TS>` are the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals with transaction links, TRY in/out, the live vault total and the timings. Both are public; the seeded demo account and the automated E2E runs are excluded unless `?include=seed,e2e`.
 
 ## Backup videos
 

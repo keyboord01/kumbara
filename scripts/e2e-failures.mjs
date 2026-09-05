@@ -1,7 +1,7 @@
 // Gate 5 end-to-end for the failure screens that can be triggered without an
 // outage: the wrong-network block, the offline banner, the passkey-lost
 // recovery page and the gallery of every state. Read-only; creates nothing.
-//   APP_URL=https://kumbara.vercel.app node scripts/e2e-failures.mjs
+//   APP_URL=https://kumbara.sembol.xyz node scripts/e2e-failures.mjs
 import { chromium } from "playwright";
 
 const APP = process.env.APP_URL ?? "http://localhost:3100";

@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
-import { NETWORK } from "@/lib/config";
+import { NETWORK, SITE_URL } from "@/lib/config";
 import { useLocale } from "@/lib/i18n";
 
 interface Metrics {
@@ -23,8 +23,10 @@ function Booth() {
   );
   const [svg, setSvg] = useState("");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
-  // The link carries the network so a build for the other network refuses it (components/NetworkGuard.tsx).
-  const url = useMemo(() => (origin ? `${origin}/?ref=${ref}&net=testnet` : ""), [origin, ref]);
+  // The QR points at the canonical site (NEXT_PUBLIC_SITE_URL) when configured, else at this origin. The
+  // link carries the network so a build for the other network refuses it (components/NetworkGuard.tsx).
+  const base = SITE_URL || origin;
+  const url = useMemo(() => (base ? `${base}/?ref=${ref}&net=testnet` : ""), [base, ref]);
 
   useEffect(() => {
     if (!url) return;

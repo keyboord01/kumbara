@@ -2,7 +2,7 @@
 
 Production runs on **Vercel (Hobby, Fluid compute)** with **Turso** for the records, the contract-to-customer map and the counter events. There is no long-lived process: every deposit and withdrawal step is resumed from database state on whichever invocation polls next, mutual exclusion is a database lease, and rate-limit windows are rows. The Fly.io files (`Dockerfile`, `fly.toml`) are kept as an alternative single-machine path with a local libsql file on a volume.
 
-Live: **https://kumbara.vercel.app** (Stellar TESTNET). Functions run in `fra1`; the Turso database is in `aws-eu-west-1` (Ireland), the closest available region to Frankfurt.
+Live: **https://kumbara.sembol.xyz** (Stellar TESTNET; `kumbara.vercel.app` and `kumbara-theta.vercel.app` redirect here with a 308). Functions run in `fra1`; the Turso database is in `aws-eu-west-1` (Ireland), the closest available region to Frankfurt.
 
 ## Prerequisites
 
@@ -50,16 +50,20 @@ for KV in $(cat .data/vercel-env.prod); do
 done
 
 vercel deploy --prod --yes --token "$VERCEL_TOKEN"
-vercel alias set <deployment-url> kumbara.vercel.app --token "$VERCEL_TOKEN"
 ```
 
-**A production deploy is not finished until the `kumbara.vercel.app` alias is re-pointed.** `kumbara.vercel.app` is a deployment alias, not a project domain (the project's own domain is `kumbara-theta.vercel.app`), so it does **not** move on its own. After every production deploy, including the ones the GitHub integration makes on a push to `main`, run:
+### Domain
 
-```bash
-vercel alias set "$(vercel ls kumbara --prod --token "$VERCEL_TOKEN" 2>/dev/null | grep -oE 'https://kumbara-[a-z0-9]+-keyboord01s-projects\.vercel\.app' | head -1)" kumbara.vercel.app --token "$VERCEL_TOKEN"
-```
+`kumbara.sembol.xyz` is a **project domain attached to production** (CNAME `kumbara.sembol.xyz → cname.vercel-dns.com` at the DNS host; added with `vercel domains add kumbara.sembol.xyz kumbara --token "$VERCEL_TOKEN"`; `curl -s https://api.vercel.com/v9/projects/kumbara/domains -H "Authorization: Bearer $VERCEL_TOKEN"` lists it as `verified: true`). Every production deploy, including the ones the GitHub integration makes on a push to `main`, serves it at once: there is no alias step any more. Vercel issued the certificate (Let's Encrypt, first issued 2026-09-05, renewed automatically) as soon as the DNS resolved.
 
-Until that runs, the public URL keeps serving the previous deployment. Verify before running the E2Es: `curl -s "https://kumbara.vercel.app/api/anchor/info?cb=$(date +%s)"` must show the vault id from the table below, and `/api/health` must answer `ok:true`.
+The two previous addresses redirect with a permanent 308 to the new domain, path included:
+
+- `kumbara-theta.vercel.app` is the project's own `.vercel.app` domain; the redirect is set on the domain itself (`PATCH /v9/projects/kumbara/domains/kumbara-theta.vercel.app {"redirect":"kumbara.sembol.xyz","redirectStatusCode":308}`) and happens at the edge.
+- `kumbara.vercel.app` is a deployment alias that belongs to another Vercel team, so it cannot be attached to this project; it is pointed once at a deployment that carries the host-based redirect in `next.config.mjs` (`vercel alias set <deployment-url> kumbara.vercel.app`) and needs no further updates: that deployment is immutable and keeps redirecting.
+
+**Passkeys are bound to the domain.** `NEXT_PUBLIC_WEBAUTHN_RP_ID=kumbara.sembol.xyz` sets the WebAuthn Relying Party ID explicitly in production (the library otherwise derives it from the current host; previews and localhost leave it unset on purpose so their own hosts work). A passkey created under one RP ID cannot sign under another, so **every account created on `kumbara.vercel.app` before the move stops working on the new domain**: the old test accounts, the seeded demo account and any visitor account from the old address. Seed a fresh demo account on the new domain before the event. Their on-chain kumbaras still exist and still open on the old host, which now redirects, so the old origin is effectively retired.
+
+Verify a deploy before running the E2Es: `curl -s "https://kumbara.sembol.xyz/api/anchor/info?cb=$(date +%s)"` must show the vault id from the table below and `/api/health` must answer `ok:true`.
 
 ### Environment variables (production)
 
@@ -72,6 +76,8 @@ Until that runs, the public URL keeps serving the previous deployment. Verify be
 | `SPONSOR_SECRET` | secret | the sponsor keypair above |
 | `BOOTH_ADMIN_TOKEN` | secret | presenter token for `/booth/admin` (12+ characters) |
 | `STELLAR_NETWORK`, `NEXT_PUBLIC_STELLAR_NETWORK` | config | `testnet` |
+| `NEXT_PUBLIC_SITE_URL` | config | `https://kumbara.sembol.xyz` (booth QR target, page metadata, stats footer; unset on previews) |
+| `NEXT_PUBLIC_WEBAUTHN_RP_ID` | config | `kumbara.sembol.xyz` (production only; see Domain) |
 | `STELLAR_RPC_URL` | config | `https://soroban-testnet.stellar.org` |
 | `ANCHOR_BASE_URL` | config | `https://tr-mock-anchor.fly.dev` |
 | `SEMBOL_CLOUD_URL`, `SEMBOL_PROJECT_ID` | config | `https://channels.openzeppelin.com/testnet`, `kumbara` |
@@ -102,10 +108,10 @@ Per-IP windows are rows in Turso keyed by a salted hash of the IP; the salt deri
 ### Verify
 
 ```bash
-curl -s https://kumbara.vercel.app/api/health | jq          # ok:true, database and four dependencies
-APP_URL=https://kumbara.vercel.app pnpm e2e:onboard        # Chrome + virtual passkey against production
-APP_URL=https://kumbara.vercel.app pnpm e2e:deposit
-APP_URL=https://kumbara.vercel.app pnpm e2e:withdraw
+curl -s https://kumbara.sembol.xyz/api/health | jq          # ok:true, database and four dependencies
+APP_URL=https://kumbara.sembol.xyz pnpm e2e:onboard        # Chrome + virtual passkey against production
+APP_URL=https://kumbara.sembol.xyz pnpm e2e:deposit
+APP_URL=https://kumbara.sembol.xyz pnpm e2e:withdraw
 ```
 
 Measured on 5 September 2026 from Istanbul: first request after deploy (cold) `/api/health` 2.4 s including a 0.58 s Turso round trip; warm requests 0.4–0.9 s; home page 0.67 s.
@@ -116,11 +122,11 @@ Measured on 5 September 2026 from Istanbul: first request after deploy (cold) `/
 2. Check the sponsor balance on `/booth/admin` (keep it around 20–50 XLM).
 3. Check the four dots on `/booth/admin`; the anchor dot shows the treasury USDC.
 4. Run the three E2E flows against the production URL once.
-5. Open `https://kumbara.vercel.app/booth?n=1` on the booth screen.
+5. Open `https://kumbara.sembol.xyz/booth?n=1` on the booth screen.
 
 ## Operating
 
-- Logs: `vercel logs kumbara.vercel.app --token "$VERCEL_TOKEN"` (landing steps log public keys and hashes only).
+- Logs: `vercel logs kumbara.sembol.xyz --token "$VERCEL_TOKEN"` (landing steps log public keys and hashes only).
 - Data: `/api/metrics` for the counts, or Turso's shell (`turso db shell kumbara`) for the `records`, `events`, `leases` and `ratelimit_hits` tables.
 - Rotate the sponsor: set a new `SPONSOR_SECRET` and redeploy; landing accounts created by the old key still merge into the old key, so leave it funded for an hour.
 - Redeploy: `vercel deploy --prod --yes`. `NEXT_PUBLIC_STELLAR_NETWORK` is baked at build time.

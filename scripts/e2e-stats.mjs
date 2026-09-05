@@ -1,7 +1,7 @@
 // Gate 5 end-to-end: the public /stats page renders headline numbers that are
 // non-negative integers, the feed renders, the TV mode loads, and the seed/e2e
 // sources stay out of the default numbers.
-//   APP_URL=https://kumbara.vercel.app node scripts/e2e-stats.mjs
+//   APP_URL=https://kumbara.sembol.xyz node scripts/e2e-stats.mjs
 import { chromium } from "playwright";
 
 const APP = process.env.APP_URL ?? "http://localhost:3100";

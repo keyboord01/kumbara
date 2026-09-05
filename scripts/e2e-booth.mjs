@@ -30,6 +30,8 @@ try {
   const url = ((await page.locator("p.font-mono").first().textContent()) ?? "").trim();
   log("QR encodes:", url);
   if (!url.endsWith("/?ref=booth-7&net=testnet")) throw new Error(`QR url unexpected: ${url}`);
+  // The QR targets the canonical site in production (NEXT_PUBLIC_SITE_URL) and the deployment itself elsewhere.
+  if (!url.startsWith(APP.replace(/\/+$/, ""))) throw new Error(`QR url ${url} does not start with ${APP}`);
   const counter = ((await page.getByTestId("booth-counter").textContent()) ?? "").trim();
   log("counter:", counter);
   if (!/^\d+$/.test(counter)) throw new Error(`counter not numeric: ${counter}`);

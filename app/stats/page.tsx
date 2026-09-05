@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { NetworkBadge } from "@/components/NetworkBadge";
-import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
+import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, SITE_URL, sembolConfig } from "@/lib/config";
 import { formatTry, formatUsdc, shortAddress } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 
@@ -414,9 +414,17 @@ function Stats() {
       <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
         <span>{NETWORK === "testnet" ? t.footer : t.footerMainnet}</span>
         {!tv ? (
-          <Link href="/stats?mode=tv" className="hover:text-teal">
-            {t.stats.tv} →
-          </Link>
+          <span className="flex gap-4">
+            <a href={SITE_URL || "/"} className="hover:text-teal">
+              {SITE_URL ? SITE_URL.replace(/^https?:\/\//, "") : "kumbara"}
+            </a>
+            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="hover:text-teal">
+              GitHub
+            </a>
+            <Link href="/stats?mode=tv" className="hover:text-teal">
+              {t.stats.tv} →
+            </Link>
+          </span>
         ) : null}
       </footer>
     </div>

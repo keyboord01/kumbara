@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from "next";
 import "@sembol/passkey-react/styles.css";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { SITE_URL } from "@/lib/config";
 
 export const metadata: Metadata = {
+  ...(SITE_URL ? { metadataBase: new URL(SITE_URL) } : {}),
   title: { default: "Kumbara", template: "%s · Kumbara" },
   description: "Face ID ile açılan, anahtarı yalnızca sende olan USDC kumbarası. Lira yükle, USDC biriktir, istediğinde geri çek. Sembol tarafından.",
   applicationName: "Kumbara",

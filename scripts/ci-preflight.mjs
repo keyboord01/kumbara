@@ -1,10 +1,10 @@
 // Preflight for the scheduled production E2E run: skip (not fail) when the
 // sponsor account is below SPONSOR_MIN_XLM + 5, so the run never drains it.
 // Writes skip=true|false to $GITHUB_OUTPUT when present.
-//   APP_URL=https://kumbara.vercel.app node scripts/ci-preflight.mjs
+//   APP_URL=https://kumbara.sembol.xyz node scripts/ci-preflight.mjs
 import { appendFileSync } from "node:fs";
 
-const APP = process.env.APP_URL ?? "https://kumbara.vercel.app";
+const APP = process.env.APP_URL ?? "https://kumbara.sembol.xyz";
 const MARGIN_XLM = 5;
 
 const res = await fetch(`${APP}/api/health?cb=${Date.now()}`, { headers: { accept: "application/json" } });

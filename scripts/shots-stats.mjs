@@ -1,6 +1,6 @@
 // Screenshots of /stats: mobile (TR and EN, full page) and the projector
 // variant (?mode=tv at 1920×1080), for the runbook and the Gate 5 report.
-//   APP_URL=https://kumbara.vercel.app node scripts/shots-stats.mjs
+//   APP_URL=https://kumbara.sembol.xyz node scripts/shots-stats.mjs
 import { mkdirSync } from "node:fs";
 import { chromium } from "playwright";
 

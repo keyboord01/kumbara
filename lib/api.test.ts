@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ApiError, api } from "./api";
 
-function respond(status: number, body: string, headers: Record<string, string> = {}, url = "https://kumbara.vercel.app/api/deposit") {
+function respond(status: number, body: string, headers: Record<string, string> = {}, url = "https://kumbara.sembol.xyz/api/deposit") {
   const res = new Response(body, { status, headers });
   Object.defineProperty(res, "url", { value: url });
   return res;

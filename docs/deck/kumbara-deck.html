@@ -1,0 +1,366 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kumbara by Sembol · project deck</title>
+<style>
+  /* Kumbara palette and type (app/globals.css): cream paper, deep teal, coral for the one action, amber TESTNET. */
+  :root {
+    --paper: #fbf7f0; --paper-2: #f3ede2; --line: #e3dccd; --ink: #12313a; --ink-2: #3f5b63; --muted: #5a6b71;
+    --teal: #0f6b6b; --teal-2: #0b5555; --coral: #e5533d; --mint: #1f9d6a; --amber: #7a4f0f; --amber-bg: #f4e7cf; --danger: #b42318;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  }
+  @page { size: 1920px 1080px; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  .slide { position: relative; width: 1920px; height: 1080px; overflow: hidden; padding: 84px 110px 76px; page-break-after: always; break-after: page; background: var(--paper); display: flex; flex-direction: column; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .eyebrow { font-family: var(--mono); font-size: 20px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 120px; line-height: 1.02; letter-spacing: -.03em; margin: 22px 0 18px; }
+  h2 { font-size: 62px; line-height: 1.06; letter-spacing: -.025em; margin: 10px 0 34px; }
+  h3 { font-size: 30px; margin: 0 0 12px; letter-spacing: -.01em; }
+  p, li { font-size: 28px; line-height: 1.42; color: var(--ink-2); margin: 0; }
+  strong { color: var(--ink); }
+  .lead { font-size: 40px; line-height: 1.3; color: var(--ink-2); max-width: 1500px; }
+  .badge { display: inline-flex; align-items: center; gap: 10px; border: 2px solid rgba(122,79,15,.4); background: var(--amber-bg); color: var(--amber); font-family: var(--mono); font-size: 20px; letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 8px 18px; vertical-align: middle; }
+  .badge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--amber); }
+  .badge.sm { font-size: 15px; padding: 5px 12px; letter-spacing: .12em; }
+  .badge.sm::before { width: 8px; height: 8px; }
+  .foot { position: absolute; left: 110px; right: 110px; bottom: 34px; display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 17px; color: var(--muted); letter-spacing: .04em; }
+  .foot .n { color: var(--ink-2); }
+  .card { background: #fff; border: 2px solid var(--line); border-radius: 28px; padding: 30px 34px; }
+  .mono { font-family: var(--mono); }
+  .num { font-variant-numeric: tabular-nums; }
+  .teal { color: var(--teal); }
+  .coral { color: var(--coral); }
+  .muted { color: var(--muted); }
+  .row { display: flex; gap: 34px; }
+  .col { flex: 1; min-width: 0; }
+  ul { padding-left: 34px; }
+  li + li { margin-top: 14px; }
+  .kpi { display: flex; flex-direction: column; gap: 6px; }
+  .kpi b { font-size: 60px; letter-spacing: -.03em; line-height: 1; }
+  .kpi span { font-size: 22px; color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 24px; }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 2px solid var(--line); vertical-align: top; }
+  th { font-family: var(--mono); font-size: 16px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  td { color: var(--ink-2); }
+  td.mono, .hash { font-family: var(--mono); font-size: 20px; color: var(--teal); }
+  .placeholder { border: 3px dashed var(--coral); background: rgba(229,83,61,.06); border-radius: 22px; padding: 22px 26px; color: var(--danger); font-weight: 600; }
+  .placeholder .tag { font-family: var(--mono); font-size: 15px; letter-spacing: .14em; text-transform: uppercase; display: block; margin-bottom: 8px; }
+  .phones { display: grid; grid-template-columns: repeat(4, 1fr); gap: 42px; align-items: start; }
+  .phone { display: flex; flex-direction: column; gap: 16px; }
+  .phone img { width: 100%; border-radius: 34px; border: 3px solid var(--line); display: block; height: 560px; object-fit: cover; object-position: top; background: #fff; }
+  .phone figcaption { font-size: 20px; line-height: 1.32; color: var(--ink-2); }
+  .steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 14px; }
+  .step { background: #fff; border: 2px solid var(--line); border-radius: 20px; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 8px; font-size: 18px; line-height: 1.3; color: var(--ink-2); }
+  .step b { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: rgba(15,107,107,.1); color: var(--teal); font-size: 18px; }
+  .flow { position: relative; margin-top: 18px; height: 560px; display: flex; justify-content: center; }
+  .flow .mermaid svg { height: 560px !important; width: auto !important; max-width: 100% !important; }
+  .title-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .cite { position: absolute; left: 110px; right: 110px; bottom: 74px; font-size: 18px; line-height: 1.4; color: var(--muted); }
+  .cite a { color: var(--muted); }
+  .pill { display: inline-flex; align-items: center; gap: 10px; border-radius: 999px; border: 2px solid var(--line); background: #fff; padding: 8px 18px; font-family: var(--mono); font-size: 18px; letter-spacing: .06em; color: var(--ink-2); }
+  .pill .dot { width: 12px; height: 12px; border-radius: 50%; background: var(--mint); }
+  .stack { display: flex; flex-direction: column; gap: 18px; }
+  .tranches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; }
+  .tranche { background: #fff; border: 2px solid var(--line); border-radius: 24px; padding: 22px 24px; font-size: 21px; line-height: 1.38; color: var(--ink-2); display: flex; flex-direction: column; gap: 10px; }
+  .tranche h4 { margin: 0; font-size: 24px; color: var(--ink); }
+  .tranche .when { font-family: var(--mono); font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--teal); }
+  .bridge { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  .mermaid { background: transparent; }
+  .mermaid svg { max-width: 100%; height: auto; }
+  svg text { font-family: var(--sans); }
+</style>
+</head>
+<body>
+
+<!-- 1 · Title -->
+<section class="slide" id="s1">
+  <div class="eyebrow">Stellar Community Fund · Build Award · Integration Track pre-application &nbsp;·&nbsp; Rise In × Stellar Pro Hackathon · Scale Track</div>
+  <div class="title-wrap">
+    <div style="display:flex;align-items:center;gap:26px">
+      <h1 style="margin:0">Kumbara <span class="muted" style="font-weight:500;font-size:64px;letter-spacing:-.01em">by Sembol</span></h1>
+      <span class="badge">Testnet</span>
+    </div>
+    <p class="lead" style="margin-top:34px">A self-custodial dollar piggy bank for Türkiye, opened with Face ID.</p>
+    <div class="row" style="margin-top:64px;gap:60px">
+      <div class="kpi"><span>Live (Stellar TESTNET)</span><b class="teal" style="font-size:44px;letter-spacing:-.02em">kumbara.sembol.xyz</b></div>
+      <div class="kpi"><span>Repository</span><b class="mono" style="font-size:34px;letter-spacing:0;font-weight:500">github.com/keyboord01/kumbara</b></div>
+      <div class="kpi"><span>Deck date</span><b style="font-size:34px;letter-spacing:-.01em">6 September 2026</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · every balance and link on these slides is Stellar TESTNET; no mainnet claims, no rates</span><span class="n">1 / 10</span></div>
+</section>
+
+<!-- 2 · Problem -->
+<section class="slide" id="s2">
+  <div class="eyebrow">Problem</div>
+  <h2>Lira savings lose value; the dollar route has a wall in front of it.</h2>
+  <div class="row" style="gap:44px">
+    <div class="card col stack">
+      <h3>Inflation makes lira saving a losing move</h3>
+      <p>Consumer prices in Türkiye rose <strong>31.51% year on year</strong> in August 2026.<sup>1</sup> Dollar-denominated saving is how ordinary households defend themselves.</p>
+    </div>
+    <div class="card col stack">
+      <h3>The crypto route exists but sheds users at every step</h3>
+      <p>USDC on Stellar settles in seconds for fractions of a cent. Getting there means an extension or app install, twelve words to keep safe, XLM for gas bought somewhere else, and a phone you must never lose.</p>
+    </div>
+    <div class="card col stack">
+      <h3>The people who need hard-currency savings most are served least</h3>
+      <p>A bank-transfer habit and a phone with Face ID are what people have. That is the whole interface Kumbara asks for: no seed phrase, no XLM, no install.</p>
+    </div>
+  </div>
+  <p class="cite"><sup>1</sup> TÜİK (Turkish Statistical Institute), <em>Tüketici Fiyat Endeksi, Ağustos 2026</em>, news bulletin of 3 September 2026: CPI +31.51% versus August 2025 (monthly +1.84%). Bulletin index: veriportali.tuik.gov.tr; figure as published and as reported by Hürriyet Bigpara, bigpara.hurriyet.com.tr/haberler/emtia-haberleri/agustos-ayi-enflasyonu-belli-oldu_ID102241364.</p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n">2 / 10</span></div>
+</section>
+
+<!-- 3 · Product -->
+<section class="slide" id="s3">
+  <div class="eyebrow">Product</div>
+  <h2 style="margin-bottom:22px">Four screens. Tap to account: <span class="num">~10 s</span>. No seed phrase, no XLM, no install.</h2>
+  <div class="phones">
+    <figure class="phone"><img src="../screenshots/app/onboard-en.png" alt="Onboard screen"><figcaption><strong>Onboard.</strong> One button; Face ID creates the key and the relay deploys an OpenZeppelin smart account. Measured 8–16 s tap to Savings in browser runs.</figcaption></figure>
+    <figure class="phone"><img src="../screenshots/app/savings-en.png" alt="Savings screen"><figcaption><strong>Savings.</strong> USDC in the DeFindex vault with its lira equivalent (Reflector rate), spending limit, recovery. Every figure carries the TESTNET badge.</figcaption></figure>
+    <figure class="phone"><img src="../screenshots/app/deposit-en.png" alt="Deposit screen with IBAN"><figcaption><strong>Deposit.</strong> IBAN, recipient and a reference code, exactly like an online bank transfer; the anchor converts lira to USDC.</figcaption></figure>
+    <figure class="phone"><img src="../screenshots/app/withdraw-en.png" alt="Withdraw screen"><figcaption><strong>Withdraw.</strong> A sell quote in lira; two Face ID approvals; the anchor pays the visitor's own IBAN.</figcaption></figure>
+  </div>
+  <div class="foot"><span>Screens captured on kumbara.sembol.xyz on 6 September 2026 · Stellar TESTNET · amounts are sandbox amounts</span><span class="n">3 / 10</span></div>
+</section>
+
+<!-- 4 · How it works -->
+<section class="slide" id="s4">
+  <div class="eyebrow">How it works</div>
+  <h2 style="margin-bottom:16px;font-size:54px">Seven steps, one flow: anchor in front, DeFindex behind, a fee-sponsoring relay underneath.</h2>
+  <div class="steps">
+    <div class="step"><b>1</b>The visitor opens an OpenZeppelin smart account with Face ID; the relay pays the fees.</div>
+    <div class="step"><b>2</b>A spending limit (1,000 USDC per transaction) is written on-chain in the background.</div>
+    <div class="step"><b>3</b>The anchor issues an IBAN and a reference; the visitor sends lira (simulated by the server on testnet).</div>
+    <div class="step"><b>4</b>The anchor converts the lira to USDC and pays an ownerless, pre-authorized bridge account.</div>
+    <div class="step"><b>5</b>The bridge account forwards the USDC to the kumbara and closes itself; nobody holds its key.</div>
+    <div class="step"><b>6</b>One Face ID puts the USDC into the DeFindex vault (no yield on testnet).</div>
+    <div class="step"><b>7</b>A withdrawal runs the path backwards: vault → bridge account → anchor → lira to the IBAN.</div>
+  </div>
+  <div class="flow">
+    <pre class="mermaid" id="seq">
+%%{init: {"theme": "base", "fontFamily": "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif", "themeVariables": {"primaryColor": "#f3ede2", "primaryTextColor": "#12313a", "primaryBorderColor": "#e3dccd", "lineColor": "#3f5b63", "actorBkg": "#ffffff", "actorBorder": "#0f6b6b", "actorTextColor": "#12313a", "signalColor": "#3f5b63", "signalTextColor": "#12313a", "noteBkgColor": "#f4e7cf", "noteTextColor": "#7a4f0f", "noteBorderColor": "#e3dccd", "activationBkgColor": "#e3dccd", "sequenceNumberColor": "#ffffff", "fontSize": "18px"}}}%%
+sequenceDiagram
+  autonumber
+  participant U as User (phone, passkey)
+  participant K as Kumbara (Next.js)
+  participant R as Fee-sponsoring relay (OpenZeppelin Channels today)
+  participant S as Stellar testnet
+  participant A as TR Mock Anchor
+  participant V as DeFindex vault
+  U->>K: Tap "Kumbaranı aç"
+  K->>U: WebAuthn create (Face ID)
+  K->>R: { func, auth } deploy smart account (project key, server-side)
+  R->>S: fee-bumped createContractV2
+  K->>R: { func, auth } add USDC spending-limit rule (2nd passkey approval)
+  Note over K,S: Deposit (ONRAMP_MODE=landing)
+  K->>A: quote (rate locked 120 s) → exact USDC amount
+  K->>S: sponsor creates ownerless bridge account (trustline, two pre-authorized txs)
+  K->>A: onramp { quote_id, destination: bridge G… }
+  A->>S: classic USDC payment to the bridge account
+  K->>R: pre-authorized forward (SAC transfer bridge → smart account)
+  K->>R: pre-authorized cleanup (drop trustline, merge to sponsor)
+  K->>U: passkey approval: vault.deposit(USDC)
+  K->>R: { func, auth } → V
+  Note over K,S: Withdraw (OFFRAMP_MODE=landing)
+  K->>A: offramp → treasury address + memo id
+  K->>U: passkey approval: vault.withdraw, USDC → bridge account
+  K->>R: pre-authorized classic payment (treasury, memo id), then cleanup
+  A->>A: matches memo, simulated FAST payout to IBAN
+    </pre>
+  </div>
+  <div class="foot"><span>Sequence diagram from docs/architecture.md (Mermaid, rendered as vectors) · Stellar TESTNET</span><span class="n">4 / 10</span></div>
+</section>
+
+<!-- 5 · The bridge -->
+<section class="slide" id="s5">
+  <div class="eyebrow">The bridge · what we found and what we built</div>
+  <h2 style="font-size:54px;margin-bottom:24px">Anchors pay classic accounts. Smart accounts are contracts. Ramp payouts could not reach them.</h2>
+  <div class="bridge">
+    <div class="stack">
+      <div class="card stack" style="padding:24px 30px;gap:10px">
+        <h3>The finding</h3>
+        <p style="font-size:24px">The anchor's on-ramp rejects a contract (C…) destination and its watcher matches classic payments only: a payout cannot land in a smart account, and a smart account's Soroban transfer is never matched on the way back.</p>
+      </div>
+      <div class="card stack" style="padding:24px 30px;gap:10px">
+        <h3>The solution: ownerless, pre-authorized bridge accounts</h3>
+        <p style="font-size:23px">A throwaway classic account whose only valid transactions are signed before it exists: the <strong>forward</strong> at sequence +1 (USDC to the user's smart account, the exact quoted amount) and the <strong>cleanup</strong> at sequence +2 (trustline dropped, reserves back to the sponsor). The master key is wiped in-process: <strong>no key can sign anything else</strong>. In reverse, the same primitive carries withdrawals to the anchor's treasury with the memo id.</p>
+      </div>
+      <div class="row" style="gap:30px">
+        <div class="kpi" style="gap:2px"><b class="num" style="font-size:44px">10 / 10</b><span style="font-size:18px">exact amount matches in ten scripted deposits</span></div>
+        <div class="kpi" style="gap:2px"><b class="num" style="font-size:44px">900</b><span style="font-size:18px">stroops net per deposit for the sponsor; reserves return at cleanup</span></div>
+        <div class="kpi" style="gap:2px"><b class="num" style="font-size:44px">4</b><span style="font-size:18px">signatures the bridge key ever produces, asserted by a unit test</span></div>
+      </div>
+    </div>
+    <div class="stack">
+      <svg viewBox="0 0 920 400" width="820" height="357" role="img" aria-label="Bridge account flow">
+        <defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#3f5b63"/></marker><marker id="arrt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0f6b6b"/></marker></defs>
+        <rect x="0" y="130" width="200" height="110" rx="20" fill="#ffffff" stroke="#e3dccd" stroke-width="3"/>
+        <text x="100" y="178" text-anchor="middle" font-size="22" font-weight="700" fill="#12313a">Anchor treasury</text>
+        <text x="100" y="210" text-anchor="middle" font-size="17" fill="#3f5b63">classic G… account</text>
+        <rect x="330" y="115" width="230" height="140" rx="20" fill="#f4e7cf" stroke="#7a4f0f" stroke-width="3"/>
+        <text x="445" y="158" text-anchor="middle" font-size="22" font-weight="700" fill="#12313a">Bridge account</text>
+        <text x="445" y="190" text-anchor="middle" font-size="17" fill="#7a4f0f">ownerless · master key wiped</text>
+        <text x="445" y="216" text-anchor="middle" font-size="17" fill="#7a4f0f">two pre-authorized signers</text>
+        <text x="445" y="241" text-anchor="middle" font-size="16" fill="#3f5b63">reserves sponsored, 2.5 XLM</text>
+        <rect x="720" y="20" width="190" height="110" rx="20" fill="#ffffff" stroke="#0f6b6b" stroke-width="3"/>
+        <text x="815" y="68" text-anchor="middle" font-size="22" font-weight="700" fill="#12313a">User's kumbara</text>
+        <text x="815" y="100" text-anchor="middle" font-size="17" fill="#3f5b63">smart account (C…)</text>
+        <rect x="720" y="262" width="190" height="110" rx="20" fill="#ffffff" stroke="#e3dccd" stroke-width="3"/>
+        <text x="815" y="310" text-anchor="middle" font-size="22" font-weight="700" fill="#12313a">Sponsor</text>
+        <text x="815" y="342" text-anchor="middle" font-size="17" fill="#3f5b63">reserves-only account</text>
+        <line x1="200" y1="185" x2="326" y2="185" stroke="#3f5b63" stroke-width="4" marker-end="url(#arr)"/>
+        <text x="263" y="166" text-anchor="middle" font-size="16" fill="#3f5b63">classic USDC</text>
+        <text x="263" y="212" text-anchor="middle" font-size="16" fill="#3f5b63">exact quote</text>
+        <path d="M560,150 C640,150 660,75 716,75" fill="none" stroke="#0f6b6b" stroke-width="5" marker-end="url(#arrt)"/>
+        <text x="528" y="44" font-size="18" font-weight="700" fill="#0f6b6b">forward · seq +1</text>
+        <text x="528" y="66" font-size="16" fill="#0f6b6b">SAC transfer via relay</text>
+        <path d="M560,225 C640,225 660,317 716,317" fill="none" stroke="#3f5b63" stroke-width="4" marker-end="url(#arr)"/>
+        <text x="572" y="358" font-size="18" font-weight="700" fill="#3f5b63">cleanup · seq +2</text>
+        <text x="572" y="380" font-size="16" fill="#3f5b63">drop trustline, merge</text>
+        <text x="0" y="300" font-size="17" fill="#3f5b63">Sponsor creates and locks the account first: createAccount +</text>
+        <text x="0" y="324" font-size="17" fill="#3f5b63">trustline, two pre-authorized signers, master weight 0; then</text>
+        <text x="0" y="348" font-size="17" fill="#3f5b63">the key is gone and nothing else can ever be signed.</text>
+        <text x="0" y="392" font-size="17" fill="#7a4f0f" font-weight="700">TESTNET · all sponsored reserves return at the merge</text>
+      </svg>
+      <table style="font-size:21px">
+        <tr><th>Evidence (Stellar TESTNET, stellar.expert/explorer/testnet/tx/…)</th><th>Transaction</th></tr>
+        <tr><td style="padding:10px 14px">Anchor pays the bridge account (classic payment)</td><td class="mono" style="padding:10px 14px;font-size:19px">778215b3…e3c3a8f1</td></tr>
+        <tr><td style="padding:10px 14px">Pre-authorized forward: USDC lands in the smart account</td><td class="mono" style="padding:10px 14px;font-size:19px">f580e030…f22c9eab</td></tr>
+        <tr><td style="padding:10px 14px">Pre-authorized cleanup: trustline removed, account merged</td><td class="mono" style="padding:10px 14px;font-size:19px">6223c61c…7416291d</td></tr>
+      </table>
+      <p style="font-size:20px">Reported to the anchor team with the two fixes that would retire the bridge: SAC delivery to contract wallets and Soroban-aware matching on the way back. Full hashes in docs/anchor-notes.md.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET · stellar.expert/explorer/testnet/tx/&lt;hash&gt;</span><span class="n">5 / 10</span></div>
+</section>
+
+<!-- 6 · Integrations and contracts -->
+<section class="slide" id="s6">
+  <div class="eyebrow">Integrations and contracts · all Stellar TESTNET</div>
+  <h2 style="margin-bottom:18px;font-size:54px">Listed building blocks, wired end to end. Kumbara writes no wallet, vault or strategy code.</h2>
+  <table style="font-size:22px">
+    <tr><th style="width:24%">Building block</th><th style="width:44%">What it does in this app</th><th>Address (TESTNET, stellar.expert)</th></tr>
+    <tr><td><strong>OpenZeppelin smart accounts</strong> + spending-limit policy</td><td>Every kumbara is an audited smart account whose only signer is the visitor's passkey; a USDC-scoped rule caps 1,000 USDC per transaction on-chain. Via @sembol/passkey-react and stellar/smart-account-kit.</td><td class="mono">WASM 1b5f4534…97785a · policy CABXBYJN…2TIP5G</td></tr>
+    <tr><td><strong>DeFindex</strong> vault + hodl strategy</td><td>Deposits go through the vault's real invest path into its strategy and withdrawals unwind from it. The strategy is DeFindex's own hodl crate, built unmodified; no yield on testnet, none promised.</td><td class="mono">vault CAT76PQM…MKSKL · strategy CDFLOE4H…JLDMQN</td></tr>
+    <tr><td><strong>TR Mock Anchor</strong> · SEP-1/6/38 + Partner API</td><td>The regulated lira side: IBAN and reference, quotes with a 120 s lock, on-ramps to the bridge account, off-ramps by memo, simulated FAST payouts. Issuer and endpoints read from its stellar.toml.</td><td class="mono">USDC SAC CBIELTK6…XQDAMA</td></tr>
+    <tr><td><strong>Fee-sponsoring relay</strong> (OpenZeppelin Channels today)</td><td>Signed authorization entries go to our server route, which adds the project key and forwards to the relay; the visitor never sees XLM. Per-IP and per-booth caps, sponsor threshold.</td><td class="mono">channels.openzeppelin.com/testnet</td></tr>
+    <tr><td><strong>Reflector</strong></td><td>The USD/TRY foreign-exchange oracle behind the lira equivalent on the Savings and stats pages (read by simulation, anchor rate as fallback).</td><td class="mono">CBKGPWGK…4DXMCJZC (mainnet oracle, read only)</td></tr>
+    <tr><td><strong>Soroswap</strong> <span class="badge sm">flagged</span></td><td>Evaluated, not wired: the vault accepts the anchor's USDC directly. The router dry run is recorded for the day a swap is needed.</td><td class="mono">router CCJUD55A…ZZE7BRD</td></tr>
+  </table>
+  <p style="margin-top:22px;font-size:24px"><strong>Upstream:</strong> the fix Sembol needed for passkey signing was merged into <span class="mono teal">stellar/smart-account-kit</span> and shipped in 0.6.2 <span class="placeholder" style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:20px">[PR link]</span>.</p>
+  <div class="foot"><span>Full addresses and links in the README contracts table · Stellar TESTNET</span><span class="n">6 / 10</span></div>
+</section>
+
+<!-- 7 · Traction and evidence -->
+<section class="slide" id="s7">
+  <div class="eyebrow">Traction and evidence</div>
+  <h2 style="margin-bottom:20px">Everything on this slide is public, linkable and re-runnable.</h2>
+  <div class="row" style="gap:40px">
+    <div style="width:420px;flex:none">
+      <img src="../screenshots/stats/stats-mobile-en.png" alt="/stats page" style="width:420px;height:600px;object-fit:cover;object-position:top;border-radius:34px;border:3px solid var(--line);display:block;background:#fff">
+      <p style="font-size:18px;margin-top:12px"><strong>kumbara.sembol.xyz/stats</strong>: headline numbers with a TESTNET badge, live feed, onboarding curve, timings. The <em>since event start / all time</em> toggle counts from 19 September 08:00 and shows all-time until then; seed and E2E accounts are excluded by default.</p>
+    </div>
+    <div class="col stack" style="gap:20px">
+      <div class="row" style="gap:26px">
+        <div class="card kpi col"><b class="num">6</b><span>real-browser round trips in CI: onboard, deposit, withdraw, booth, stats, failure screens · every push and every 6 h against production</span></div>
+        <div class="card kpi col"><b class="num">25</b><span>failure states, each a TR/EN screen with one action; every flow resumes from stored state</span></div>
+        <div class="card kpi col"><b class="num">94 · 100 · 100 · 100</b><span>Lighthouse mobile on /stats: performance, accessibility, best practices, SEO</span></div>
+      </div>
+      <div class="card stack" style="gap:12px">
+        <div class="row" style="align-items:center;gap:18px"><span class="pill"><span class="dot"></span>E2E · passing · latest production run 6 Sep 2026</span><span class="muted" style="font-size:20px">GitHub Actions, workflow e2e.yml (repository badge available once the repo is public)</span></div>
+        <table>
+          <tr><th>On-chain evidence (Stellar TESTNET)</th><th>Transaction</th></tr>
+          <tr><td>Vault deployed through the DeFindex factory with the hodl strategy attached</td><td class="mono">dbf0d5b7…6faa8f96</td></tr>
+          <tr><td>Deposit with invest=true moved USDC into the strategy (invest)</td><td class="mono">b615e7dc…76b7f981</td></tr>
+          <tr><td>Withdrawal unwound the shares from the strategy (divest)</td><td class="mono">466f48d2…07a9f5ca</td></tr>
+        </table>
+        <p style="font-size:22px">Recorded fallback demo: docs/demo/round-trip.mp4, the full round trip on production, 2:31 with a caption per step.</p>
+      </div>
+      <div class="placeholder"><span class="tag">Placeholder · fill after 20 September</span>Hackathon onboarding: N accounts in 2 days (from /stats since event start, seed and E2E excluded).</div>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET · stellar.expert/explorer/testnet/tx/&lt;hash&gt;</span><span class="n">7 / 10</span></div>
+</section>
+
+<!-- 8 · Regulatory positioning -->
+<section class="slide" id="s8">
+  <div class="eyebrow">Regulatory positioning</div>
+  <h2>Non-custodial software in front of a licensed anchor.</h2>
+  <div class="card" style="padding:40px 46px">
+    <ul style="font-size:32px;line-height:1.45">
+      <li><strong>Kumbara never holds lira, USDC or keys.</strong> Every transfer is authorized by the visitor's own passkey on their own smart account; the bridge accounts have no owner.</li>
+      <li><strong>The licensed anchor is the regulated party:</strong> it holds the fiat, performs KYC and pays out only to the customer's own named IBAN.</li>
+      <li><strong>No payments feature in Türkiye:</strong> no send, no P2P, no merchant flow. Deposit into a vault and withdraw back to your own IBAN, nothing else.</li>
+      <li><strong>Turkish AML rules (MASAK) shape the UX:</strong> named-IBAN in and out, an on-chain per-transaction cap, anchor-side limits and no cash or third-party paths.</li>
+      <li><strong>A Turkish regulatory opinion is budgeted in Tranche 1,</strong> before any mainnet pilot; the mainnet path stays behind a capped, presenter-only flag until then.</li>
+    </ul>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n">8 / 10</span></div>
+</section>
+
+<!-- 9 · Team -->
+<section class="slide" id="s9">
+  <div class="eyebrow">Team</div>
+  <h2>Small, shipping, already in the ecosystem.</h2>
+  <div class="row" style="gap:34px">
+    <div class="card col stack">
+      <h3>Ahmed <span class="muted" style="font-weight:500">· lead</span></h3>
+      <p>Instaward grantee. Author of <span class="mono teal">@sembol/passkey-react</span>, the passkey wallet layer Kumbara runs on; contributor to <span class="mono teal">stellar/smart-account-kit</span>. Built Kumbara end to end for this submission.</p>
+      <p class="mono muted" style="font-size:20px">github.com/keyboord01</p>
+      <div class="placeholder" style="font-size:20px;padding:12px 16px">[LinkedIn URL]</div>
+    </div>
+    <div class="card col stack">
+      <h3>Ibo <span class="muted" style="font-weight:500">· engineer</span></h3>
+      <p>Engineering across the stack; ships the second tenant on the same infrastructure alongside Kumbara.</p>
+      <div class="placeholder" style="font-size:20px;padding:12px 16px">[LinkedIn URL] · [one-line bio to confirm]</div>
+    </div>
+    <div class="card col stack" style="border-style:dashed">
+      <h3>Atahan <span class="muted" style="font-weight:500">· [role, if confirmed]</span></h3>
+      <p>Deck, booth and visitor wrangling on event days, if confirmed.</p>
+      <div class="placeholder" style="font-size:20px;padding:12px 16px">[confirm participation] · [LinkedIn URL]</div>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n">9 / 10</span></div>
+</section>
+
+<!-- 10 · Roadmap and the ask -->
+<section class="slide" id="s10">
+  <div class="eyebrow">Roadmap and the ask · SCF Build Award, Integration Track (wallet + DeFi + on-ramp)</div>
+  <h2 style="margin-bottom:22px">Four tranches, each at most 90 days, each ending in a verifiable deliverable.</h2>
+  <div class="tranches">
+    <div class="tranche"><span class="when">Tranche 1 · ≤ 90 days</span><h4>Ground the mainnet path</h4><p>Turkish regulatory opinion; licensed-anchor production agreement signed; threat model and monitoring plan for the audit.</p></div>
+    <div class="tranche"><span class="when">Tranche 2 · ≤ 90 days</span><h4>Mainnet audit pass</h4><p>Audit of the smart-account, policy and bridge-account path; mainnet behind a capped, presenter-only flag; relay budgets and allowlists.</p></div>
+    <div class="tranche"><span class="when">Tranche 3 · ≤ 90 days</span><h4>Kumbara public pilot</h4><p>Public pilot with the licensed anchor on mainnet.<br><strong>On-chain metric:</strong> DeFindex vault NAV from TRY deposits, target <span class="placeholder" style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:19px">[X] USDC</span>.</p></div>
+    <div class="tranche"><span class="when">Tranche 4 · ≤ 90 days</span><h4>Native mobile SDK</h4><p>Native mobile (Expo) SDK for the same passkey wallet layer; second-market groundwork.</p></div>
+  </div>
+  <div class="row" style="margin-top:28px;gap:34px">
+    <div class="card col stack">
+      <h3>Expansion filter</h3>
+      <p>The next market needs two things and nothing else: high inflation and an existing licensed Stellar anchor. Same app, same bridge, a different anchor in front.</p>
+    </div>
+    <div class="card col stack">
+      <h3>The ask</h3>
+      <p>Integration Track award sized to the four tranches above: <span class="placeholder" style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:22px">[amount]</span>, paid in XLM per the SCF schedule (10% acceptance, 20% MVP, 30% testnet, 40% mainnet on the committed metric).</p>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · kumbara.sembol.xyz · Stellar TESTNET today; mainnet only after the audit and the opinion</span><span class="n">10 / 10</span></div>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.15.0/mermaid.min.js"></script>
+<script>
+  // Render the sequence diagram; the build script waits for #seq svg (or falls back with a visible error).
+  if (window.mermaid) {
+    window.mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+    window.mermaid.run({ querySelector: ".mermaid" }).then(() => { document.body.dataset.mermaid = "ok"; }).catch((e) => { document.body.dataset.mermaid = "error:" + e.message; });
+  } else {
+    document.body.dataset.mermaid = "missing";
+  }
+</script>
+</body>
+</html>

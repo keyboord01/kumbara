@@ -12,7 +12,7 @@ A Next.js web app. A user opens it on their phone, taps Face ID, and gets an Ope
 
 Kumbara is non-custodial software. It never holds fiat, never holds keys, never takes custody of USDC. The anchor is the regulated party. Deposit, hold, withdraw; no payments, no sending to friends.
 
-Live on testnet: **https://kumbara.vercel.app**
+Live on testnet: **https://kumbara.sembol.xyz** (the earlier `kumbara.vercel.app` address redirects here; passkeys created there do not open on the new domain)
 
 ## Problem
 
@@ -117,7 +117,7 @@ Deposit rehearsal: open the app, tap Deposit, enter an amount, and when the IBAN
 Production is Vercel (Hobby, Fluid compute) with Turso; every step of a deposit or withdrawal resumes from database state, so no long-lived process is needed. `docs/deploy.md` has the exact steps, the environment variable list and the function limits. The Fly.io files (`Dockerfile`, `fly.toml`) remain as a single-machine alternative with a local libsql file.
 
 ```bash
-vercel link --yes --project kumbara && vercel deploy --prod --yes    # after setting the production env (see docs/deploy.md)
+vercel link --yes --project kumbara && vercel deploy --prod --yes    # after setting the production env (see docs/deploy.md); kumbara.sembol.xyz follows every production deploy
 ```
 
 ### Booth mode and metrics
@@ -139,7 +139,7 @@ Every state a visitor or presenter can hit has a plain-language screen in TR and
 
 ## Demo
 
-Live (Stellar TESTNET): **https://kumbara.vercel.app** · public stats `https://kumbara.vercel.app/stats` (projector: `/stats?mode=tv`) · booth screen `https://kumbara.vercel.app/booth?n=1` · public metrics `https://kumbara.vercel.app/api/metrics`. A recorded fallback round trip (Playwright, virtual passkey) with a caption file lives under [`docs/demo/`](docs/demo/); the real backup video is the one recorded on a phone. `pnpm e2e:onboard`, `pnpm e2e:deposit`, `pnpm e2e:withdraw`, `pnpm e2e:booth` and `pnpm e2e:stats` run the flows in a real browser against `APP_URL` and print the created kumbara's address and the transaction links.
+Live (Stellar TESTNET): **https://kumbara.sembol.xyz** · public stats `https://kumbara.sembol.xyz/stats` (projector: `/stats?mode=tv`) · booth screen `https://kumbara.sembol.xyz/booth?n=1` · public metrics `https://kumbara.sembol.xyz/api/metrics`. A recorded fallback round trip (Playwright, virtual passkey) with a caption file lives under [`docs/demo/`](docs/demo/); the real backup video is the one recorded on a phone. `pnpm e2e:onboard`, `pnpm e2e:deposit`, `pnpm e2e:withdraw`, `pnpm e2e:booth` and `pnpm e2e:stats` run the flows in a real browser against `APP_URL` and print the created kumbara's address and the transaction links.
 
 ## Resources used
 

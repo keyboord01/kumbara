@@ -3,12 +3,12 @@
 // virtual passkey, written to docs/demo/ with a caption file that lists what
 // happens at each timestamp. The real backup video is the one recorded on a
 // phone; this is the fallback to the fallback.
-//   APP_URL=https://kumbara.vercel.app pnpm demo:record
+//   APP_URL=https://kumbara.sembol.xyz pnpm demo:record
 import { execFileSync } from "node:child_process";
 import { copyFileSync, mkdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { chromium } from "playwright";
 
-const APP = process.env.APP_URL ?? "https://kumbara.vercel.app";
+const APP = process.env.APP_URL ?? "https://kumbara.sembol.xyz";
 const ADMIN = process.env.BOOTH_ADMIN_TOKEN?.trim();
 const OUT = process.env.DEMO_DIR ?? "docs/demo";
 const MAX_SECONDS = 300;

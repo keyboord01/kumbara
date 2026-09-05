@@ -99,7 +99,7 @@ jobs:
       group: e2e-production
       cancel-in-progress: false
     env:
-      APP_URL: https://kumbara.vercel.app
+      APP_URL: ${{ vars.PRODUCTION_URL || 'https://kumbara.sembol.xyz' }}
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4

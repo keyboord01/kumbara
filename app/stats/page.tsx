@@ -147,8 +147,14 @@ function Stats() {
     return t.stats.ago.d.replace("{n}", String(Math.round(m / 1440)));
   };
   const head = snapshot?.headline;
-  // Before BOOTH_START_TS the "since event start" window is empty by definition: show all-time numbers instead.
+  // Before BOOTH_START_TS the "since event start" window is empty by definition: switch to
+  // all time (numbers, feed and curve alike) until the event begins.
   const eventStarted = snapshot ? snapshot.since * 1000 <= updatedAt : true;
+  useEffect(() => {
+    if (eventStarted || window === "all") return;
+    const kick = setTimeout(() => setWindow("all"), 0);
+    return () => clearTimeout(kick);
+  }, [eventStarted, window]);
   const effectiveWindow: "event" | "all" = eventStarted ? window : "all";
   const shownTotals: Totals | undefined = effectiveWindow === "all" ? snapshot?.allTime : head;
   const deps = health && "anchor" in health.dependencies ? health.dependencies : null;

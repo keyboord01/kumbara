@@ -92,6 +92,8 @@ function Deposit() {
   /** Wall clock as seen by the last poll tick; drives the transfer-timeout screen without reading Date.now() in render. */
   const [now, setNow] = useState(0);
   const [waitUntil, setWaitUntil] = useState(0);
+  /** Set when the poll itself stops getting JSON (Vercel's login page): the presenter screen, while polling continues. */
+  const [pollFailure, setPollFailure] = useState<Failure | null>(null);
 
   useEffect(() => {
     fetch("/api/rates")
@@ -149,8 +151,12 @@ function Deposit() {
         .then((next) => {
           setRecord((current) => (current?.status === "in_vault" ? current : next));
           setAnchorWaiting(next.status === "onramp_pending" && Date.now() - Date.parse(next.updatedAt) > 90_000);
+          setPollFailure(null);
         })
-        .catch(() => undefined);
+        .catch((err: unknown) => {
+          const classified = classifyError(err, "generic");
+          setPollFailure(classified.kind === "deployment_protected" ? classified : null);
+        });
     };
     const first = setTimeout(tick, 0);
     const id = setInterval(tick, 3000);
@@ -311,6 +317,7 @@ function Deposit() {
       </div>
 
       {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="deposit" /> : null}
+      {pollFailure ? <FailureScreen failure={pollFailure} primary={null} /> : null}
 
       {failed ? (
         <FailureScreen

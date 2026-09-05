@@ -92,6 +92,8 @@ function Withdraw() {
   const vaultTx = useRef<string | null>(null);
   const [vaultTxHash, setVaultTxHash] = useState<string | null>(null);
   const started = useRef(false);
+  /** Set when the poll itself stops getting JSON (Vercel's login page): the presenter screen, while polling continues. */
+  const [pollFailure, setPollFailure] = useState<Failure | null>(null);
 
   const loadPosition = useCallback(async () => {
     if (!info || !address) return;
@@ -167,8 +169,14 @@ function Withdraw() {
     if (!recordId || !recordStatus || FINAL.includes(recordStatus)) return;
     const id = setInterval(() => {
       api<WithdrawalRecord>(`/api/withdraw/${recordId}`)
-        .then((next) => setRecord(next))
-        .catch(() => undefined);
+        .then((next) => {
+          setRecord(next);
+          setPollFailure(null);
+        })
+        .catch((err: unknown) => {
+          const classified = classifyError(err, "generic");
+          setPollFailure(classified.kind === "deployment_protected" ? classified : null);
+        });
     }, 3000);
     return () => clearInterval(id);
   }, [recordId, recordStatus]);
@@ -351,6 +359,7 @@ function Withdraw() {
       </div>
 
       {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="withdraw" /> : null}
+      {pollFailure ? <FailureScreen failure={pollFailure} primary={null} /> : null}
 
       {failed ? <FailureScreen failure={failed} primary={failed.kind === "usdc_not_received" || failed.kind === "anchor_not_matched" ? undefined : { label: t.withdraw.newWithdrawal, onClick: reset }} secondary={failed.kind === "usdc_not_received" || failed.kind === "anchor_not_matched" ? { label: t.withdraw.newWithdrawal, onClick: reset } : null} /> : null}
 

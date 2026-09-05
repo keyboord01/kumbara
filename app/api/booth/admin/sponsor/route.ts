@@ -5,12 +5,13 @@ import { sponsorStatus } from "@/lib/landing.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function GET(request: Request): Promise<Response> {
   const denied = requireAdmin(request);
   if (denied) return denied;
   try {
-    const status = await sponsorStatus(5_000);
+    const status = await sponsorStatus();
     return NextResponse.json(status, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: { code: "sponsor_unavailable", message: err instanceof Error ? err.message : String(err) } }, { status: 503 });

@@ -1,14 +1,24 @@
 /**
- * Abuse guard for account creation. Per-IP sliding windows live in memory
- * only (hashed with a process salt; the IP itself is never stored or logged;
- * single machine). The per-booth-ref cap counts confirmed accounts in SQLite.
+ * Abuse guard for account creation. Windows are rows in the database keyed
+ * by a salted hash of the client IP (the IP itself is never stored or
+ * logged); the salt derives from a server secret so every instance hashes
+ * the same way. The per-booth-ref cap, counted from confirmed deployments,
+ * is the primary guard: booth Wi-Fi shares one IP.
  */
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { countEvents } from "./db/store";
+import { countEvents, rateLimitHit } from "./db/store";
 
-const salt = randomBytes(16).toString("hex");
-const windows = new Map<string, number[]>();
+const HOUR_MS = 3_600_000;
+let fallbackSalt: string | null = null;
+
+function salt(): string {
+  const secret = process.env.SEMBOL_PROJECT_KEY?.trim();
+  if (secret) return createHash("sha256").update(`${secret}:kumbara-ratelimit`).digest("hex");
+  // No shared secret: a per-instance salt (documented weaker fallback).
+  if (!fallbackSalt) fallbackSalt = randomBytes(16).toString("hex");
+  return fallbackSalt;
+}
 
 function numberEnv(name: string, fallback: number): number {
   const raw = process.env[name]?.trim();
@@ -31,22 +41,7 @@ export function clientIp(request: Request): string {
 }
 
 function bucket(kind: string, ip: string): string {
-  return createHash("sha256").update(`${salt}:${kind}:${ip}`).digest("hex");
-}
-
-/** Count hits in the last hour for this bucket; record one when allowed. */
-function hit(kind: string, ip: string, limit: number): { allowed: boolean; count: number } {
-  const key = bucket(kind, ip);
-  const now = Date.now();
-  const recent = (windows.get(key) ?? []).filter((t) => now - t < 3_600_000);
-  if (limit > 0 && recent.length >= limit) {
-    windows.set(key, recent);
-    return { allowed: false, count: recent.length };
-  }
-  recent.push(now);
-  windows.set(key, recent);
-  if (windows.size > 50_000) windows.clear(); // bounded memory; resets are harmless
-  return { allowed: true, count: recent.length };
+  return createHash("sha256").update(`${salt()}:${kind}:${ip}`).digest("hex");
 }
 
 export interface GuardResult {
@@ -55,9 +50,10 @@ export interface GuardResult {
   message?: string;
 }
 
-export function guardRelayCall(request: Request): GuardResult {
+export async function guardRelayCall(request: Request): Promise<GuardResult> {
   const limit = limits.relayPerIpPerHour();
-  const result = hit("relay", clientIp(request), limit);
+  if (limit === 0) return { allowed: true };
+  const result = await rateLimitHit(bucket("relay", clientIp(request)), limit, HOUR_MS);
   return result.allowed ? { allowed: true } : { allowed: false, code: "RATE_LIMITED_RELAY", message: `relay rate limit: ${limit} submissions per IP per hour` };
 }
 
@@ -68,6 +64,7 @@ export async function guardAccountCreation(request: Request, ref: string | null)
     if (used >= perRef) return { allowed: false, code: "RATE_LIMITED_REF", message: `booth ref ${ref} reached its cap of ${perRef} accounts` };
   }
   const perIp = limits.accountsPerIpPerHour();
-  const result = hit("account", clientIp(request), perIp);
+  if (perIp === 0) return { allowed: true };
+  const result = await rateLimitHit(bucket("account", clientIp(request)), perIp, HOUR_MS);
   return result.allowed ? { allowed: true } : { allowed: false, code: "RATE_LIMITED_IP", message: `account creation limit: ${perIp} per IP per hour` };
 }

@@ -22,34 +22,21 @@ export const sponsorMaxXlm = (): number => numberEnv("SPONSOR_MAX_XLM", 100);
 export const SPONSOR_MIN_XLM = 3;
 export const SPONSOR_MAX_XLM = 100;
 
-let sponsor: Keypair | null = null;
-
 export function sponsorKeypair(): Keypair {
-  if (!sponsor) {
-    const secret = process.env.SPONSOR_SECRET?.trim() ?? "";
-    if (!StrKey.isValidEd25519SecretSeed(secret)) throw new Error("SPONSOR_SECRET is missing or not a valid secret seed (see .env.example)");
-    sponsor = Keypair.fromSecret(secret);
-  }
-  return sponsor;
+  const secret = process.env.SPONSOR_SECRET?.trim() ?? "";
+  if (!StrKey.isValidEd25519SecretSeed(secret)) throw new Error("SPONSOR_SECRET is missing or not a valid secret seed (see .env.example)");
+  return Keypair.fromSecret(secret);
 }
-
-let server: rpc.Server | null = null;
 
 export function rpcServer(): rpc.Server {
-  if (!server) server = new rpc.Server(serverEnv.stellarRpcUrl());
-  return server;
+  return new rpc.Server(serverEnv.stellarRpcUrl());
 }
 
-let balanceCache: { at: number; value: number } | null = null;
-
-export async function sponsorBalanceXlm(maxAgeMs = 30_000): Promise<number> {
-  if (balanceCache && Date.now() - balanceCache.at < maxAgeMs) return balanceCache.value;
+export async function sponsorBalanceXlm(): Promise<number> {
   const key = xdr.LedgerKey.account(new xdr.LedgerKeyAccount({ accountId: Keypair.fromPublicKey(sponsorKeypair().publicKey()).xdrAccountId() }));
   const res = await rpcServer().getLedgerEntries(key);
   const entry = res.entries[0];
-  const value = entry ? Number(entry.val.account().balance().toBigInt()) / 1e7 : 0;
-  balanceCache = { at: Date.now(), value };
-  return value;
+  return entry ? Number(entry.val.account().balance().toBigInt()) / 1e7 : 0;
 }
 
 export interface SponsorStatus {
@@ -61,15 +48,15 @@ export interface SponsorStatus {
   network: string;
 }
 
-export async function sponsorStatus(maxAgeMs = 30_000): Promise<SponsorStatus> {
-  const balance = await sponsorBalanceXlm(maxAgeMs);
+export async function sponsorStatus(): Promise<SponsorStatus> {
+  const balance = await sponsorBalanceXlm();
   const min = sponsorMinXlm();
   return { publicKey: sponsorKeypair().publicKey(), balanceXlm: balance, minXlm: min, maxXlm: sponsorMaxXlm(), ok: balance >= min, network: serverEnv.stellarNetwork() };
 }
 
 /** Refuse below the minimum, warn above the maximum. */
 export async function assertSponsorReady(): Promise<number> {
-  const balance = await sponsorBalanceXlm(0);
+  const balance = await sponsorBalanceXlm();
   const min = sponsorMinXlm();
   const max = sponsorMaxXlm();
   if (balance < min) {

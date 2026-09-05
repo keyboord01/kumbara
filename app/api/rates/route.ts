@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { usdTryRate } from "@/lib/reflector.server";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET(): Promise<Response> {
   try {

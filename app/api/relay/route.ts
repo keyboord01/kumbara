@@ -18,6 +18,8 @@ import { relayForward } from "@/lib/relay.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+/** The relay waits for on-chain confirmation; testnet retries can take a while. */
+export const maxDuration = 120;
 
 const MAX_BODY_BYTES = 200_000;
 
@@ -84,7 +86,7 @@ export async function POST(request: Request): Promise<Response> {
   // Abuse guard: generous per-IP cap on relay calls, tighter caps on account
   // creation (per IP per hour, per booth ref), and no onboarding while the
   // sponsor cannot afford landing accounts.
-  const relayGuard = guardRelayCall(request);
+  const relayGuard = await guardRelayCall(request);
   if (!relayGuard.allowed) {
     return NextResponse.json({ success: false, error: relayGuard.message, errorCode: relayGuard.code }, { status: 429 });
   }

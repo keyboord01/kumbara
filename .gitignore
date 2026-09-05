@@ -36,3 +36,5 @@ spikes/.out/
 next-env.d.ts
 .data/
 .data-start.log
+.vercel
+.env*

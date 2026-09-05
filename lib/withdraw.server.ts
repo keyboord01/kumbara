@@ -22,7 +22,7 @@ import { networkPassphrase, serverEnv } from "./env.server";
 import { assertSponsorReady, landingDeps } from "./landing.server";
 import { LandingError, createLandingAccount, submitPreauthorized, type LandingPlan } from "./landing/landing";
 import { recordEvent } from "./metrics.server";
-import { newId, withLock, withdrawalStore, type StoredRecord } from "./store.server";
+import { newId, withLease, withdrawalStore, type StoredRecord } from "./store.server";
 import { readTokenBalance, readVaultPosition } from "./vault";
 
 /** The anchor's documented minimum when an amount is given. */
@@ -158,10 +158,18 @@ function isTransient(err: unknown): boolean {
   return false;
 }
 
+const STEP_LEASE_MS = 110_000;
+
+async function loadWithdrawal(id: string): Promise<WithdrawalRecord> {
+  const record = await withdrawalStore.get<WithdrawalRecord>(id);
+  if (!record) throw new WithdrawError(404, "not_found", "withdrawal not found");
+  return record;
+}
+
+/** One step per poll under a database lease; resumable from stored state on any instance. */
 export async function advanceWithdrawal(id: string): Promise<WithdrawalRecord> {
-  return withLock(`withdrawal:${id}`, async () => {
-    const record = await withdrawalStore.get<WithdrawalRecord>(id);
-    if (!record) throw new WithdrawError(404, "not_found", "withdrawal not found");
+  return withLease(`withdrawal:${id}`, STEP_LEASE_MS, async () => {
+    const record = await loadWithdrawal(id);
     if (FINAL_WITHDRAWAL_STATUSES.includes(record.status) || record.status === "awaiting_usdc") return record;
     try {
       const next = await step(record);
@@ -178,7 +186,7 @@ export async function advanceWithdrawal(id: string): Promise<WithdrawalRecord> {
       await withdrawalStore.save(failed);
       return failed;
     }
-  });
+  }, () => loadWithdrawal(id));
 }
 
 async function step(record: WithdrawalRecord): Promise<WithdrawalRecord> {
@@ -265,12 +273,11 @@ export async function recordUsdcSent(id: string, input: { vaultTx: string; trans
   for (const [name, value] of Object.entries(input)) {
     if (!/^[0-9a-f]{64}$/.test(value)) throw new WithdrawError(400, "invalid_hash", `${name} must be a 64-hex transaction hash`);
   }
-  return withLock(`withdrawal:${id}`, async () => {
-    const record = await withdrawalStore.get<WithdrawalRecord>(id);
-    if (!record) throw new WithdrawError(404, "not_found", "withdrawal not found");
+  return withLease(`withdrawal:${id}`, 30_000, async () => {
+    const record = await loadWithdrawal(id);
     if (record.status !== "awaiting_usdc") return record;
     const next: WithdrawalRecord = { ...record, vaultTxHash: input.vaultTx, transferTxHash: input.transferTx, status: "usdc_sent" };
     await withdrawalStore.save(next);
     return next;
-  });
+  }, () => loadWithdrawal(id));
 }

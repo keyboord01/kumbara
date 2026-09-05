@@ -1,67 +1,121 @@
-# Deploying Kumbara to Fly.io
+# Deploying Kumbara
 
-One machine, one volume, SQLite. Everything non-secret is in `fly.toml`; the image is built from the `Dockerfile` (Next.js standalone output, Node 20, `better-sqlite3`).
+Production runs on **Vercel (Hobby, Fluid compute)** with **Turso** for the records, the contract-to-customer map and the counter events. There is no long-lived process: every deposit and withdrawal step is resumed from database state on whichever invocation polls next, mutual exclusion is a database lease, and rate-limit windows are rows. The Fly.io files (`Dockerfile`, `fly.toml`) are kept as an alternative single-machine path with a local libsql file on a volume.
+
+Live: **https://kumbara.vercel.app** (Stellar TESTNET). Functions run in `fra1`; the Turso database is in `aws-eu-west-1` (Ireland), the closest available region to Frankfurt.
 
 ## Prerequisites
 
-- `flyctl` installed and logged in (`fly auth login`).
-- A Fly organisation with billing enabled (one `shared-cpu-1x` machine with 1 GB RAM and a 1 GB volume).
-- The values for the four secrets below.
+- Vercel CLI (`npm i -g vercel`) and a Vercel token (`VERCEL_TOKEN`), used non-interactively.
+- A Turso platform token (`TURSO_PLATFORM_TOKEN`) for the Platform API (or the `turso` CLI).
+- The values for the secrets below.
 
-## Secrets
+Keep both tokens out of the repository and out of logs; the steps below read them from `.env`.
 
-| Secret | What it is | Where it comes from |
-| --- | --- | --- |
-| `ANCHOR_API_KEY` | TR Mock Anchor Partner API key (`trma_test_…`) | the anchor dashboard, one per email account |
-| `SEMBOL_PROJECT_KEY` | Relay key sent as `Authorization: Bearer` to `SEMBOL_CLOUD_URL` | Sembol Cloud project key; until it exists, an OpenZeppelin Channels testnet key from `https://channels.openzeppelin.com/testnet/gen` |
-| `SPONSOR_SECRET` | Classic account (`S…`) that sponsors landing-account reserves and pays their setup fees | generate one (`stellar keys generate`), fund it with a few XLM; it never holds user funds |
-| `BOOTH_ADMIN_TOKEN` | Presenter token for `/booth/admin` (12+ characters) | generate one (`openssl rand -base64 18`) |
+## Turso (once)
 
-Everything else (network, RPC, anchor base URL, relay URL, vault id, modes, booth start timestamp, rate limits, sponsor bounds) lives in `fly.toml` under `[env]` and can be changed with `fly deploy` or `fly secrets set` (secrets win over `[env]`).
-
-## First deployment
+The Platform API (`https://api.turso.tech/v1`) with `Authorization: Bearer $TURSO_PLATFORM_TOKEN`:
 
 ```bash
-# 1. Create the app from the checked-in config (no deploy yet).
-fly launch --no-deploy --copy-config --name kumbara --region fra
-
-# 2. The volume that holds /data (records, counter events).
-fly volumes create kumbara_data --region fra --size 1 --yes
-
-# 3. Secrets.
-fly secrets set \
-  ANCHOR_API_KEY=trma_test_... \
-  SEMBOL_PROJECT_KEY=... \
-  SPONSOR_SECRET=S... \
-  BOOTH_ADMIN_TOKEN=...
-
-# 4. Build and deploy the image.
-fly deploy
-
-# 5. Verify.
-curl -s https://kumbara.fly.dev/api/health | jq
-open https://kumbara.fly.dev/booth/admin?token=...   # paste the token once; it leaves the URL immediately
+ORG=<your org slug>                               # GET /organizations
+# group in the nearest available region to Frankfurt
+curl -X POST $API/organizations/$ORG/groups -d '{"name":"default","location":"aws-eu-west-1"}'
+curl -X POST $API/organizations/$ORG/databases -d '{"name":"kumbara","group":"default"}'
+# database URL is libsql://<Hostname> from GET /organizations/$ORG/databases/kumbara
+curl -X POST "$API/organizations/$ORG/databases/kumbara/auth/tokens?expiration=never&authorization=full-access"   # -> {"jwt": ...}
 ```
 
-`/api/health` must return `ok: true` and four green dependencies (anchor, relay, rpc, vault). The admin console shows the same four plus the sponsor balance.
+With the CLI: `turso db create kumbara --location aws-eu-west-1`, `turso db show kumbara --url`, `turso db tokens create kumbara`. The schema is created on first use (`CREATE TABLE IF NOT EXISTS`, see `lib/db/store.ts`), so nothing else is needed.
+
+Current database: `kumbara` in organisation `keyboord01`, hostname `kumbara-keyboord01.aws-eu-west-1.turso.io`.
+
+## Sponsor account (once)
+
+A fresh testnet keypair funded with about 50 XLM, used only to sponsor landing-account reserves (2.5 XLM per in-flight deposit, returned at cleanup) and pay their setup fees. It never holds user funds. `scripts/new-sponsor.ts` creates and funds one and writes the secret to a file that is never printed:
+
+```bash
+node --import tsx scripts/new-sponsor.ts .data/sponsor.env 50
+```
+
+Production sponsor: **`GCMQOXM2R34FLJRMRXKWL6XVJ3BQPUU2WXCMTCED3ZDSYZM7UI2EKHEQ`** ([stellar.expert, testnet](https://stellar.expert/explorer/testnet/account/GCMQOXM2R34FLJRMRXKWL6XVJ3BQPUU2WXCMTCED3ZDSYZM7UI2EKHEQ)). Onboarding pauses below `SPONSOR_MIN_XLM` (3); the admin console warns above `SPONSOR_MAX_XLM` (100) and can top it up from Friendbot on testnet.
+
+## Vercel
+
+```bash
+vercel link --yes --project kumbara --token "$VERCEL_TOKEN"
+
+# production environment (each value is piped on stdin, never passed on the command line)
+for KV in $(cat .data/vercel-env.prod); do
+  printf '%s' "${KV#*=}" | vercel env add "${KV%%=*}" production --token "$VERCEL_TOKEN"
+done
+
+vercel deploy --prod --yes --token "$VERCEL_TOKEN"
+vercel alias set <deployment-url> kumbara.vercel.app --token "$VERCEL_TOKEN"
+```
+
+### Environment variables (production)
+
+| Variable | Kind | Value |
+| --- | --- | --- |
+| `TURSO_DATABASE_URL` | secret | `libsql://kumbara-keyboord01.aws-eu-west-1.turso.io` |
+| `TURSO_AUTH_TOKEN` | secret | database token from Turso |
+| `ANCHOR_API_KEY` | secret | TR Mock Anchor Partner API key (`trma_test_…`) |
+| `SEMBOL_PROJECT_KEY` | secret | relay key (Sembol Cloud project key; today an OpenZeppelin Channels testnet key) |
+| `SPONSOR_SECRET` | secret | the sponsor keypair above |
+| `BOOTH_ADMIN_TOKEN` | secret | presenter token for `/booth/admin` (12+ characters) |
+| `STELLAR_NETWORK`, `NEXT_PUBLIC_STELLAR_NETWORK` | config | `testnet` |
+| `STELLAR_RPC_URL` | config | `https://soroban-testnet.stellar.org` |
+| `ANCHOR_BASE_URL` | config | `https://tr-mock-anchor.fly.dev` |
+| `SEMBOL_CLOUD_URL`, `SEMBOL_PROJECT_ID` | config | `https://channels.openzeppelin.com/testnet`, `kumbara` |
+| `DEFINDEX_VAULT_ID` | config | `CBUEZTX2U7GBOOAWIFQW2QOYW6DVQJNCMSLR2I6JCD3RJQLW67VJ5ZNV` |
+| `SOROSWAP_ENABLED`, `ONRAMP_MODE`, `OFFRAMP_MODE` | config | `false`, `landing`, `landing` |
+| `BOOTH_START_TS`, `MAINNET_DEMO_ENABLED` | config | counter start (unix seconds), `false` |
+| `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` | config | `60` (booth Wi-Fi shares one IP) |
+| `RATE_LIMIT_ACCOUNTS_PER_REF` | config | `300` (the primary abuse guard) |
+| `RATE_LIMIT_RELAY_PER_IP_HOUR` | config | `1000` |
+| `SPONSOR_MIN_XLM`, `SPONSOR_MAX_XLM` | config | `3`, `100` |
+| `SEED_DEPOSIT_TRY` | config | `250` |
+
+Locally, `.env` uses `TURSO_DATABASE_URL=file:.data/kumbara.db` and no auth token; it is the same code path.
+
+### Function limits
+
+Vercel Hobby with Fluid compute allows up to 300 s per function invocation (default 300 s). Every route declares its own `maxDuration` well below that: the relay forwarder 120 s (it waits for on-chain confirmation), the deposit and withdrawal pollers 120 s (the longest single step, building and locking a landing account, takes about 20 s and must stay in one invocation because the landing key is never persisted), creation routes 60 s, everything else 30 s. Per-record leases last 110 s so a crashed invocation frees the record before the next poll can take over.
+
+### Deployment protection
+
+New Vercel projects protect their generated URLs with Vercel Authentication. That must be off for production, otherwise every request (including the booth QR link) redirects to a Vercel login. It was disabled with the API (`PATCH /v9/projects/kumbara {"ssoProtection": null}`); the dashboard setting is Settings → Deployment Protection.
+
+### Rate limiting on Vercel
+
+Per-IP windows are rows in Turso keyed by a salted hash of the IP; the salt derives from `SEMBOL_PROJECT_KEY`, so every instance hashes the same way and the IP itself is never stored or logged. Without that key the salt is per instance (a documented, weaker fallback). The per-booth-ref cap is the primary guard.
+
+### Verify
+
+```bash
+curl -s https://kumbara.vercel.app/api/health | jq          # ok:true, database and four dependencies
+APP_URL=https://kumbara.vercel.app pnpm e2e:onboard        # Chrome + virtual passkey against production
+APP_URL=https://kumbara.vercel.app pnpm e2e:deposit
+APP_URL=https://kumbara.vercel.app pnpm e2e:withdraw
+```
+
+Measured on 5 September 2026 from Istanbul: first request after deploy (cold) `/api/health` 2.4 s including a 0.58 s Turso round trip; warm requests 0.4–0.9 s; home page 0.67 s.
 
 ## Before the event
 
-1. Set the counter start: `fly secrets set BOOTH_START_TS=$(date -d '2026-09-19 08:00:00 +03:00' +%s)` (or edit `fly.toml` and deploy).
-2. Fund the sponsor to about 20 XLM (enough for six concurrent deposits): on testnet use the "Fund via Friendbot" button on `/booth/admin`; on mainnet send XLM to the address shown there. Onboarding pauses automatically below `SPONSOR_MIN_XLM`.
-3. Check the anchor's treasury balance on the admin console's anchor dot (it shows the treasury USDC); ask the anchor team to refill if it is low.
-4. Run the browser round trip against the deployed URL once: `APP_URL=https://kumbara.fly.dev pnpm e2e:deposit` (needs the same `.env` values locally).
-5. Open `/booth?n=1` on the booth screen. Each booth gets its own `n`; the QR encodes `?ref=booth-<n>` and the counter credits that ref.
+1. Set the counter start: `vercel env rm BOOTH_START_TS production` then `printf '%s' $(date -d '2026-09-19 08:00:00 +03:00' +%s) | vercel env add BOOTH_START_TS production`, and redeploy (`vercel deploy --prod`).
+2. Check the sponsor balance on `/booth/admin` (keep it around 20–50 XLM).
+3. Check the four dots on `/booth/admin`; the anchor dot shows the treasury USDC.
+4. Run the three E2E flows against the production URL once.
+5. Open `https://kumbara.vercel.app/booth?n=1` on the booth screen.
 
 ## Operating
 
-- Logs: `fly logs`. Landing-account steps log only public keys and hashes.
-- Records: `fly ssh console -C "sqlite3 /data/kumbara.sqlite 'select kind,status,count(*) from records group by 1,2'"` (install `sqlite3` in the image if you need it often; the data is also exposed by `/api/metrics`).
-- Backups: `fly volumes snapshots list kumbara_data` (daily automatic snapshots) or copy `/data/kumbara.sqlite` with `fly ssh sftp get`.
-- Rotate the sponsor: set a new `SPONSOR_SECRET` and deploy; landing accounts created by the old key still merge into the old key at cleanup, so leave it funded for an hour.
-- Rate limits: `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR`, `RATE_LIMIT_ACCOUNTS_PER_REF`, `RATE_LIMIT_RELAY_PER_IP_HOUR` in `fly.toml`.
-- One machine only: the per-record locks are in memory. Do not scale to two machines without moving the locks and SQLite.
+- Logs: `vercel logs kumbara.vercel.app --token "$VERCEL_TOKEN"` (landing steps log public keys and hashes only).
+- Data: `/api/metrics` for the counts, or Turso's shell (`turso db shell kumbara`) for the `records`, `events`, `leases` and `ratelimit_hits` tables.
+- Rotate the sponsor: set a new `SPONSOR_SECRET` and redeploy; landing accounts created by the old key still merge into the old key, so leave it funded for an hour.
+- Redeploy: `vercel deploy --prod --yes`. `NEXT_PUBLIC_STELLAR_NETWORK` is baked at build time.
 
-## Redeploying
+## Alternative: Fly.io (one machine, local libsql file)
 
-`fly deploy` builds a new image and replaces the machine; the volume persists. The build bakes `NEXT_PUBLIC_STELLAR_NETWORK` from `[build.args]`, so a network change needs a rebuild.
+`Dockerfile` and `fly.toml` still work: one machine in `fra` with a volume at `/data`, `TURSO_DATABASE_URL=file:/data/kumbara.db`, secrets via `fly secrets set ANCHOR_API_KEY=… SEMBOL_PROJECT_KEY=… SPONSOR_SECRET=… BOOTH_ADMIN_TOKEN=…`, then `fly deploy`. The same code runs there; leases and rate-limit rows simply live in the local file.

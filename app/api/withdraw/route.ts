@@ -6,6 +6,7 @@ import { FINAL_WITHDRAWAL_STATUSES, WITHDRAW_MIN_USDC, WithdrawError, createWith
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export function withdrawErrorResponse(err: unknown): Response {
   if (err instanceof WithdrawError) return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status });

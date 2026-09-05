@@ -5,6 +5,7 @@ import { depositErrorResponse } from "../../route";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 function readCookie(request: Request, name: string): string | null {
   const cookie = request.headers.get("cookie") ?? "";

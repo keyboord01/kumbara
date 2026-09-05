@@ -1,26 +1,28 @@
 /**
- * Liveness for the Fly.io health check (process up, data dir writable) plus
- * reachability of the anchor, the relay, Stellar RPC and the vault. The HTTP
- * status reflects only the process itself; dependency trouble is reported,
- * not fatal, so a flaky upstream never gets the machine restarted.
+ * Liveness (function up, database reachable) plus reachability of the anchor,
+ * the relay, Stellar RPC and the vault. The HTTP status reflects only the
+ * database; dependency trouble is reported, not fatal.
  */
 import { NextResponse } from "next/server";
-import { accessSync, constants } from "node:fs";
-import { dataDir } from "@/lib/db/store";
+import { databaseUrl, db } from "@/lib/db/store";
 import { serverEnv } from "@/lib/env.server";
 import { dependencyHealth } from "@/lib/health.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function GET(): Promise<Response> {
-  let dataWritable = false;
+  let dbOk = false;
+  let dbDetail = "";
+  const dbStarted = Date.now();
   try {
-    accessSync(dataDir(), constants.W_OK);
-    dataWritable = true;
-  } catch {
-    dataWritable = false;
+    await (await db()).execute("SELECT 1");
+    dbOk = true;
+  } catch (err) {
+    dbDetail = err instanceof Error ? err.message.slice(0, 160) : String(err);
   }
+  const dbMs = Date.now() - dbStarted;
   let network = "unknown";
   try {
     network = serverEnv.stellarNetwork();
@@ -33,8 +35,9 @@ export async function GET(): Promise<Response> {
   } catch (err) {
     dependencies = { error: err instanceof Error ? err.message : String(err) };
   }
+  const database = { ok: dbOk, ms: dbMs, detail: dbDetail || (databaseUrl().startsWith("file:") ? "local file" : "turso") };
   return NextResponse.json(
-    { ok: dataWritable, network, dataDir: dataDir(), uptimeSeconds: Math.round(process.uptime()), dependencies },
-    { status: dataWritable ? 200 : 503, headers: { "cache-control": "no-store" } },
+    { ok: dbOk, network, database, dependencies },
+    { status: dbOk ? 200 : 503, headers: { "cache-control": "no-store" } },
   );
 }

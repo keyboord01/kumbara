@@ -6,6 +6,7 @@ import { DEPOSIT_MAX_TRY, DEPOSIT_MIN_TRY, DepositError, FINAL_STATUSES, createD
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export function depositErrorResponse(err: unknown): Response {
   if (err instanceof DepositError) return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status });

@@ -5,6 +5,7 @@ import { listPendingDeposits } from "@/lib/demo-bank";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 30;
 
 export async function GET(request: Request): Promise<Response> {
   const denied = requireAdmin(request);

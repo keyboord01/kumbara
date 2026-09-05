@@ -14,11 +14,8 @@ export interface AnchorDiscovery {
   fetchedAt: number;
 }
 
-let cache: AnchorDiscovery | null = null;
-const TTL_MS = 10 * 60 * 1000;
-
+/** Discovery is fetched with the framework data cache (10 min), never held in process memory. */
 export async function discoverAnchor(): Promise<AnchorDiscovery> {
-  if (cache && Date.now() - cache.fetchedAt < TTL_MS) return cache;
   const base = serverEnv.anchorBaseUrl();
   const res = await fetch(`${base}/.well-known/stellar.toml`, { next: { revalidate: 600 } });
   if (!res.ok) throw new Error(`anchor stellar.toml unavailable (${res.status})`);
@@ -42,14 +39,13 @@ export async function discoverAnchor(): Promise<AnchorDiscovery> {
   } catch {
     treasury = null;
   }
-  cache = {
+  return {
     usdc: { code: "USDC", issuer, contractId: new Asset("USDC", issuer).contractId(passphrase) },
     endpoints,
     networkPassphrase: passphrase,
     treasury,
     fetchedAt: Date.now(),
   };
-  return cache;
 }
 
 /** Partner API call with the server-held key. */

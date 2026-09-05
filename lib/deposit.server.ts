@@ -23,7 +23,7 @@ import { serverEnv } from "./env.server";
 import { assertSponsorReady, landingDeps } from "./landing.server";
 import { LandingError, createLandingAccount, submitPreauthorized, type LandingPlan } from "./landing/landing";
 import { recordEvent } from "./metrics.server";
-import { depositStore, getCustomerId, newId, setCustomerId, withLock, type StoredRecord } from "./store.server";
+import { depositStore, getCustomerId, newId, setCustomerId, withLease, type StoredRecord } from "./store.server";
 
 /** The anchor's documented per-order limits (50.00 – 250,000.00 TRY). */
 export const DEPOSIT_MIN_TRY = 50;
@@ -200,11 +200,23 @@ function isTransient(err: unknown): boolean {
   return false;
 }
 
-/** Advance the deposit by one step if the world has moved on. Serialized per id. */
+/** Lease TTL for one pipeline step; a crashed invocation frees the record after this. */
+const STEP_LEASE_MS = 110_000;
+
+async function loadDeposit(id: string): Promise<DepositRecord> {
+  const record = await depositStore.get<DepositRecord>(id);
+  if (!record) throw new DepositError(404, "not_found", "deposit not found");
+  return record;
+}
+
+/**
+ * Advance the deposit by one step if the world has moved on. Serialized per
+ * id with a database lease, so any invocation on any instance can resume
+ * from the stored state; a concurrent poll simply reads the current record.
+ */
 export async function advanceDeposit(id: string): Promise<DepositRecord> {
-  return withLock(`deposit:${id}`, async () => {
-    const record = await depositStore.get<DepositRecord>(id);
-    if (!record) throw new DepositError(404, "not_found", "deposit not found");
+  return withLease(`deposit:${id}`, STEP_LEASE_MS, async () => {
+    const record = await loadDeposit(id);
     if (FINAL_STATUSES.includes(record.status) || record.status === "in_wallet") return record;
     try {
       const next = await step(record);
@@ -221,7 +233,7 @@ export async function advanceDeposit(id: string): Promise<DepositRecord> {
       await depositStore.save(failed);
       return failed;
     }
-  });
+  }, () => loadDeposit(id));
 }
 
 async function step(record: DepositRecord): Promise<DepositRecord> {
@@ -294,9 +306,8 @@ async function step(record: DepositRecord): Promise<DepositRecord> {
 
 export async function recordVaultDeposit(id: string, input: { hash: string; amountUsdc: string; ref?: string | null }): Promise<DepositRecord> {
   if (!/^[0-9a-f]{64}$/.test(input.hash)) throw new DepositError(400, "invalid_hash", "hash must be a 64-hex transaction hash");
-  return withLock(`deposit:${id}`, async () => {
-    const record = await depositStore.get<DepositRecord>(id);
-    if (!record) throw new DepositError(404, "not_found", "deposit not found");
+  return withLease(`deposit:${id}`, 30_000, async () => {
+    const record = await loadDeposit(id);
     if (record.status === "in_vault") return record;
     if (record.status !== "in_wallet") throw new DepositError(409, "not_in_wallet", `deposit is ${record.status}`);
     const next: DepositRecord = { ...record, vaultTxHash: input.hash, vaultDepositUsdc: input.amountUsdc, status: "in_vault" };
@@ -315,5 +326,5 @@ export async function recordVaultDeposit(id: string, input: { hash: string; amou
       usdc: input.amountUsdc,
     });
     return next;
-  });
+  }, () => loadDeposit(id));
 }

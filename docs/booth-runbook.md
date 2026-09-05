@@ -4,9 +4,9 @@ Rise In × Stellar Pro Hackathon, Istanbul, 19–20 September 2026. Everything b
 
 ## Setup (10 minutes before)
 
-1. Open `https://kumbara.fly.dev/booth/admin?token=<BOOTH_ADMIN_TOKEN>` on the presenter's phone or laptop. The token leaves the URL immediately; keep the tab open.
+1. Open `https://kumbara.vercel.app/booth/admin?token=<BOOTH_ADMIN_TOKEN>` on the presenter's phone or laptop. The token leaves the URL immediately; keep the tab open.
 2. Check the four dots: Anchor, Relay, Stellar RPC, DeFindex vault must all be green. The sponsor card must say "Sufficient" (≥ 3 XLM; keep it around 20 XLM, use "Fund via Friendbot" on testnet).
-3. Open `https://kumbara.fly.dev/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`.
+3. Open `https://kumbara.vercel.app/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`.
 4. Seed one demo account for the jury withdraw: on the admin page tap "Seed a demo account" (Face ID on the presenter's device, then a second Face ID when the USDC arrives). About 90 seconds. Leave that account connected on the presenter's phone.
 
 ## The three-minute script
@@ -49,4 +49,4 @@ The vault contract does not answer simulations (RPC hiccup or a testnet reset). 
 
 ## After the event
 
-`https://kumbara.fly.dev/api/metrics?since=<BOOTH_START_TS>` is the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals, each with transaction links. It is public and cached for 30 seconds.
+`https://kumbara.vercel.app/api/metrics?since=<BOOTH_START_TS>` is the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals, each with transaction links. It is public and cached for 30 seconds.

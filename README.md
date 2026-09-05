@@ -12,6 +12,8 @@ A Next.js web app. A user opens it on their phone, taps Face ID, and gets an Ope
 
 Kumbara is non-custodial software. It never holds fiat, never holds keys, never takes custody of USDC. The anchor is the regulated party. Deposit, hold, withdraw; no payments, no sending to friends.
 
+Live on testnet: **https://kumbara.vercel.app**
+
 ## Problem
 
 Saving in dollars is something Turkish households already do, in cash and in bank accounts, against a currency that lost most of its value in five years. The on-chain version, a stablecoin, has been out of reach for anyone who is not already a crypto user: seed phrases, gas tokens, exchange sign-ups, and a wallet UX designed for traders. A piggy bank should be as simple as the one on a child's shelf: put lira in, take lira out, and in between keep it in something that holds its value. That is the whole product.
@@ -104,23 +106,12 @@ APP_URL=http://localhost:3000 pnpm e2e:withdraw  # … → withdraw 1 USDC → s
 
 Deposit rehearsal: open the app, tap Deposit, enter an amount, and when the IBAN screen shows, run `pnpm demo:deposit` in a terminal. The app detects the lira, runs the landing-account on-ramp, moves the USDC into the kumbara, and asks for one Face ID approval to put it in the vault. Records live under `.data/kumbara/` locally.
 
-### Deploy to Fly.io
+### Deploy
 
-One machine with a volume; records and counter events live in SQLite on `/data`.
-
-```bash
-fly launch --no-deploy --copy-config --name kumbara     # uses fly.toml and the Dockerfile
-fly volumes create kumbara_data --region fra --size 1
-fly secrets set ANCHOR_API_KEY=trma_test_… SEMBOL_PROJECT_KEY=… SPONSOR_SECRET=S… BOOTH_ADMIN_TOKEN=…
-fly deploy
-```
-
-Non-secret configuration is in `fly.toml` (`[env]`); `NEXT_PUBLIC_STELLAR_NETWORK` is a build argument because it is baked into the browser bundle. `/api/health` is the machine's health check. `DATA_DIR` points the SQLite file elsewhere for local runs (default `./.data`; a relative path resolves against the server's working directory). To run the exact standalone server the image runs, locally:
+Production is Vercel (Hobby, Fluid compute) with Turso; every step of a deposit or withdrawal resumes from database state, so no long-lived process is needed. `docs/deploy.md` has the exact steps, the environment variable list and the function limits. The Fly.io files (`Dockerfile`, `fly.toml`) remain as a single-machine alternative with a local libsql file.
 
 ```bash
-pnpm build
-ln -sfn "$(pwd)/.next/static" .next/standalone/.next/static   # the Dockerfile copies this
-PORT=3100 node --env-file=.env .next/standalone/server.js
+vercel link --yes --project kumbara && vercel deploy --prod --yes    # after setting the production env (see docs/deploy.md)
 ```
 
 ### Booth mode and metrics
@@ -135,7 +126,7 @@ PORT=3100 node --env-file=.env .next/standalone/server.js
 
 ## Demo
 
-Live URL and demo video: to be added when Gate 5 lands. Until then, `pnpm e2e:onboard` and `pnpm e2e:deposit` perform the flows in a real browser against testnet and print the created kumbara's address and the transaction links.
+Live (Stellar TESTNET): **https://kumbara.vercel.app** · booth screen `https://kumbara.vercel.app/booth?n=1` · public metrics `https://kumbara.vercel.app/api/metrics`. The recorded backup video arrives with Gate 5. `pnpm e2e:onboard`, `pnpm e2e:deposit` and `pnpm e2e:withdraw` run the flows in a real browser against `APP_URL` and print the created kumbara's address and the transaction links.
 
 ## Resources used
 

@@ -11,6 +11,7 @@ import { rpcServer, sponsorKeypair, sponsorStatus } from "@/lib/landing.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 120;
 
 export async function POST(request: Request): Promise<Response> {
   const denied = requireAdmin(request);
@@ -41,7 +42,7 @@ export async function POST(request: Request): Promise<Response> {
     if (sent.status === "ERROR") throw new Error(`merge rejected: ${sent.errorResult?.toXDR("base64")}`);
     const polled = await server.pollTransaction(sent.hash, { attempts: 30 });
     if (polled.status !== "SUCCESS") throw new Error(`merge ${polled.status}`);
-    const status = await sponsorStatus(0);
+    const status = await sponsorStatus();
     return NextResponse.json({ hash: sent.hash, ...status }, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     return NextResponse.json({ error: { code: "fund_failed", message: err instanceof Error ? err.message : String(err) } }, { status: 502 });

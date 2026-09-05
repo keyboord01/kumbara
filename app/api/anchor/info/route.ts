@@ -7,6 +7,7 @@ import { discoverAnchor } from "@/lib/anchor.server";
 import { serverEnv } from "@/lib/env.server";
 
 export const runtime = "nodejs";
+export const maxDuration = 30;
 
 export async function GET(): Promise<Response> {
   try {

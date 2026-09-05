@@ -1,6 +1,6 @@
 /**
- * Reachability of the four things Kumbara depends on, each with latency.
- * Cached 10 s so the admin console and the platform health check can poll.
+ * Reachability of the four things Kumbara depends on, each with latency,
+ * measured on every call (no process memory).
  */
 import "server-only";
 import { Account, Address, BASE_FEE, Operation, TransactionBuilder, rpc, xdr } from "@stellar/stellar-sdk";
@@ -22,7 +22,6 @@ export interface DependencyHealth {
 
 const READ_ONLY = new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "0");
 const TIMEOUT_MS = 6000;
-let cache: { at: number; value: DependencyHealth } | null = null;
 
 async function timed(fn: () => Promise<string>): Promise<DependencyStatus> {
   const started = Date.now();
@@ -72,10 +71,7 @@ async function checkVault(): Promise<string> {
   return `vault ${vault.slice(0, 6)}… answers`;
 }
 
-export async function dependencyHealth(maxAgeMs = 10_000): Promise<DependencyHealth> {
-  if (cache && Date.now() - cache.at < maxAgeMs) return cache.value;
+export async function dependencyHealth(): Promise<DependencyHealth> {
   const [anchor, relay, rpcStatus, vault] = await Promise.all([timed(checkAnchor), timed(checkRelay), timed(checkRpc), timed(checkVault)]);
-  const value: DependencyHealth = { anchor, relay, rpc: rpcStatus, vault, checkedAt: new Date().toISOString() };
-  cache = { at: Date.now(), value };
-  return value;
+  return { anchor, relay, rpc: rpcStatus, vault, checkedAt: new Date().toISOString() };
 }

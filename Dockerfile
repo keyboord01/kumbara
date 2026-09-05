@@ -24,7 +24,7 @@ RUN pnpm build
 
 # Runtime: standalone server + static assets, data on /data (volume).
 FROM node:20-bookworm-slim AS runner
-ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 DATA_DIR=/data NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production PORT=3000 HOSTNAME=0.0.0.0 TURSO_DATABASE_URL=file:/data/kumbara.db NEXT_TELEMETRY_DISABLED=1
 WORKDIR /app
 RUN mkdir -p /data && chown node:node /data
 COPY --from=build --chown=node:node /app/.next/standalone ./

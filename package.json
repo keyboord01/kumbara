@@ -29,7 +29,6 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^20.19.43",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
@@ -44,9 +43,9 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
+    "@libsql/client": "^0.18.0",
     "@sembol/passkey-react": "0.3.1",
     "@stellar/stellar-sdk": "^16.3.0",
-    "better-sqlite3": "^12.11.1",
     "next": "^16.3.4",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
@@ -54,10 +53,5 @@
     "server-only": "^0.0.1",
     "smart-account-kit": "0.6.2"
   },
-  "type": "module",
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3"
-    ]
-  }
+  "type": "module"
 }

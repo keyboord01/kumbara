@@ -72,8 +72,13 @@ try {
   const seeded = last.match(/C[A-Z2-7]{55}/)?.[0];
   log("seeded contract:", seeded);
 
-  log("metrics");
-  const metrics = await (await fetch(`${APP}/api/metrics`)).json();
+  log("metrics (public endpoint is edge-cached for 30 s; polling until the seeded account appears)");
+  let metrics = null;
+  for (let i = 0; i < 20; i += 1) {
+    metrics = await (await fetch(`${APP}/api/metrics`)).json();
+    if (metrics.accounts.items.some((a) => a.contractId === seeded)) break;
+    await new Promise((r) => setTimeout(r, 5000));
+  }
   log("accounts byRef:", JSON.stringify(metrics.accounts.byRef));
   if (!(metrics.accounts.byRef.seed >= 1)) throw new Error("seed account not counted");
   const item = metrics.accounts.items.find((a) => a.contractId === seeded);

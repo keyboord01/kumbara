@@ -15,7 +15,19 @@ export async function GET(request: Request): Promise<Response> {
   return NextResponse.json(
     {
       pending,
-      stuck: stuck.map((d) => ({ id: d.id, status: d.status, contractId: d.contractId, amountTry: d.receivedTry ?? d.amountTry, usdc: d.firmQuote?.usdcOut ?? null, onrampId: d.onrampId ?? null, updatedAt: d.updatedAt, abandonedAt: d.abandonedAt ?? null })),
+      stuck: stuck.map((d) => ({
+        id: d.id,
+        status: d.status,
+        contractId: d.contractId,
+        amountTry: d.receivedTry ?? d.amountTry,
+        usdc: d.firmQuote?.usdcOut ?? null,
+        paidUsdc: d.paidUsdc ?? null,
+        onrampId: d.onrampId ?? null,
+        updatedAt: d.updatedAt,
+        abandonedAt: d.abandonedAt ?? null,
+        errorCode: d.error?.code ?? null,
+        landing: d.status === "failed" && d.landing ? d.landing.publicKey : null,
+      })),
     },
     { headers: { "cache-control": "no-store" } },
   );

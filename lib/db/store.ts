@@ -70,16 +70,49 @@ const SCHEMA = [
      ts INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS ratelimit_bucket_ts ON ratelimit_hits(bucket, ts)`,
+  `CREATE TABLE IF NOT EXISTS kv (
+     key TEXT PRIMARY KEY,
+     json TEXT NOT NULL,
+     updated_at TEXT NOT NULL
+   )`,
 ];
+
+/**
+ * Who produced a record or event, derived from its booth ref: the seeded demo
+ * account, the automated E2E runs, or a real visitor. /api/metrics and /stats
+ * exclude `seed` and `e2e` unless asked to include them.
+ */
+export type EventSource = "user" | "seed" | "e2e";
+
+export function sourceOfRef(ref: string | null | undefined): EventSource {
+  if (!ref) return "user";
+  if (ref === "seed") return "seed";
+  if (/^e2e(-|$)/i.test(ref)) return "e2e";
+  return "user";
+}
+
+/** Additive migrations for databases created before a column existed. */
+async function migrate(c: Client): Promise<void> {
+  const info = await c.execute("PRAGMA table_info(events)");
+  const hasSource = info.rows.some((r) => String(r.name) === "source");
+  if (!hasSource) {
+    await c.execute("ALTER TABLE events ADD COLUMN source TEXT");
+  }
+  await c.execute("UPDATE events SET source = CASE WHEN ref = 'seed' THEN 'seed' WHEN ref LIKE 'e2e%' THEN 'e2e' ELSE 'user' END WHERE source IS NULL");
+  await c.execute("CREATE INDEX IF NOT EXISTS events_source_ts ON events(source, ts)");
+}
 
 /** Idempotent schema; the memoized promise is an optimization, not state. */
 export async function db(): Promise<Client> {
   const c = connect();
   if (!schemaReady) {
-    schemaReady = c.batch(SCHEMA, "write").then(() => undefined).catch((err: unknown) => {
-      schemaReady = null;
-      throw err;
-    });
+    schemaReady = c
+      .batch(SCHEMA, "write")
+      .then(() => migrate(c))
+      .catch((err: unknown) => {
+        schemaReady = null;
+        throw err;
+      });
   }
   await schemaReady;
   return c;
@@ -160,18 +193,30 @@ export interface EventRow {
   network: string;
   projectId: string;
   ref: string | null;
+  /** seed | e2e | user; derived from the ref when not given. */
+  source?: EventSource;
   [key: string]: unknown;
 }
 
+export interface EventFilter {
+  type?: string;
+  since?: number;
+  ref?: string;
+  /** Only these sources; omit for every source. */
+  sources?: EventSource[];
+}
+
 export async function insertEvent(event: EventRow): Promise<void> {
-  assertNoSecret(event, "event");
+  const source: EventSource = event.source ?? sourceOfRef(event.ref);
+  const row = { ...event, source };
+  assertNoSecret(row, "event");
   await (await db()).execute({
-    sql: "INSERT INTO events (type, ts, network, project_id, ref, json) VALUES (?, ?, ?, ?, ?, ?)",
-    args: [event.type, event.ts, event.network, event.projectId, event.ref, JSON.stringify(event)],
+    sql: "INSERT INTO events (type, ts, network, project_id, ref, source, json) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    args: [row.type, row.ts, row.network, row.projectId, row.ref, source, JSON.stringify(row)],
   });
 }
 
-function eventFilter(filter: { type?: string; since?: number; ref?: string }): { where: string; args: InValue[] } {
+function eventFilter(filter: EventFilter): { where: string; args: InValue[] } {
   const clauses: string[] = [];
   const args: InValue[] = [];
   if (filter.type) {
@@ -186,19 +231,42 @@ function eventFilter(filter: { type?: string; since?: number; ref?: string }): {
     clauses.push("ref = ?");
     args.push(filter.ref);
   }
+  if (filter.sources && filter.sources.length > 0) {
+    clauses.push(`source IN (${filter.sources.map(() => "?").join(", ")})`);
+    args.push(...filter.sources);
+  }
   return { where: clauses.length ? `WHERE ${clauses.join(" AND ")}` : "", args };
 }
 
-export async function listEvents(filter: { type?: string; since?: number; ref?: string } = {}, limit = 1000): Promise<EventRow[]> {
+export async function listEvents(filter: EventFilter = {}, limit = 1000): Promise<EventRow[]> {
   const { where, args } = eventFilter(filter);
   const res = await (await db()).execute({ sql: `SELECT json FROM events ${where} ORDER BY ts DESC LIMIT ?`, args: [...args, limit] });
   return res.rows.map((r) => JSON.parse(String(r.json)) as EventRow);
 }
 
-export async function countEvents(filter: { type?: string; since?: number; ref?: string } = {}): Promise<number> {
+export async function countEvents(filter: EventFilter = {}): Promise<number> {
   const { where, args } = eventFilter(filter);
   const res = await (await db()).execute({ sql: `SELECT COUNT(*) AS n FROM events ${where}`, args });
   return Number(res.rows[0]?.n ?? 0);
+}
+
+// ---------------------------------------------------------------------------
+// Small key/value documents (the last CI status, …). Secret-checked like
+// everything else.
+// ---------------------------------------------------------------------------
+
+export async function kvGet<T>(key: string): Promise<T | null> {
+  const res = await (await db()).execute({ sql: "SELECT json FROM kv WHERE key = ?", args: [key] });
+  const row = res.rows[0];
+  return row ? (JSON.parse(String(row.json)) as T) : null;
+}
+
+export async function kvSet(key: string, value: unknown): Promise<void> {
+  assertNoSecret(value, `kv ${key}`);
+  await (await db()).execute({
+    sql: "INSERT INTO kv (key, json, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET json = excluded.json, updated_at = excluded.updated_at",
+    args: [key, JSON.stringify(value), new Date().toISOString()],
+  });
 }
 
 // ---------------------------------------------------------------------------

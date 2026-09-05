@@ -36,6 +36,30 @@ describe("libsql store", () => {
     expect(await store.depositStore.count("in_vault")).toBe(2);
   });
 
+  it("tags events with a source derived from the booth ref and filters by it", async () => {
+    expect(store.sourceOfRef(null)).toBe("user");
+    expect(store.sourceOfRef("booth-1")).toBe("user");
+    expect(store.sourceOfRef("seed")).toBe("seed");
+    expect(store.sourceOfRef("e2e")).toBe("e2e");
+    expect(store.sourceOfRef("e2e-deposit")).toBe("e2e");
+    const base = { type: "source_probe", network: "testnet", projectId: "kumbara", contractId: "CAAA", hash: "00" };
+    await store.insertEvent({ ...base, ts: 1_000, ref: "booth-1" });
+    await store.insertEvent({ ...base, ts: 2_000, ref: "e2e" });
+    await store.insertEvent({ ...base, ts: 3_000, ref: "seed" });
+    await store.insertEvent({ ...base, ts: 4_000, ref: null, source: "e2e" });
+    expect(await store.countEvents({ type: "source_probe", sources: ["user"] })).toBe(1);
+    expect(await store.countEvents({ type: "source_probe", sources: ["user", "e2e"] })).toBe(3);
+    expect(await store.countEvents({ type: "source_probe" })).toBe(4);
+    expect((await store.listEvents({ type: "source_probe", sources: ["seed"] })).map((e) => e.ts)).toEqual([3_000]);
+  });
+
+  it("keeps small key/value documents", async () => {
+    expect(await store.kvGet("ci_status")).toBeNull();
+    await store.kvSet("ci_status", { status: "failed", step: "deposit" });
+    await store.kvSet("ci_status", { status: "ok", step: null });
+    expect(await store.kvGet<{ status: string }>("ci_status")).toEqual({ status: "ok", step: null });
+  });
+
   it("refuses to persist anything carrying a secret seed", async () => {
     const now = new Date().toISOString();
     const leaky = { id: store.newId("dep"), contractId: "CCCC", status: "x", createdAt: now, updatedAt: now, note: Keypair.random().secret() };

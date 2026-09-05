@@ -1,0 +1,189 @@
+name: E2E
+
+# Real-browser round trips (Chromium + virtual passkey) against live Stellar
+# testnet and the sandbox anchor:
+#   - every push / PR: against a fresh Vercel preview deployment
+#   - every 6 hours: against production, opening an issue and flagging
+#     /booth/admin when it fails; skipped when the sponsor is low.
+# Every account these runs create carries ref=e2e (excluded from /api/metrics
+# and /stats by default). Secrets live only in GitHub Actions secrets.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  NEXT_TELEMETRY_DISABLED: "1"
+  PW_CHANNEL: chromium
+
+jobs:
+  preview:
+    name: Preview round trip
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: e2e-preview-${{ github.ref }}
+      cancel-in-progress: true
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.21.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Check secrets
+        id: gate
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
+        run: |
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$ANCHOR_API_KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::notice::E2E secrets are not configured; preview round trip skipped"; fi
+      - name: Deploy a preview
+        if: steps.gate.outputs.ok == 'true'
+        id: deploy
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        run: |
+          pnpm dlx vercel@latest pull --yes --environment=preview --token "$VERCEL_TOKEN" > /dev/null
+          pnpm dlx vercel@latest build --token "$VERCEL_TOKEN" > /dev/null
+          URL=$(pnpm dlx vercel@latest deploy --prebuilt --token "$VERCEL_TOKEN" 2>/dev/null | tail -1)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "preview: $URL"
+      - name: Install Chromium
+        if: steps.gate.outputs.ok == 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Round trip (onboard, deposit, withdraw, booth, stats)
+        if: steps.gate.outputs.ok == 'true'
+        env:
+          APP_URL: ${{ steps.deploy.outputs.url }}
+          ANCHOR_BASE_URL: ${{ secrets.ANCHOR_BASE_URL }}
+          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+        run: |
+          touch .env
+          node scripts/e2e-onboard.mjs
+          node scripts/e2e-deposit.mjs
+          node scripts/e2e-withdraw.mjs
+          node scripts/e2e-booth.mjs
+          node scripts/e2e-stats.mjs
+      - name: Upload screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-preview-screenshots
+          path: .data/*.png
+          if-no-files-found: ignore
+
+  production:
+    name: Production round trip (scheduled)
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    concurrency:
+      group: e2e-production
+      cancel-in-progress: false
+    env:
+      APP_URL: https://kumbara.vercel.app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.21.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Preflight (skip when the sponsor is low)
+        id: preflight
+        run: node scripts/ci-preflight.mjs
+      - name: Install Chromium
+        if: steps.preflight.outputs.skip != 'true'
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Onboard
+        id: onboard
+        if: steps.preflight.outputs.skip != 'true'
+        run: touch .env && node scripts/e2e-onboard.mjs
+      - name: Deposit
+        id: deposit
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          ANCHOR_BASE_URL: ${{ secrets.ANCHOR_BASE_URL }}
+          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+        run: node scripts/e2e-deposit.mjs
+      - name: Withdraw
+        id: withdraw
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          ANCHOR_BASE_URL: ${{ secrets.ANCHOR_BASE_URL }}
+          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+        run: node scripts/e2e-withdraw.mjs
+      - name: Booth
+        id: booth
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+        run: node scripts/e2e-booth.mjs
+      - name: Stats
+        id: stats
+        if: steps.preflight.outputs.skip != 'true'
+        run: node scripts/e2e-stats.mjs
+      - name: Upload screenshots
+        if: failure()
+        id: shots
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-production-screenshots
+          path: .data/*.png
+          if-no-files-found: ignore
+      - name: Report the failure (issue + admin banner)
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.deposit.outcome == 'failure' && 'deposit' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || 'preflight' }}
+          ARTIFACT_URL: ${{ steps.shots.outputs.artifact-url }}
+        run: |
+          TITLE="Scheduled E2E failed at step: $STEP"
+          BODY=$(printf 'The 6-hourly production round trip against %s failed at the **%s** step.\n\nRun: %s\nLast screenshot (artifact): %s\n\nRunbook: docs/booth-runbook.md → "CI failed". The presenter console shows a red banner until the next green run.' "$APP_URL" "$STEP" "$RUN_URL" "${ARTIFACT_URL:-none}")
+          EXISTING=$(gh issue list --label e2e-failure --state open --json number --jq '.[0].number' 2>/dev/null || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --body "$BODY"
+          else
+            gh label create e2e-failure --color B42318 --description "Scheduled production E2E failed" 2>/dev/null || true
+            gh issue create --title "$TITLE" --label e2e-failure --body "$BODY"
+          fi
+          if [ -n "$CI_STATUS_TOKEN" ]; then
+            curl -s -o /dev/null -w "ci status POST: %{http_code}\n" -X POST "$APP_URL/api/ci/status" -H "authorization: Bearer $CI_STATUS_TOKEN" -H "content-type: application/json" -d "{\"status\":\"failed\",\"step\":\"$STEP\",\"runUrl\":\"$RUN_URL\"}"
+          fi
+      - name: Report success (admin banner clears, open issue closes)
+        if: success() && steps.preflight.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -n "$CI_STATUS_TOKEN" ]; then
+            curl -s -o /dev/null -w "ci status POST: %{http_code}\n" -X POST "$APP_URL/api/ci/status" -H "authorization: Bearer $CI_STATUS_TOKEN" -H "content-type: application/json" -d "{\"status\":\"ok\",\"runUrl\":\"$RUN_URL\"}"
+          fi
+          for N in $(gh issue list --label e2e-failure --state open --json number --jq '.[].number' 2>/dev/null); do
+            gh issue close "$N" --comment "Green again: $RUN_URL"
+          done

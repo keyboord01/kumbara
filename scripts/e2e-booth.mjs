@@ -73,11 +73,12 @@ try {
   log("seeded contract:", seeded);
 
   log("metrics (public endpoint is edge-cached for 30 s; polling until the seeded account appears; seed is hidden unless included)");
-  const hidden = await (await fetch(`${APP}/api/metrics`)).json();
+  // since=1: all time; the default window starts at BOOTH_START_TS, which is the event day.
+  const hidden = await (await fetch(`${APP}/api/metrics?since=1`)).json();
   if (hidden.accounts.items.some((a) => a.contractId === seeded) || hidden.accounts.byRef.seed) throw new Error("seed account leaked into the default metrics");
   let metrics = null;
   for (let i = 0; i < 20; i += 1) {
-    metrics = await (await fetch(`${APP}/api/metrics?include=seed`)).json();
+    metrics = await (await fetch(`${APP}/api/metrics?since=1&include=seed`)).json();
     if (metrics.accounts.items.some((a) => a.contractId === seeded)) break;
     await new Promise((r) => setTimeout(r, 5000));
   }
@@ -88,7 +89,7 @@ try {
   const dep = metrics.deposits.items.find((d) => d.contractId === seeded);
   if (!dep?.vaultTx) throw new Error("seed deposit not in vault in metrics");
   log("✓ metrics list the seeded account and its vault deposit with hashes");
-  const filtered = await (await fetch(`${APP}/api/metrics?ref=seed&include=seed`)).json();
+  const filtered = await (await fetch(`${APP}/api/metrics?since=1&ref=seed&include=seed`)).json();
   if (filtered.accounts.sinceStart < 1 || filtered.deposits.inVault < 1) throw new Error("ref filter failed");
   log("✓ ref filter works:", JSON.stringify({ accounts: filtered.accounts.sinceStart, inVault: filtered.deposits.inVault }));
   console.log("\nE2E BOOTH OK. console errors:", consoleErrors.length ? consoleErrors : "none");

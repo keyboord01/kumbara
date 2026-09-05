@@ -78,7 +78,7 @@ Until that runs, the public URL keeps serving the previous deployment. Verify be
 | `DEFINDEX_VAULT_ID` | config | `CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL` |
 | `SOROSWAP_ENABLED`, `ONRAMP_MODE`, `OFFRAMP_MODE` | config | `false`, `landing`, `landing` |
 | `DEPOSIT_TRANSFER_TIMEOUT_MIN` | config | `30` (minutes before the "transfer has not arrived" screen) |
-| `BOOTH_START_TS`, `MAINNET_DEMO_ENABLED` | config | counter start (unix seconds), `false` |
+| `BOOTH_START_TS`, `MAINNET_DEMO_ENABLED` | config | `1789794000` (2026-09-19 08:00 Istanbul: the counter and the stats "since event start" window; before that the stats page shows all-time numbers), `false` |
 | `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` | config | `60` (booth Wi-Fi shares one IP) |
 | `RATE_LIMIT_ACCOUNTS_PER_REF` | config | `300` (the primary abuse guard) |
 | `RATE_LIMIT_RELAY_PER_IP_HOUR` | config | `1000` |

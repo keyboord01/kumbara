@@ -378,25 +378,40 @@ export async function cancelDeposit(id: string): Promise<DepositRecord> {
   }, () => loadDeposit(id));
 }
 
-/** Presenter action: put an abandoned on-ramp deposit back into the pipeline. */
+/**
+ * Presenter action: put a deposit back into the pipeline. An abandoned on-ramp
+ * goes back to waiting for the anchor. An amount-mismatch failure goes back to
+ * `onramp_paid`, so the next poll submits the pre-authorized forward again:
+ * it succeeds once the bridge account holds at least the expected amount (the
+ * anchor, or the presenter on the sandbox, topped it up; see the runbook).
+ */
 export async function resumeDeposit(id: string): Promise<DepositRecord> {
   return withLease(`deposit:${id}`, 30_000, async () => {
     const record = await loadDeposit(id);
-    if (record.status !== "abandoned" || !record.onrampId || !record.landing) {
-      throw new DepositError(409, "cannot_resume", `deposit is ${record.status}; only abandoned on-ramps can be resumed`);
+    if (record.status === "abandoned" && record.onrampId && record.landing) {
+      const resumed: DepositRecord = withHistory(record, { ...record, status: "onramp_pending", attempts: {} });
+      delete resumed.abandonedAt;
+      delete resumed.abandonedFrom;
+      return depositStore.save(resumed);
     }
-    const resumed: DepositRecord = withHistory(record, { ...record, status: "onramp_pending", attempts: {} });
-    delete resumed.abandonedAt;
-    delete resumed.abandonedFrom;
-    return depositStore.save(resumed);
+    if (record.status === "failed" && record.error?.code === "amount_mismatch" && record.landing) {
+      const resumed: DepositRecord = withHistory(record, { ...record, status: "onramp_paid", attempts: {} });
+      delete resumed.error;
+      return depositStore.save(resumed);
+    }
+    throw new DepositError(409, "cannot_resume", `deposit is ${record.status}; only abandoned on-ramps and amount-mismatch failures can be resumed`);
   }, () => loadDeposit(id));
 }
 
-/** Deposits the anchor still owes: waiting on its treasury for more than two minutes, or abandoned. */
+/** Deposits that need a presenter: waiting on the anchor's treasury for more than two minutes, abandoned, or parked by an amount mismatch. */
 export async function listStuckDeposits(limit = 10): Promise<DepositRecord[]> {
-  const [pending, abandoned] = await Promise.all([depositStore.listByStatus<DepositRecord>("onramp_pending", limit), depositStore.listByStatus<DepositRecord>("abandoned", limit)]);
+  const [pending, abandoned, failed] = await Promise.all([
+    depositStore.listByStatus<DepositRecord>("onramp_pending", limit),
+    depositStore.listByStatus<DepositRecord>("abandoned", limit),
+    depositStore.listByStatus<DepositRecord>("failed", 50),
+  ]);
   const old = Date.now() - 2 * 60_000;
-  return [...pending.filter((d) => Date.parse(d.updatedAt) < old), ...abandoned];
+  return [...pending.filter((d) => Date.parse(d.updatedAt) < old), ...abandoned, ...failed.filter((d) => d.error?.code === "amount_mismatch").slice(0, limit)];
 }
 
 export async function recordVaultDeposit(id: string, input: { hash: string; amountUsdc: string; ref?: string | null }): Promise<DepositRecord> {

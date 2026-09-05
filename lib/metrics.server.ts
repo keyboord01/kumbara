@@ -4,11 +4,12 @@
  * evidence. Nothing else is recorded. Stored in SQLite (lib/db/store.ts).
  */
 import "server-only";
-import { countEvents, depositStore, insertEvent, listEvents, withdrawalStore } from "./db/store";
-import { serverEnv } from "./env.server";
+import { countEvents, depositStore, insertEvent, listEvents, sourceOfRef, withdrawalStore, type EventSource } from "./db/store";
+import { networkPassphrase, serverEnv } from "./env.server";
+import { readVaultTotals } from "./vault";
 
 export type MetricEvent =
-  | { type: "account_created"; ts: number; network: string; projectId: string; ref: string | null; contractId: string | null; hash: string }
+  | { type: "account_created"; ts: number; network: string; projectId: string; ref: string | null; contractId: string | null; hash: string; tapToConfirmMs?: number | null }
   | { type: "relayed_tx"; ts: number; network: string; projectId: string; ref: string | null; hash: string; contract: string | null }
   | { type: "deposit_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; depositId: string; anchorTx: string | null; forwardTx: string | null; vaultTx: string; usdc: string }
   | { type: "withdrawal_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; withdrawalId: string; vaultTx: string | null; paymentTx: string | null; usdc: string; try: string | null };
@@ -32,6 +33,22 @@ export async function countMetricEvents(filter: { type?: MetricEvent["type"]; si
 export interface MetricsFilter {
   ref: string | null;
   since: number;
+  /** Which sources to count; `user` only by default (seed and e2e are excluded unless asked for). */
+  sources: EventSource[];
+}
+
+/** `?include=e2e,seed` or `?include=all` on top of the real visitors. */
+export function sourcesFromInclude(include: string | null): EventSource[] {
+  const wanted = new Set<EventSource>(["user"]);
+  for (const part of (include ?? "").split(",").map((s) => s.trim().toLowerCase())) {
+    if (part === "all") {
+      wanted.add("seed");
+      wanted.add("e2e");
+    } else if (part === "seed" || part === "e2e") {
+      wanted.add(part);
+    }
+  }
+  return [...wanted];
 }
 
 interface DepositRow {
@@ -41,10 +58,13 @@ interface DepositRow {
   createdAt: string;
   updatedAt: string;
   ref?: string | null;
+  amountTry?: string;
+  receivedTry?: string;
   paidUsdc?: string;
   anchorTxHash?: string;
   forwardTxHash?: string;
   vaultTxHash?: string;
+  history?: Array<{ status: string; at: string }>;
 }
 
 interface WithdrawalRow {
@@ -60,11 +80,50 @@ interface WithdrawalRow {
   vaultTxHash?: string;
   transferTxHash?: string;
   paymentTxHash?: string;
+  history?: Array<{ status: string; at: string }>;
+}
+
+/** Minimum sample before a median or p90 is shown; below it the page says "not enough data". */
+export const MIN_TIMING_SAMPLES = 5;
+
+export interface TimingSummary {
+  n: number;
+  medianMs: number | null;
+  p90Ms: number | null;
+}
+
+function summarize(values: number[]): TimingSummary {
+  const clean = values.filter((v) => Number.isFinite(v) && v >= 0).sort((a, b) => a - b);
+  if (clean.length < MIN_TIMING_SAMPLES) return { n: clean.length, medianMs: null, p90Ms: null };
+  const at = (q: number) => clean[Math.min(clean.length - 1, Math.floor(q * (clean.length - 1)))] ?? null;
+  return { n: clean.length, medianMs: at(0.5), p90Ms: at(0.9) };
+}
+
+function spanMs(history: Array<{ status: string; at: string }> | undefined, from: string, to: string): number | null {
+  const start = history?.find((h) => h.status === from)?.at;
+  const end = history?.find((h) => h.status === to)?.at;
+  if (!start || !end) return null;
+  const ms = Date.parse(end) - Date.parse(start);
+  return Number.isFinite(ms) ? ms : null;
+}
+
+const cents = (amount: string | undefined): bigint => {
+  if (!amount) return 0n;
+  const [whole = "0", frac = ""] = amount.split(".");
+  return BigInt(whole || "0") * 100n + BigInt((frac + "00").slice(0, 2));
+};
+const fromCents = (value: bigint): string => `${value / 100n}.${(value % 100n).toString().padStart(2, "0")}`;
+
+/** Bucket width that keeps a window under ~200 bars: 15 min up to 2 days, then 1 h, 6 h, 1 day. */
+function bucketMinutes(spanMinutes: number): number {
+  for (const width of [15, 60, 360, 1440]) if (spanMinutes / width <= 200) return width;
+  return 1440;
 }
 
 /** The public traction snapshot. Accounts count only confirmed deployments. */
 export async function metricsSnapshot(filter: MetricsFilter) {
-  const accountsAll = (await listEvents({ type: "account_created" }, 5000)) as unknown as Extract<MetricEvent, { type: "account_created" }>[];
+  const included = new Set<EventSource>(filter.sources);
+  const accountsAll = (await listEvents({ type: "account_created", sources: filter.sources }, 5000)) as unknown as Extract<MetricEvent, { type: "account_created" }>[];
   const inWindow = accountsAll.filter((e) => e.ts >= filter.since * 1000 && (!filter.ref || e.ref === filter.ref));
   const byRef: Record<string, number> = {};
   for (const e of accountsAll) {
@@ -72,17 +131,85 @@ export async function metricsSnapshot(filter: MetricsFilter) {
     const key = e.ref ?? "(none)";
     byRef[key] = (byRef[key] ?? 0) + 1;
   }
-  const deposits = (await depositStore.list<DepositRow>(undefined, 5000)).filter((d) => Date.parse(d.createdAt) >= filter.since * 1000 && (!filter.ref || d.ref === filter.ref));
-  const withdrawals = (await withdrawalStore.list<WithdrawalRow>(undefined, 5000)).filter((w) => Date.parse(w.createdAt) >= filter.since * 1000 && (!filter.ref || w.ref === filter.ref));
+  const deposits = (await depositStore.list<DepositRow>(undefined, 5000)).filter((d) => included.has(sourceOfRef(d.ref)) && Date.parse(d.createdAt) >= filter.since * 1000 && (!filter.ref || d.ref === filter.ref));
+  const withdrawals = (await withdrawalStore.list<WithdrawalRow>(undefined, 5000)).filter((w) => included.has(sourceOfRef(w.ref)) && Date.parse(w.createdAt) >= filter.since * 1000 && (!filter.ref || w.ref === filter.ref));
   const network = serverEnv.stellarNetwork();
   const explorer = `https://stellar.expert/explorer/${network === "testnet" ? "testnet" : "public"}/tx/`;
   const link = (hash: string | null | undefined) => (hash ? `${explorer}${hash}` : null);
+
+  // All-time counts for the "since event start" toggle, independent of the window.
+  const depositsAllTime = (await depositStore.list<DepositRow>(undefined, 5000)).filter((d) => included.has(sourceOfRef(d.ref)) && (!filter.ref || d.ref === filter.ref));
+  const withdrawalsAllTime = (await withdrawalStore.list<WithdrawalRow>(undefined, 5000)).filter((w) => included.has(sourceOfRef(w.ref)) && (!filter.ref || w.ref === filter.ref));
+  const accountsAllTime = accountsAll.filter((e) => !filter.ref || e.ref === filter.ref);
+  const totals = (deps: DepositRow[], wds: WithdrawalRow[], accounts: number) => {
+    const completedDeposits = deps.filter((d) => d.vaultTxHash);
+    const completedWithdrawals = wds.filter((w) => w.status === "completed");
+    return {
+      accounts,
+      depositsCompleted: completedDeposits.length,
+      withdrawalsCompleted: completedWithdrawals.length,
+      tryIn: fromCents(completedDeposits.reduce((sum, d) => sum + cents(d.receivedTry ?? d.amountTry), 0n)),
+      tryOut: fromCents(completedWithdrawals.reduce((sum, w) => sum + cents(w.amountTry), 0n)),
+    };
+  };
+
+  // Live vault total from the contract (idle + invested), never from the database.
+  let usdcInVault: string | null = null;
+  const vaultId = serverEnv.defindexVaultId();
+  try {
+    const vault = await readVaultTotals(serverEnv.stellarRpcUrl(), networkPassphrase(), vaultId);
+    usdcInVault = `${vault.totalAssets / 10_000_000n}.${(vault.totalAssets % 10_000_000n).toString().padStart(7, "0")}`;
+  } catch {
+    usdcInVault = null;
+  }
+
+  // Activity feed: the last 20 events of the three kinds in the window.
+  const feedEvents = (await listEvents({ since: filter.since * 1000, sources: filter.sources }, 400)) as unknown as MetricEvent[];
+  const feed = feedEvents
+    .filter((e): e is Exclude<MetricEvent, { type: "relayed_tx" }> => e.type !== "relayed_tx" && (!filter.ref || e.ref === filter.ref))
+    .slice(0, 20)
+    .map((e) => {
+      if (e.type === "account_created") return { type: e.type, ts: e.ts, contractId: e.contractId, usdc: null, try: null, hash: e.hash, link: link(e.hash) };
+      if (e.type === "deposit_completed") return { type: e.type, ts: e.ts, contractId: e.contractId, usdc: e.usdc, try: null, hash: e.vaultTx, link: link(e.vaultTx) };
+      return { type: e.type, ts: e.ts, contractId: e.contractId, usdc: e.usdc, try: e.try, hash: e.paymentTx ?? e.vaultTx, link: link(e.paymentTx ?? e.vaultTx) };
+    });
+
+  // Onboarding curve: accounts per bucket over the window.
+  const now = Date.now();
+  // The curve never starts before the first account: a window in the future (the event has
+  // not begun) or far in the past (?since=1 for "all time") snaps to the first event.
+  const sinceMs = filter.since * 1000;
+  const earliest = Math.min(now, ...accountsAllTime.map((e) => e.ts));
+  const windowStart = filter.since > 0 && sinceMs <= now ? Math.max(sinceMs, earliest) : earliest;
+  const width = bucketMinutes(Math.max(15, (now - windowStart) / 60_000)) * 60_000;
+  const firstBucket = Math.floor(windowStart / width) * width;
+  const series: Array<{ start: number; accounts: number }> = [];
+  for (let start = firstBucket; start <= now; start += width) series.push({ start, accounts: 0 });
+  for (const e of inWindow) {
+    const idx = Math.floor((e.ts - firstBucket) / width);
+    const bucket = series[idx];
+    if (bucket) bucket.accounts += 1;
+  }
+
+  // Timings from stored timestamps; medians only with enough samples.
+  const timings = {
+    tapToReady: summarize(inWindow.map((e) => e.tapToConfirmMs ?? NaN)),
+    deposit: summarize(deposits.map((d) => spanMs(d.history, "transfer_received", "in_vault") ?? NaN)),
+    withdraw: summarize(withdrawals.map((w) => spanMs(w.history, "created", "completed") ?? NaN)),
+    minSamples: MIN_TIMING_SAMPLES,
+  };
+
   return {
     network,
     projectId: serverEnv.sembolProjectId(),
     generatedAt: new Date().toISOString(),
     since: filter.since,
-    filter: { ref: filter.ref, since: filter.since },
+    filter: { ref: filter.ref, since: filter.since, sources: filter.sources },
+    headline: { ...totals(deposits, withdrawals, inWindow.length), usdcInVault, vaultId, strategyId: process.env.DEFINDEX_STRATEGY_ID?.trim() || null },
+    allTime: totals(depositsAllTime, withdrawalsAllTime, accountsAllTime.length),
+    feed,
+    buckets: { minutes: width / 60_000, from: firstBucket, to: now, series },
+    timings,
     accounts: {
       total: accountsAll.length,
       sinceStart: inWindow.length,

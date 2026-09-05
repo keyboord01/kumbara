@@ -22,9 +22,12 @@ interface Stuck {
   contractId: string;
   amountTry: string;
   usdc: string | null;
+  paidUsdc: string | null;
   onrampId: string | null;
   updatedAt: string;
   abandonedAt: string | null;
+  errorCode: string | null;
+  landing: string | null;
 }
 interface PlayResult {
   depositId: string;
@@ -56,6 +59,12 @@ interface SeedDeposit {
   vaultTxHash?: string;
   error?: { message: string };
 }
+interface CiStatus {
+  status: "ok" | "failed" | "unknown";
+  step: string | null;
+  runUrl: string | null;
+  at: string | null;
+}
 
 /**
  * Presenter console. Not linked anywhere. The admin token is taken from
@@ -73,6 +82,7 @@ export default function BoothAdminPage() {
   const [resumed, setResumed] = useState<string | null>(null);
   const [health, setHealth] = useState<Health | null>(null);
   const [sponsor, setSponsor] = useState<Sponsor | null>(null);
+  const [ci, setCi] = useState<CiStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"" | "play" | "fund" | "seed">("");
   const [result, setResult] = useState<PlayResult | null>(null);
@@ -94,15 +104,17 @@ export default function BoothAdminPage() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [p, h, s] = await Promise.all([
+      const [p, h, s, c] = await Promise.all([
         fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; error?: { message: string } } })),
         fetch("/api/health").then((r) => r.json() as Promise<Health>),
         fetch("/api/booth/admin/sponsor", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as Sponsor & { error?: { message: string } } })),
+        fetch("/api/ci/status").then((r) => (r.ok ? (r.json() as Promise<CiStatus>) : null)).catch(() => null),
       ]);
       if (!p.ok) throw new Error(p.body.error?.message ?? "unauthorized");
       setPending(p.body.pending ?? []);
       setStuck(p.body.stuck ?? []);
       setHealth(h);
+      setCi(c);
       setSponsor(s.ok ? s.body : null);
       setError(s.ok ? null : (s.body.error?.message ?? null));
     } catch (err) {
@@ -265,6 +277,25 @@ export default function BoothAdminPage() {
 
       {token && (
         <>
+          {ci?.status === "failed" ? (
+            <div role="alert" data-testid="ci-banner" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">
+              <p className="font-semibold text-danger">{t.admin.ciFailed}</p>
+              <p className="mt-1 text-ink-2">
+                {t.admin.ciFailedHint.replace("{step}", ci.step ?? "?")}
+                {ci.at ? ` · ${new Date(ci.at).toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}` : ""}
+              </p>
+              {ci.runUrl ? (
+                <a href={ci.runUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-teal underline">
+                  {t.admin.ciRun} ↗
+                </a>
+              ) : null}
+            </div>
+          ) : ci?.status === "ok" ? (
+            <p className="text-xs text-mint" data-testid="ci-banner">
+              ✓ {t.admin.ciOk}
+              {ci.at ? ` · ${new Date(ci.at).toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}` : ""}
+            </p>
+          ) : null}
           <section className="card p-5" aria-label={t.admin.health}>
             <p className="microlabel">{t.admin.health}</p>
             <ul className="mt-3 grid grid-cols-2 gap-2 text-sm" data-testid="health-dots">
@@ -349,13 +380,18 @@ export default function BoothAdminPage() {
                   <li key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-paper-2 p-3">
                     <div>
                       <p className="tnum font-semibold">
-                        ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : t.deposit.steps.onramp_pending}
+                        ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : d.status === "failed" ? t.failures.kinds.amount_mismatch.title : t.deposit.steps.onramp_pending}
                       </p>
                       <p className="font-mono text-xs text-muted">
                         {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.onrampId ?? ""}
                       </p>
+                      {d.landing ? (
+                        <p className="mt-1 text-xs text-ink-2">
+                          {t.failures.landingLabel}: <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-teal underline">{d.landing.slice(0, 8)}…{d.landing.slice(-6)}</a> · {t.admin.paid} {d.paidUsdc ?? "?"} / {d.usdc ?? "?"} USDC
+                        </p>
+                      ) : null}
                     </div>
-                    {d.status === "abandoned" && (
+                    {(d.status === "abandoned" || d.status === "failed") && (
                       <button type="button" onClick={() => void resume(d.id)} disabled={busy !== ""} className="btn-secondary min-h-9 px-3 text-xs">
                         {t.admin.resume}
                       </button>

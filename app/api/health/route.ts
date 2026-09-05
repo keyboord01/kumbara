@@ -7,6 +7,7 @@ import { NextResponse } from "next/server";
 import { databaseUrl, db } from "@/lib/db/store";
 import { serverEnv } from "@/lib/env.server";
 import { dependencyHealth } from "@/lib/health.server";
+import { sponsorStatus } from "@/lib/landing.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,8 +37,17 @@ export async function GET(): Promise<Response> {
     dependencies = { error: err instanceof Error ? err.message : String(err) };
   }
   const database = { ok: dbOk, ms: dbMs, detail: dbDetail || (databaseUrl().startsWith("file:") ? "local file" : "turso") };
+  // The sponsor's balance against its threshold, never its address: /stats and the
+  // scheduled E2E preflight read it.
+  let sponsor: { ok: boolean; balanceXlm: number; minXlm: number } | null = null;
+  try {
+    const s = await sponsorStatus();
+    sponsor = { ok: s.ok, balanceXlm: Number(s.balanceXlm.toFixed(2)), minXlm: s.minXlm };
+  } catch {
+    sponsor = null;
+  }
   return NextResponse.json(
-    { ok: dbOk, network, database, dependencies },
+    { ok: dbOk, network, database, dependencies, sponsor },
     { status: dbOk ? 200 : 503, headers: { "cache-control": "no-store" } },
   );
 }

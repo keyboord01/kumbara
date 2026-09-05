@@ -20,7 +20,7 @@ primary_region = "fra"
   SOROSWAP_ENABLED = "false"
   ONRAMP_MODE = "landing"
   OFFRAMP_MODE = "landing"
-  BOOTH_START_TS = "1758268800"
+  BOOTH_START_TS = "1789794000"
   MAINNET_DEMO_ENABLED = "false"
 
 [http_service]

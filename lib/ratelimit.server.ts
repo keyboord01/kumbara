@@ -7,7 +7,7 @@
  */
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
-import { countEvents, rateLimitHit } from "./db/store";
+import { countEvents, rateLimitHit, sourceOfRef } from "./db/store";
 
 const HOUR_MS = 3_600_000;
 let fallbackSalt: string | null = null;
@@ -59,7 +59,9 @@ export async function guardRelayCall(request: Request): Promise<GuardResult> {
 
 export async function guardAccountCreation(request: Request, ref: string | null): Promise<GuardResult> {
   const perRef = limits.accountsPerRef();
-  if (ref && perRef > 0) {
+  // The per-ref cap protects real booth links; the automated E2E ref would
+  // exhaust it within weeks and is still under the per-IP cap.
+  if (ref && perRef > 0 && sourceOfRef(ref) === "user") {
     const used = await countEvents({ type: "account_created", ref });
     if (used >= perRef) return { allowed: false, code: "RATE_LIMITED_REF", message: `booth ref ${ref} reached its cap of ${perRef} accounts` };
   }

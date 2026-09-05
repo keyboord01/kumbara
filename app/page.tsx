@@ -3,24 +3,21 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { toSembolError, useCreateWallet, usePasskeyWallet, useSpendingPolicy, type SembolError } from "@sembol/passkey-react";
+import { toSembolError, useCreateWallet, usePasskeyWallet, type SembolError } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
 import { useLocale } from "@/lib/i18n";
-import { DEFAULT_LIMIT_PERIOD, DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
 
-/** idle → creating (passkey + deploy) → limit (waiting for the connection) → installing → done */
-type Stage = "idle" | "creating" | "limit" | "installing" | "done";
+/** idle → creating (passkey + deploy) → done (navigating to Savings) */
+type Stage = "idle" | "creating" | "done";
 
 /** Onboard: one button. Face ID → smart account via the relay → spending limit → Savings. */
 export default function OnboardPage() {
   const { t } = useLocale();
   const router = useRouter();
-  const { status, isConnected, address, credentialId } = usePasskeyWallet();
+  const { status, isConnected, address } = usePasskeyWallet();
   const { createWallet, phase: createPhase } = useCreateWallet();
   const { info } = useAnchorInfo();
-  const usdcToken = info ? { contractId: info.usdc.contractId } : ("native" as const);
-  const { setLimit, policy } = useSpendingPolicy(usdcToken);
   const [stage, setStage] = useState<Stage>("idle");
   const [error, setError] = useState<SembolError | null>(null);
 
@@ -30,30 +27,15 @@ export default function OnboardPage() {
     if (ref) document.cookie = `kumbara_ref=${encodeURIComponent(ref.slice(0, 64))}; path=/; max-age=86400; SameSite=Lax`;
   }, []);
 
-  // Step 2 runs once the provider reports the new wallet as connected, so the
-  // spending-policy hook sees the fresh credential.
-  useEffect(() => {
-    if (stage !== "limit" || !isConnected || !credentialId || !info) return;
-    setStage("installing");
-    setLimit({ limit: DEFAULT_LIMIT_USDC, period: DEFAULT_LIMIT_PERIOD, token: { contractId: info.usdc.contractId } })
-      .then(() => {
-        setStage("done");
-        router.push("/kumbara");
-      })
-      .catch((err: unknown) => {
-        const sembolError = toSembolError(err);
-        console.error("[kumbara] spending limit install failed", sembolError.code, sembolError.message);
-        setError(sembolError);
-        setStage("idle");
-      });
-  }, [stage, isConnected, credentialId, info, setLimit, router]);
-
   const start = async () => {
     setError(null);
     setStage("creating");
     try {
       await createWallet({ userName: "kumbara", fund: false });
-      setStage("limit");
+      // The kumbara exists: show it now. The spending limit installs from the
+      // Savings screen in the background (second passkey approval there).
+      setStage("done");
+      router.push("/kumbara?setup=limit");
     } catch (err) {
       const sembolError = toSembolError(err);
       console.error("[kumbara] wallet creation failed", sembolError.code, sembolError.message);
@@ -62,9 +44,8 @@ export default function OnboardPage() {
     }
   };
 
-  const busy = stage === "creating" || stage === "limit" || stage === "installing";
-  const phaseLabel =
-    stage === "creating" ? (createPhase === "deploying" ? t.onboard.phaseDeploy : t.onboard.phasePasskey) : stage === "limit" || stage === "installing" ? t.onboard.phaseLimit : null;
+  const busy = stage === "creating" || stage === "done";
+  const phaseLabel = stage === "creating" ? (createPhase === "deploying" ? t.onboard.phaseDeploy : t.onboard.phasePasskey) : t.onboard.phaseDeploy;
   const errorText = error
     ? error.code === "user_cancelled"
       ? t.errors.cancelled
@@ -102,11 +83,6 @@ export default function OnboardPage() {
               <div className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm" role="alert">
                 <p className="font-semibold text-danger">{t.onboard.errorTitle}</p>
                 <p className="mt-1 text-ink-2">{errorText}</p>
-                {!policy && (
-                  <button type="button" onClick={() => setStage("limit")} className="btn-secondary mt-3 min-h-9 px-3 text-xs">
-                    {t.onboard.retry}
-                  </button>
-                )}
               </div>
             )}
             <Link href="/kumbara" className="btn-primary w-full">

@@ -19,7 +19,8 @@
     "spike:relay": "node --env-file=.env --import tsx spikes/relay.ts",
     "spike:all": "pnpm spike:relay && pnpm spike:anchor && pnpm spike:defindex && pnpm spike:soroswap",
     "spike:landing": "node --env-file=.env --import tsx spikes/landing.ts",
-    "e2e:onboard": "node scripts/e2e-onboard.mjs"
+    "e2e:onboard": "node scripts/e2e-onboard.mjs",
+    "test": "NODE_OPTIONS=--expose-gc vitest run"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",
@@ -30,7 +31,8 @@
     "postcss": "^8.5.23",
     "tailwindcss": "^4.3.3",
     "tsx": "^4.23.13",
-    "typescript": "~5.9.3"
+    "typescript": "~5.9.3",
+    "vitest": "^4.1.11"
   },
   "dependencies": {
     "@sembol/passkey-react": "0.3.1",

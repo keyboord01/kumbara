@@ -37,15 +37,17 @@ try {
   await cta.waitFor({ timeout: 30000 });
   await cta.click();
   const tapAt = Date.now();
-  for (let i = 0; i < 36 && !page.url().includes("/kumbara"); i += 1) {
-    await page.waitForTimeout(5000);
-    const status = (await page.locator("[role=status], [role=alert]").allTextContents().catch(() => [])).join(" | ");
-    if (status.trim()) log("  status:", status.slice(0, 200));
-  }
-  await page.waitForURL("**/kumbara", { timeout: 1000 });
-  log(`savings screen reached ${((Date.now() - tapAt) / 1000).toFixed(1)}s after tap`);
-
+  await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
+  const toSavings = (Date.now() - tapAt) / 1000;
+  log(`savings screen visible ${toSavings.toFixed(1)}s after tap (target < 20 s)`);
+  if (toSavings > 40) throw new Error(`savings screen took ${toSavings.toFixed(1)}s`);
+
+  // The spending limit installs in the background from Savings; Deposit waits on it.
+  await page.getByText(/Güvenlik kuralı kuruluyor/).first().waitFor({ timeout: 20000 });
+  const depositDisabled = await page.getByRole("button", { name: "Yükle" }).isDisabled().catch(() => false);
+  log("limit setup status shown; deposit disabled:", depositDisabled);
+  if (!depositDisabled) throw new Error("deposit button should be disabled while the limit installs");
   const addr = (await page.locator("p.font-mono").first().getAttribute("title"))?.trim();
   log("contract:", addr);
   if (!addr?.startsWith("C")) throw new Error("no contract address rendered");
@@ -55,15 +57,18 @@ try {
   const badge = await page.locator("[aria-label='TESTNET']").count();
   log("TESTNET badges on screen:", badge);
 
-  // Limit card should show the default per-transaction cap once rules are read.
+  // Limit card shows the default per-transaction cap once the rule is installed.
   let limitText = "";
-  for (let i = 0; i < 12; i += 1) {
-    limitText = (await page.locator("section.grid .card").nth(1).textContent()) ?? "";
+  const limitAt = Date.now();
+  for (let i = 0; i < 30; i += 1) {
+    limitText = (await page.getByTestId("limit-card").textContent()) ?? "";
     if (/1\.000,00|1,000\.00/.test(limitText)) break;
     await page.waitForTimeout(3000);
   }
-  log("limit card:", limitText.replace(/\s+/g, " ").slice(0, 120));
+  log(`limit card after ${((Date.now() - limitAt) / 1000).toFixed(1)}s:`, limitText.replace(/\s+/g, " ").slice(0, 120));
   if (!/1\.000,00|1,000\.00/.test(limitText)) throw new Error("spending limit not shown");
+  await page.locator("a[href='/yukle']").waitFor({ timeout: 15000 });
+  log("✓ deposit enabled after the limit installed");
   const vault = (await page.locator("section[aria-label='Kasa']").textContent()) ?? "";
   log("vault card:", vault.replace(/\s+/g, " ").slice(0, 160));
   if (!vault.includes("DeFindex")) throw new Error("vault name missing");

@@ -9,7 +9,7 @@
  */
 import { NextResponse } from "next/server";
 import { Address, StrKey, hash, xdr } from "@stellar/stellar-sdk";
-import { boothRef } from "@/lib/cookies.server";
+import { boothRef, readCookie } from "@/lib/cookies.server";
 import { networkPassphrase, serverEnv } from "@/lib/env.server";
 import { sponsorStatus } from "@/lib/landing.server";
 import { recordEvent } from "@/lib/metrics.server";
@@ -130,9 +130,13 @@ export async function POST(request: Request): Promise<Response> {
   if (json?.success === true && txHash && hasFuncAuth && confirmed) {
     const func = body.func as string;
     const network = serverEnv.stellarNetwork();
+    // Tap-to-ready timing: the onboarding page stamps the tap time in a cookie;
+    // the confirmed deployment is when the Savings screen can show.
+    const tapAt = Number(readCookie(request, "kumbara_tap") ?? "");
+    const tapToConfirmMs = Number.isFinite(tapAt) && tapAt > 0 && Date.now() - tapAt < 300_000 ? Date.now() - tapAt : null;
     await recordEvent(
       deployingContract
-        ? { type: "account_created", ts: Date.now(), network, projectId, ref, contractId: deployingContract, hash: txHash }
+        ? { type: "account_created", ts: Date.now(), network, projectId, ref, contractId: deployingContract, hash: txHash, tapToConfirmMs }
         : { type: "relayed_tx", ts: Date.now(), network, projectId, ref, hash: txHash, contract: invokedContract(func) },
     );
   }

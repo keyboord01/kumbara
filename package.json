@@ -25,7 +25,10 @@
     "e2e:deposit": "node --env-file=.env scripts/e2e-deposit.mjs",
     "e2e:withdraw": "node --env-file=.env scripts/e2e-withdraw.mjs",
     "lint": "eslint .",
-    "e2e:booth": "node --env-file=.env scripts/e2e-booth.mjs"
+    "e2e:booth": "node --env-file=.env scripts/e2e-booth.mjs",
+    "e2e:stats": "node scripts/e2e-stats.mjs",
+    "e2e:all": "pnpm e2e:onboard && pnpm e2e:deposit && pnpm e2e:withdraw && pnpm e2e:booth && pnpm e2e:stats",
+    "demo:record": "node --env-file=.env scripts/demo-record.mjs"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.3",

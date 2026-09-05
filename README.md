@@ -53,7 +53,7 @@ sequenceDiagram
 
 The anchor only pays and watches classic addresses, so each deposit and withdrawal passes through a throwaway classic "landing" account that nobody controls: after setup its only usable authorization is two pre-authorized transactions built for the exact quoted amount. Details, tradeoffs and the threat model are in [`docs/architecture.md`](docs/architecture.md); the measurements are in [`docs/anchor-notes.md`](docs/anchor-notes.md).
 
-Build status: Gates 0–4 are done (spikes, onboard + savings, deposit round trip, withdraw round trip, booth mode + `/api/metrics`). Hardening (Gate 5: failure screens, E2E in CI, backup video) follows.
+Build status: Gates 0–5 are done (spikes, onboard + savings, deposit round trip, withdraw round trip, booth mode + `/api/metrics`, failure screens, round trips in CI, the public `/stats` page, the recorded fallback demo).
 
 ## Integrations
 
@@ -103,6 +103,10 @@ pnpm test                   # unit tests (landing-account secret hygiene and loc
 APP_URL=http://localhost:3000 pnpm e2e:onboard   # Chrome + virtual passkey, live testnet
 APP_URL=http://localhost:3000 pnpm e2e:deposit   # onboard → deposit 100 TRY → vault, live testnet
 APP_URL=http://localhost:3000 pnpm e2e:withdraw  # … → withdraw 1 USDC → simulated FAST payout
+APP_URL=http://localhost:3000 pnpm e2e:booth     # booth QR, presenter console, seed demo account, metrics
+APP_URL=http://localhost:3000 pnpm e2e:stats     # public /stats page
+node scripts/shots-failures.mjs                  # screenshots of every failure screen from /failures
+node scripts/demo-record.mjs                     # record the fallback round-trip video into docs/demo/
 ```
 
 Deposit rehearsal: open the app, tap Deposit, enter an amount, and when the IBAN screen shows, run `pnpm demo:deposit` in a terminal. The app detects the lira, runs the landing-account on-ramp, moves the USDC into the kumbara, and asks for one Face ID approval to put it in the vault. Records live under `.data/kumbara/` locally.
@@ -118,16 +122,23 @@ vercel link --yes --project kumbara && vercel deploy --prod --yes    # after set
 ### Booth mode and metrics
 
 - `/booth?n=1`: full-screen QR to the testnet onboarding URL with `?ref=booth-1`, plus a live counter of kumbaras opened since `BOOTH_START_TS`. The ref persists as a cookie through the flow and lands in the counter events and records.
-- `/api/metrics` (public JSON, cached 30 s, `?ref=booth-1&since=<unix>`): accounts that completed onboarding (deploy confirmed) with their transaction hashes, by booth ref, plus deposits, vault deposits and withdrawals, each with stellar.expert links.
-- Abuse guard: account creation is capped per client IP per hour (in memory, IPs never stored) and per booth ref, both env-configurable, and onboarding pauses when the sponsor account is below `SPONSOR_MIN_XLM`.
+- `/api/metrics` (public JSON, cached 30 s, `?ref=booth-1&since=<unix>`): accounts that completed onboarding (deploy confirmed) with their transaction hashes, by booth ref, plus deposits, vault deposits and withdrawals, each with stellar.expert links; headline totals (TRY in/out, live USDC in the vault read from the contract), the last 20 events, kumbaras per 15-minute bucket and median/p90 timings from stored timestamps. The seeded demo account and the automated E2E runs (`ref=e2e`, `source=e2e` on counter events) are excluded unless `?include=seed,e2e` (or `all`).
+- `/stats`: the public, read-only showcase of the same numbers for judges, reviewers and the booth projector: headline numbers with a TESTNET badge on every money figure, a live feed with explorer links (addresses truncated, no per-user timelines), the onboarding curve and per-booth breakdown, timings (medians only with 5+ samples, otherwise "not enough data"), the contracts and integrations, how it works, and the four reachability dots plus the sponsor balance as a fraction of its threshold. `?mode=tv` enlarges the numbers and feed, hides the reference sections and auto-cycles the chart for a projector.
+- Abuse guard: account creation is capped per client IP per hour (salted hash in the database, IPs never stored) and per booth ref (the E2E ref is exempt from the per-ref cap), both env-configurable, and onboarding pauses when the sponsor account is below `SPONSOR_MIN_XLM`.
 
 ### Presenter controls
 
-`/booth/admin` (not linked anywhere, `noindex`) is the presenter console: four green/red dots for the anchor, the relay, Stellar RPC and the vault (from `/api/health`), the sponsor account's XLM balance with a Friendbot top-up on testnet, the newest deposit waiting for a bank transfer with one button, "Bankayı oynat / Play the bank" (exactly what `pnpm demo:deposit` does), and "Seed a demo account", which opens a kumbara with the presenter's passkey, deposits a fixed amount and puts it in the vault for the jury withdraw demo. It requires `BOOTH_ADMIN_TOKEN` (12+ characters), passed once as `?token=` (removed from the URL immediately) or typed into the page, and sent as a bearer header; nothing is stored in the browser. Deployment steps are in [`docs/deploy.md`](docs/deploy.md), the presenter script and failure playbook in [`docs/booth-runbook.md`](docs/booth-runbook.md).
+`/booth/admin` (not linked anywhere, `noindex`) is the presenter console: four green/red dots for the anchor, the relay, Stellar RPC and the vault (from `/api/health`), the sponsor account's XLM balance with a Friendbot top-up on testnet, the newest deposit waiting for a bank transfer with one button, "Bankayı oynat / Play the bank" (exactly what `pnpm demo:deposit` does), "Seed a demo account", which opens a kumbara with the presenter's passkey, deposits a fixed amount and puts it in the vault for the jury withdraw demo, and a red "last CI run failed" banner after a failed scheduled round trip (until the next green one). It requires `BOOTH_ADMIN_TOKEN` (12+ characters), passed once as `?token=` (removed from the URL immediately) or typed into the page, and sent as a bearer header; nothing is stored in the browser. Deployment steps are in [`docs/deploy.md`](docs/deploy.md), the presenter script and failure playbook in [`docs/booth-runbook.md`](docs/booth-runbook.md).
+
+### Failure states and CI
+
+Every state a visitor or presenter can hit has a plain-language screen in TR and EN with one primary action and the raw detail behind a "Details" expander: relay, anchor, quote, transfer timeout, amount mismatch (with the bridge account), vault and strategy, spending limit, passkey (cancelled, unsupported, lost → `/kurtar`), rate limits, onboarding paused, wrong network, offline, and Vercel's login page. The table is in [`docs/failure-states.md`](docs/failure-states.md); every screen can be viewed with sample data at `/failures`. Deposits and withdrawals resume from stored state after a reload or a locked phone.
+
+`.github/workflows/e2e.yml` runs the real-browser round trips (Chromium + virtual passkey, live testnet) against a fresh Vercel preview deployment on every push and pull request, and against production every six hours; a scheduled failure opens a GitHub issue with the failing step and the screenshot artifact and lights the admin banner. The scheduled run skips itself when the sponsor is below `SPONSOR_MIN_XLM + 5`. Secrets live only in GitHub Actions secrets.
 
 ## Demo
 
-Live (Stellar TESTNET): **https://kumbara.vercel.app** · booth screen `https://kumbara.vercel.app/booth?n=1` · public metrics `https://kumbara.vercel.app/api/metrics`. The recorded backup video arrives with Gate 5. `pnpm e2e:onboard`, `pnpm e2e:deposit` and `pnpm e2e:withdraw` run the flows in a real browser against `APP_URL` and print the created kumbara's address and the transaction links.
+Live (Stellar TESTNET): **https://kumbara.vercel.app** · public stats `https://kumbara.vercel.app/stats` (projector: `/stats?mode=tv`) · booth screen `https://kumbara.vercel.app/booth?n=1` · public metrics `https://kumbara.vercel.app/api/metrics`. A recorded fallback round trip (Playwright, virtual passkey) with a caption file lives under [`docs/demo/`](docs/demo/); the real backup video is the one recorded on a phone. `pnpm e2e:onboard`, `pnpm e2e:deposit`, `pnpm e2e:withdraw`, `pnpm e2e:booth` and `pnpm e2e:stats` run the flows in a real browser against `APP_URL` and print the created kumbara's address and the transaction links.
 
 ## Resources used
 

@@ -1,5 +1,6 @@
 /** Withdrawals: create (POST) and list/resume (GET ?contractId=). */
 import { NextResponse } from "next/server";
+import { boothRef } from "@/lib/cookies.server";
 import { AnchorHttpError } from "@/lib/anchor.server";
 import { FINAL_WITHDRAWAL_STATUSES, WITHDRAW_MIN_USDC, WithdrawError, createWithdrawal, listWithdrawals } from "@/lib/withdraw.server";
 
@@ -22,7 +23,7 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ error: { code: "invalid_json", message: "invalid JSON" } }, { status: 400 });
   }
   try {
-    const record = await createWithdrawal({ contractId: String(body.contractId ?? ""), amountUsdc: String(body.amountUsdc ?? "") });
+    const record = await createWithdrawal({ contractId: String(body.contractId ?? ""), amountUsdc: String(body.amountUsdc ?? ""), ref: boothRef(request) });
     return NextResponse.json(record, { status: 201, headers: { "cache-control": "no-store" } });
   } catch (err) {
     return withdrawErrorResponse(err);

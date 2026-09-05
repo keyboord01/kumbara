@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from "react";
 
 export type Locale = "tr" | "en";
 
@@ -153,6 +153,11 @@ export const dict = {
       errorTitle: "Çekim başarısız.",
       resume: "Devam eden çekim",
     },
+    booth: {
+      title: "Kumbara",
+      counter: "kumbara açıldı",
+      mainnetRefused: "Stant QR'ı yalnızca test ağında gösterilir.",
+    },
     admin: {
       title: "Stant yönetimi",
       lead: "Sunucu için: en yeni bekleyen yükleme için bankayı oynatır (pnpm demo:deposit ile aynı). Bu sayfa herkese açık değildir.",
@@ -164,11 +169,27 @@ export const dict = {
       play: "Bankayı oynat",
       played: "Transfer simüle edildi:",
       forget: "Anahtarı unut",
+      health: "Bağlantılar",
+      healthNames: { anchor: "Anchor", relay: "Relay", rpc: "Stellar RPC", vault: "DeFindex kasası" },
+      sponsor: "Sponsor hesabı",
+      sponsorOk: "Yeterli",
+      sponsorLow: "Yetersiz: kumbara açma durdu",
+      sponsorFund: "Friendbot ile doldur (test ağı)",
+      sponsorFundHint: "Ana ağda bu adrese XLM gönder.",
+      seed: "Demo hesabı hazırla",
+      seedHint: "Bu cihazın Face ID'siyle yeni bir kumbara açar, sabit tutarı yükler ve kasaya koyar; jüri çekimi için.",
+      seedRunning: "Demo hesabı hazırlanıyor…",
+      seedDone: "Demo hesabı hazır. Kumbara sayfasında çekimi göster.",
+      seedTap: "Kasaya koy (Face ID)",
+      qr: "Stant QR ekranı",
+      pending: "Bekleyen yüklemeler",
     },
     soon: { title: "Bir sonraki adımda.", body: "Bu ekran bir sonraki yapı adımında geliyor.", back: "Kumbarama dön" },
     errors: {
       relay: "Sembol Cloud'a ulaşılamadı. Kumbara ücretleri bizim tarafımızdan karşılanır; lütfen biraz sonra tekrar dene.",
       cancelled: "Face ID iptal edildi.",
+      rateLimited: "Bu cihazdan ya da bu stanttan şimdilik yeni kumbara açılamıyor. Biraz sonra tekrar dene.",
+      sponsorLow: "Kumbara açma geçici olarak durduruldu: stant hesabının XLM'i azaldı. Sunucuya haber ver.",
       generic: "Beklenmedik bir hata oldu.",
     },
   },
@@ -318,6 +339,11 @@ export const dict = {
       errorTitle: "Withdrawal failed.",
       resume: "Withdrawal in progress",
     },
+    booth: {
+      title: "Kumbara",
+      counter: "kumbaras opened",
+      mainnetRefused: "The booth QR is only shown on testnet.",
+    },
     admin: {
       title: "Booth admin",
       lead: "For the presenter: plays the bank for the newest pending deposit (same as pnpm demo:deposit). This page is not public.",
@@ -329,11 +355,27 @@ export const dict = {
       play: "Play the bank",
       played: "Transfer simulated:",
       forget: "Forget the token",
+      health: "Connections",
+      healthNames: { anchor: "Anchor", relay: "Relay", rpc: "Stellar RPC", vault: "DeFindex vault" },
+      sponsor: "Sponsor account",
+      sponsorOk: "Sufficient",
+      sponsorLow: "Low: onboarding paused",
+      sponsorFund: "Fund via Friendbot (testnet)",
+      sponsorFundHint: "On mainnet, send XLM to this address.",
+      seed: "Seed a demo account",
+      seedHint: "Opens a new kumbara with this device's Face ID, deposits the fixed amount and puts it in the vault; for the jury withdraw demo.",
+      seedRunning: "Seeding the demo account…",
+      seedDone: "Demo account ready. Show the withdrawal on the kumbara screen.",
+      seedTap: "Put it in the vault (Face ID)",
+      qr: "Booth QR screen",
+      pending: "Pending deposits",
     },
     soon: { title: "Next build step.", body: "This screen arrives in the next build step.", back: "Back to my kumbara" },
     errors: {
       relay: "Sembol Cloud could not be reached. Fees are covered for you; please try again shortly.",
       cancelled: "Face ID was cancelled.",
+      rateLimited: "No new kumbaras from this device or booth for now. Please try again later.",
+      sponsorLow: "Onboarding is paused: the booth's sponsor account is low on XLM. Tell the presenter.",
       generic: "Something unexpected happened.",
     },
   },
@@ -349,29 +391,41 @@ interface LocaleContextValue {
 
 const LocaleContext = createContext<LocaleContextValue | null>(null);
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("tr");
+const LANG_EVENT = "kumbara:lang";
 
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored === "en" || stored === "tr") setLocaleState(stored);
-    } catch {
-      /* storage unavailable */
-    }
-  }, []);
+function subscribe(callback: () => void): () => void {
+  window.addEventListener(LANG_EVENT, callback);
+  window.addEventListener("storage", callback);
+  return () => {
+    window.removeEventListener(LANG_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+}
+
+function readStoredLocale(): Locale {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "tr";
+  } catch {
+    return "tr";
+  }
+}
+
+export function LocaleProvider({ children }: { children: ReactNode }) {
+  // The stored preference is an external store: server snapshot "tr", client
+  // snapshot from localStorage, updates via a window event.
+  const locale = useSyncExternalStore(subscribe, readStoredLocale, () => "tr" as Locale);
 
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
-    setLocaleState(next);
     try {
       window.localStorage.setItem(STORAGE_KEY, next);
     } catch {
-      /* storage unavailable */
+      /* storage unavailable: the event still updates this tab */
     }
+    window.dispatchEvent(new Event(LANG_EVENT));
   }, []);
 
   const value = useMemo<LocaleContextValue>(() => ({ locale, t: dict[locale] as Dict, setLocale }), [locale, setLocale]);

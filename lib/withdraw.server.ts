@@ -36,6 +36,7 @@ export const FINAL_WITHDRAWAL_STATUSES: WithdrawalStatus[] = ["completed", "fail
 export interface WithdrawalRecord extends StoredRecord {
   status: WithdrawalStatus;
   network: string;
+  ref: string | null;
   customerId: string;
   amountUsdc: string;
   quote: { tryOut: string; rate: string; spreadBps: number };
@@ -110,7 +111,7 @@ export async function quoteWithdrawal(contractId: string, amountUsdc: string): P
   return { tryOut: quote.destination_amount, rate: quote.rate, spreadBps: quote.spread_bps };
 }
 
-export async function createWithdrawal(input: { contractId: string; amountUsdc: string }): Promise<WithdrawalRecord> {
+export async function createWithdrawal(input: { contractId: string; amountUsdc: string; ref?: string | null }): Promise<WithdrawalRecord> {
   if (!isContractId(input.contractId)) throw new WithdrawError(400, "invalid_contract", "contractId must be a C… address");
   if (!/^\d+(\.\d{1,7})?$/.test(input.amountUsdc)) throw new WithdrawError(400, "invalid_amount", "amountUsdc must be a decimal with up to 7 digits");
   const amountStroops = toStroops(input.amountUsdc);
@@ -131,6 +132,7 @@ export async function createWithdrawal(input: { contractId: string; amountUsdc: 
     contractId: input.contractId,
     customerId,
     network: serverEnv.stellarNetwork(),
+    ref: input.ref ?? null,
     status: "created",
     amountUsdc: amount,
     quote: { tryOut: quote.destination_amount, rate: offramp.rate ?? quote.rate, spreadBps: quote.spread_bps },
@@ -243,7 +245,7 @@ async function step(record: WithdrawalRecord): Promise<WithdrawalRecord> {
         ts: Date.now(),
         network: serverEnv.stellarNetwork(),
         projectId: serverEnv.sembolProjectId(),
-        ref: null,
+        ref: record.ref,
         contractId: record.contractId,
         withdrawalId: record.id,
         vaultTx: record.vaultTxHash ?? null,

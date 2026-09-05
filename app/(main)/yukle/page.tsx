@@ -2,12 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
-import { buildContractCallTransaction, toSembolError, usePasskeyWallet, useSignTransaction, type SembolError } from "@sembol/passkey-react";
+import { toSembolError, usePasskeyWallet, useSignTransaction, type SembolError } from "@sembol/passkey-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
 import { formatTry, formatUsdc } from "@/lib/format";
+import { buildVaultDeposit } from "@/lib/autopilot";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -105,15 +105,17 @@ function Deposit() {
   }, [address]);
 
   // Poll until the pipeline hands the USDC to the browser or finishes.
+  const recordId = record?.id;
+  const recordStatus = record?.status;
   useEffect(() => {
-    if (!record || FINAL.includes(record.status)) return;
+    if (!recordId || !recordStatus || FINAL.includes(recordStatus)) return;
     const id = setInterval(() => {
-      api<DepositRecord>(`/api/deposit/${record.id}`)
+      api<DepositRecord>(`/api/deposit/${recordId}`)
         .then((next) => setRecord((current) => (current?.status === "in_vault" ? current : next)))
         .catch(() => undefined);
     }, 3000);
     return () => clearInterval(id);
-  }, [record?.id, record?.status]);
+  }, [recordId, recordStatus]);
 
   // Arrival autopilot: the USDC is in the smart account; put it in the vault.
   const runAutopilot = useCallback(async () => {
@@ -121,14 +123,7 @@ function Deposit() {
     setAutopilot("signing");
     setAutopilotError(null);
     try {
-      const [whole = "0", frac = ""] = record.paidUsdc.split(".");
-      const stroops = BigInt(whole) * 10_000_000n + BigInt((frac + "0000000").slice(0, 7));
-      const amountVal = nativeToScVal(stroops, { type: "i128" });
-      const tx = await buildContractCallTransaction(kit, {
-        contractId: info.vault.id,
-        method: "deposit",
-        args: [xdr.ScVal.scvVec([amountVal]), xdr.ScVal.scvVec([amountVal]), Address.fromString(address).toScVal(), xdr.ScVal.scvBool(false)],
-      });
+      const tx = await buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc);
       const result = await signAndSubmit(tx);
       const next = await api<DepositRecord>(`/api/deposit/${record.id}/vault`, { method: "POST", body: JSON.stringify({ hash: result.hash, amountUsdc: record.paidUsdc }) });
       setRecord(next);
@@ -142,11 +137,11 @@ function Deposit() {
   }, [record, kit, info, address, signAndSubmit]);
 
   useEffect(() => {
-    if (record?.status === "in_wallet" && !autopilotStarted.current && kit && info) {
-      autopilotStarted.current = true;
-      void runAutopilot();
-    }
-  }, [record?.status, kit, info, runAutopilot]);
+    if (recordStatus !== "in_wallet" || autopilotStarted.current || !kit || !info) return;
+    autopilotStarted.current = true;
+    const kick = setTimeout(() => void runAutopilot(), 0);
+    return () => clearTimeout(kick);
+  }, [recordStatus, kit, info, runAutopilot]);
 
   const start = async () => {
     if (!address) return;

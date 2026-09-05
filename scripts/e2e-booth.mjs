@@ -1,0 +1,96 @@
+// Gate 4 end-to-end: booth QR screen, presenter console (health dots, sponsor,
+// seed demo account), and the public metrics with booth refs.
+//   pnpm e2e:booth   (needs BOOTH_ADMIN_TOKEN in .env; APP_URL defaults to http://localhost:3100)
+import { chromium } from "playwright";
+
+const APP = process.env.APP_URL ?? "http://localhost:3100";
+const ADMIN = process.env.BOOTH_ADMIN_TOKEN?.trim();
+if (!ADMIN) throw new Error("BOOTH_ADMIN_TOKEN is required (pnpm e2e:booth loads .env)");
+
+const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+const page = await context.newPage();
+const cdp = await context.newCDPSession(page);
+await cdp.send("WebAuthn.enable");
+await cdp.send("WebAuthn.addVirtualAuthenticator", {
+  options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
+});
+const consoleErrors = [];
+page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`));
+page.on("console", (m) => {
+  if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
+});
+const t0 = Date.now();
+const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
+
+try {
+  log("booth screen");
+  await page.goto(`${APP}/booth?n=7`, { waitUntil: "networkidle" });
+  await page.locator("svg").first().waitFor({ timeout: 20000 });
+  const url = ((await page.locator("p.font-mono").first().textContent()) ?? "").trim();
+  log("QR encodes:", url);
+  if (!url.endsWith("/?ref=booth-7")) throw new Error(`QR url unexpected: ${url}`);
+  const counter = ((await page.getByTestId("booth-counter").textContent()) ?? "").trim();
+  log("counter:", counter);
+  if (!/^\d+$/.test(counter)) throw new Error(`counter not numeric: ${counter}`);
+  const body = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+  if (!/TESTNET/.test(body) || !/Test ağı/.test(body)) throw new Error("booth screen lacks the testnet label");
+
+  log("presenter console");
+  await page.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+  if (page.url().includes("token=")) throw new Error("token still in URL");
+  await page.getByTestId("health-dots").waitFor({ timeout: 20000 });
+  for (let i = 0; i < 10; i += 1) {
+    const dots = await page.locator("[data-testid='health-dots'] span[aria-label]").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+    if (dots.length === 4 && dots.every((d) => d === "ok")) {
+      log("health dots:", dots.join(","));
+      break;
+    }
+    if (i === 9) throw new Error(`health dots not all green: ${dots.join(",")}`);
+    await page.waitForTimeout(2000);
+  }
+  await page.getByTestId("sponsor-balance").waitFor({ timeout: 20000 });
+  log("sponsor:", ((await page.getByTestId("sponsor-balance").textContent()) ?? "").trim());
+
+  log("seed a demo account (presenter passkey, fixed deposit, autopilot)");
+  const seedAt = Date.now();
+  await page.getByRole("button", { name: /Demo hesabı hazırla|Seed a demo account/ }).click();
+  let last = "";
+  for (let i = 0; i < 80; i += 1) {
+    const status = ((await page.getByTestId("seed-status").textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
+    if (status !== last) {
+      log("  seed:", status.slice(0, 140));
+      last = status;
+    }
+    if (/Demo hesabı hazır\.|Demo account ready\./.test(status)) break;
+    const tap = page.getByRole("button", { name: /Kasaya koy|Put it in the vault/ });
+    if (await tap.isVisible().catch(() => false)) await tap.click();
+    await page.waitForTimeout(3000);
+  }
+  if (!/Demo hesabı hazır\.|Demo account ready\./.test(last)) throw new Error(`seed did not finish: ${last}`);
+  log(`✓ demo account seeded in ${((Date.now() - seedAt) / 1000).toFixed(1)}s`);
+  const seeded = last.match(/C[A-Z2-7]{55}/)?.[0];
+  log("seeded contract:", seeded);
+
+  log("metrics");
+  const metrics = await (await fetch(`${APP}/api/metrics`)).json();
+  log("accounts byRef:", JSON.stringify(metrics.accounts.byRef));
+  if (!(metrics.accounts.byRef.seed >= 1)) throw new Error("seed account not counted");
+  const item = metrics.accounts.items.find((a) => a.contractId === seeded);
+  if (!item?.deployTx || !item.link?.includes("/testnet/tx/")) throw new Error("seeded account has no deploy tx link in metrics");
+  const dep = metrics.deposits.items.find((d) => d.contractId === seeded);
+  if (!dep?.vaultTx) throw new Error("seed deposit not in vault in metrics");
+  log("✓ metrics list the seeded account and its vault deposit with hashes");
+  const filtered = await (await fetch(`${APP}/api/metrics?ref=seed`)).json();
+  if (filtered.accounts.sinceStart < 1 || filtered.deposits.inVault < 1) throw new Error("ref filter failed");
+  log("✓ ref filter works:", JSON.stringify({ accounts: filtered.accounts.sinceStart, inVault: filtered.deposits.inVault }));
+  console.log("\nE2E BOOTH OK. console errors:", consoleErrors.length ? consoleErrors : "none");
+} catch (err) {
+  console.error("E2E BOOTH FAILED:", err);
+  await page.screenshot({ path: ".data/e2e-booth-failure.png", fullPage: true }).catch(() => {});
+  console.log("body:", (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 800));
+  console.log("console errors:", consoleErrors);
+  process.exitCode = 1;
+} finally {
+  await browser.close();
+}

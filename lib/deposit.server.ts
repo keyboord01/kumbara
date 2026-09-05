@@ -36,6 +36,8 @@ export const FINAL_STATUSES: DepositStatus[] = ["in_vault", "failed"];
 export interface DepositRecord extends StoredRecord {
   status: DepositStatus;
   network: string;
+  /** Booth ref the kumbara was opened with, for the counter. */
+  ref: string | null;
   customerId: string;
   amountTry: string;
   baselineTry: string;
@@ -143,7 +145,7 @@ export async function ensureCustomer(contractId: string): Promise<string> {
   }
 }
 
-export async function createDeposit(input: { contractId: string; amountTry: string }): Promise<DepositRecord> {
+export async function createDeposit(input: { contractId: string; amountTry: string; ref?: string | null }): Promise<DepositRecord> {
   if (!isContractId(input.contractId)) throw new DepositError(400, "invalid_contract", "contractId must be a C… address");
   if (!/^\d+(\.\d{1,2})?$/.test(input.amountTry)) throw new DepositError(400, "invalid_amount", "amountTry must be a decimal with up to 2 digits");
   const amount = fromCents(toCents(input.amountTry));
@@ -163,6 +165,7 @@ export async function createDeposit(input: { contractId: string; amountTry: stri
     contractId: input.contractId,
     customerId,
     network: serverEnv.stellarNetwork(),
+    ref: input.ref ?? null,
     status: "awaiting_transfer",
     amountTry: amount,
     baselineTry: customer.balances.TRY,
@@ -303,7 +306,7 @@ export async function recordVaultDeposit(id: string, input: { hash: string; amou
       ts: Date.now(),
       network: serverEnv.stellarNetwork(),
       projectId: serverEnv.sembolProjectId(),
-      ref: input.ref ?? null,
+      ref: input.ref ?? record.ref ?? null,
       contractId: record.contractId,
       depositId: record.id,
       anchorTx: record.anchorTxHash ?? null,

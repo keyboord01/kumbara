@@ -9,8 +9,11 @@
  */
 import { NextResponse } from "next/server";
 import { Address, StrKey, hash, xdr } from "@stellar/stellar-sdk";
+import { boothRef } from "@/lib/cookies.server";
 import { networkPassphrase, serverEnv } from "@/lib/env.server";
+import { sponsorStatus } from "@/lib/landing.server";
 import { recordEvent } from "@/lib/metrics.server";
+import { guardAccountCreation, guardRelayCall } from "@/lib/ratelimit.server";
 import { relayForward } from "@/lib/relay.server";
 
 export const runtime = "nodejs";
@@ -55,12 +58,6 @@ function invokedContract(funcXdr: string): string | null {
   }
 }
 
-function readCookie(request: Request, name: string): string | null {
-  const cookie = request.headers.get("cookie") ?? "";
-  const match = cookie.split(";").map((c) => c.trim()).find((c) => c.startsWith(`${name}=`));
-  return match ? decodeURIComponent(match.slice(name.length + 1)).slice(0, 64) : null;
-}
-
 export async function POST(request: Request): Promise<Response> {
   if (!sameOrigin(request)) {
     return NextResponse.json({ success: false, error: "cross-origin relay calls are not allowed" }, { status: 403 });
@@ -81,6 +78,33 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json({ success: false, error: "expected { func, auth } or { xdr }" }, { status: 400 });
   }
   const payload: Record<string, unknown> = hasFuncAuth ? { func: body.func, auth: body.auth } : { xdr: body.xdr };
+  const ref = boothRef(request);
+  const deployingContract = hasFuncAuth ? deployedContractId(body.func as string) : null;
+
+  // Abuse guard: generous per-IP cap on relay calls, tighter caps on account
+  // creation (per IP per hour, per booth ref), and no onboarding while the
+  // sponsor cannot afford landing accounts.
+  const relayGuard = guardRelayCall(request);
+  if (!relayGuard.allowed) {
+    return NextResponse.json({ success: false, error: relayGuard.message, errorCode: relayGuard.code }, { status: 429 });
+  }
+  if (deployingContract) {
+    const guard = await guardAccountCreation(request, ref);
+    if (!guard.allowed) {
+      return NextResponse.json({ success: false, error: guard.message, errorCode: guard.code }, { status: 429 });
+    }
+    try {
+      const sponsor = await sponsorStatus();
+      if (!sponsor.ok) {
+        return NextResponse.json(
+          { success: false, error: `onboarding paused: the sponsor account holds ${sponsor.balanceXlm.toFixed(2)} XLM, below the ${sponsor.minXlm} XLM threshold`, errorCode: "SPONSOR_UNDERFUNDED" },
+          { status: 503 },
+        );
+      }
+    } catch (err) {
+      return NextResponse.json({ success: false, error: `sponsor check failed: ${err instanceof Error ? err.message : String(err)}`, errorCode: "SPONSOR_UNAVAILABLE" }, { status: 503 });
+    }
+  }
 
   let projectId: string;
   let upstream: { status: number; json: Record<string, unknown> | null; text: string };
@@ -99,14 +123,14 @@ export async function POST(request: Request): Promise<Response> {
   const { json, text, status } = upstream;
   const data = json?.data && typeof json.data === "object" ? (json.data as Record<string, unknown>) : json;
   const txHash = typeof data?.hash === "string" ? data.hash : null;
-  if (json?.success === true && txHash && hasFuncAuth) {
+  const txStatus = typeof data?.status === "string" ? data.status.toLowerCase() : "confirmed";
+  const confirmed = txStatus === "confirmed" || txStatus === "success";
+  if (json?.success === true && txHash && hasFuncAuth && confirmed) {
     const func = body.func as string;
-    const ref = readCookie(request, "kumbara_ref");
-    const contractId = deployedContractId(func);
     const network = serverEnv.stellarNetwork();
     await recordEvent(
-      contractId
-        ? { type: "account_created", ts: Date.now(), network, projectId, ref, contractId, hash: txHash }
+      deployingContract
+        ? { type: "account_created", ts: Date.now(), network, projectId, ref, contractId: deployingContract, hash: txHash }
         : { type: "relayed_tx", ts: Date.now(), network, projectId, ref, hash: txHash, contract: invokedContract(func) },
     );
   }

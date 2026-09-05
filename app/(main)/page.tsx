@@ -49,9 +49,13 @@ export default function OnboardPage() {
   const errorText = error
     ? error.code === "user_cancelled"
       ? t.errors.cancelled
-      : error.code === "submission_failed" || error.code === "network_error"
-        ? t.errors.relay
-        : error.userMessage
+      : /rate limit|reached its cap/i.test(error.message)
+        ? t.errors.rateLimited
+        : /onboarding paused|sponsor/i.test(error.message)
+          ? t.errors.sponsorLow
+          : error.code === "submission_failed" || error.code === "network_error"
+            ? t.errors.relay
+            : error.userMessage
     : null;
 
   return (

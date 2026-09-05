@@ -1,5 +1,7 @@
 # Kumbara
 
+[![CI](https://github.com/keyboord01/kumbara/actions/workflows/ci.yml/badge.svg)](https://github.com/keyboord01/kumbara/actions/workflows/ci.yml)
+
 **Kumbara** is a self-custodial USDC piggy bank on Stellar for Turkish users, by [Sembol](https://github.com/keyboord01/sembol). Open it with Face ID, load Turkish lira through a regulated anchor, hold USDC in a DeFindex vault, withdraw back to lira. No seed phrase, no XLM, no app store. Testnet today.
 
 Scale Track entry for the Rise In × Stellar Pro Hackathon (Istanbul, 19–20 September 2026) and the traction exhibit for a Stellar Community Fund Build Award (Integration Track) submission.
@@ -49,7 +51,7 @@ sequenceDiagram
 
 The anchor only pays and watches classic addresses, so each deposit and withdrawal passes through a throwaway classic "landing" account that nobody controls: after setup its only usable authorization is two pre-authorized transactions built for the exact quoted amount. Details, tradeoffs and the threat model are in [`docs/architecture.md`](docs/architecture.md); the measurements are in [`docs/anchor-notes.md`](docs/anchor-notes.md).
 
-Build status: Gate 0 (spikes), Gate 1 (onboard + savings), Gate 2 (deposit round trip with the arrival autopilot) and Gate 3 (withdraw round trip to a simulated FAST payout) are done. Booth mode and metrics (Gate 4) and hardening (Gate 5) follow.
+Build status: Gates 0–4 are done (spikes, onboard + savings, deposit round trip, withdraw round trip, booth mode + `/api/metrics`). Hardening (Gate 5: failure screens, E2E in CI, backup video) follows.
 
 ## Integrations
 
@@ -121,9 +123,15 @@ ln -sfn "$(pwd)/.next/static" .next/standalone/.next/static   # the Dockerfile c
 PORT=3100 node --env-file=.env .next/standalone/server.js
 ```
 
+### Booth mode and metrics
+
+- `/booth?n=1`: full-screen QR to the testnet onboarding URL with `?ref=booth-1`, plus a live counter of kumbaras opened since `BOOTH_START_TS`. The ref persists as a cookie through the flow and lands in the counter events and records.
+- `/api/metrics` (public JSON, cached 30 s, `?ref=booth-1&since=<unix>`): accounts that completed onboarding (deploy confirmed) with their transaction hashes, by booth ref, plus deposits, vault deposits and withdrawals, each with stellar.expert links.
+- Abuse guard: account creation is capped per client IP per hour (in memory, IPs never stored) and per booth ref, both env-configurable, and onboarding pauses when the sponsor account is below `SPONSOR_MIN_XLM`.
+
 ### Presenter controls
 
-`/booth/admin` (not linked anywhere, `noindex`) shows the newest deposit waiting for a bank transfer and has one button, "Bankayı oynat / Play the bank", which does exactly what `pnpm demo:deposit` does. It requires `BOOTH_ADMIN_TOKEN` (12+ characters), passed once as `?token=` (removed from the URL immediately) or typed into the page, and sent as a bearer header; nothing is stored in the browser.
+`/booth/admin` (not linked anywhere, `noindex`) is the presenter console: four green/red dots for the anchor, the relay, Stellar RPC and the vault (from `/api/health`), the sponsor account's XLM balance with a Friendbot top-up on testnet, the newest deposit waiting for a bank transfer with one button, "Bankayı oynat / Play the bank" (exactly what `pnpm demo:deposit` does), and "Seed a demo account", which opens a kumbara with the presenter's passkey, deposits a fixed amount and puts it in the vault for the jury withdraw demo. It requires `BOOTH_ADMIN_TOKEN` (12+ characters), passed once as `?token=` (removed from the URL immediately) or typed into the page, and sent as a bearer header; nothing is stored in the browser. Deployment steps are in [`docs/deploy.md`](docs/deploy.md), the presenter script and failure playbook in [`docs/booth-runbook.md`](docs/booth-runbook.md).
 
 ## Demo
 

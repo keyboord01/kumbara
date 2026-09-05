@@ -10,13 +10,13 @@
  *
  *   pnpm spike:defindex
  */
-import { Asset, Address, nativeToScVal, scValToNative, xdr } from "@stellar/stellar-sdk";
+import { Asset, scValToNative, xdr } from "@stellar/stellar-sdk";
 import { Anchor } from "./lib/anchor";
 import { assertTestnet, networkPassphrase, optionalEnv } from "./lib/env";
 import { ensureWallet, persistAuthenticator } from "./lib/kit";
 import { Findings, contractLink, fail, info, ok, step, txLink, warn } from "./lib/log";
 import { loadState, saveState } from "./lib/state";
-import { addressScVal, changeTrust, classicBalance, ensureFunder, fromStroops, hasTrustline, i128, invokeFromClassic, readNative, toStroops, tokenBalance } from "./lib/stellar";
+import { addressScVal, changeTrust, ensureFunder, fromStroops, hasTrustline, i128, invokeFromClassic, readNative, toStroops, tokenBalance } from "./lib/stellar";
 import { defindexFactoryId, soroswapRouterId } from "./lib/testnet";
 import { call, readSpendingLimit } from "./lib/wallet";
 

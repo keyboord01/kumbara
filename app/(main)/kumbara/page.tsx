@@ -49,9 +49,12 @@ function useVault(vaultId: string | undefined, address: string | null, epoch: nu
     }
   }, [vaultId, address]);
   useEffect(() => {
-    void refresh();
+    const first = setTimeout(() => void refresh(), 0);
     const id = setInterval(() => void refresh(), 20_000);
-    return () => clearInterval(id);
+    return () => {
+      clearTimeout(first);
+      clearInterval(id);
+    };
   }, [refresh, epoch]);
   return { position, refresh };
 }
@@ -75,12 +78,12 @@ function Savings() {
   // Background spending-limit install after onboarding (?setup=limit).
   const [setup, setSetup] = useState<SetupState>("idle");
   const [setupError, setSetupError] = useState<SembolError | null>(null);
-  const [policyRead, setPolicyRead] = useState<"pending" | "loading" | "done">("pending");
   const started = useRef(false);
+  // The first policy read completes when isLoading has been true and drops back to false.
+  const seenLoading = useRef(false);
   useEffect(() => {
-    if (policyLoading) setPolicyRead("loading");
-    else if (policyRead === "loading") setPolicyRead("done");
-  }, [policyLoading, policyRead]);
+    if (policyLoading) seenLoading.current = true;
+  }, [policyLoading]);
 
   const install = useCallback(async () => {
     if (!info) return;
@@ -99,15 +102,18 @@ function Savings() {
   }, [info, setLimit, router]);
 
   useEffect(() => {
-    if (!setupRequested || started.current || !info || policyRead !== "done") return;
+    if (!setupRequested || started.current || !info || policyLoading || !seenLoading.current) return;
     started.current = true;
-    if (policy) {
-      setSetup("done");
-      router.replace("/kumbara");
-      return;
-    }
-    void install();
-  }, [setupRequested, info, policyRead, policy, install, router]);
+    const kick = setTimeout(() => {
+      if (policy) {
+        setSetup("done");
+        router.replace("/kumbara");
+      } else {
+        void install();
+      }
+    }, 0);
+    return () => clearTimeout(kick);
+  }, [setupRequested, info, policyLoading, policy, install, router]);
 
   const inVault = position?.usdc ?? null;
   const waiting = info && wallet.raw !== null ? wallet.raw : null;

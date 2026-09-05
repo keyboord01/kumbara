@@ -72,13 +72,14 @@ function Withdraw() {
   const [view, setView] = useState<"loading" | "form" | "progress">("loading");
   const [position, setPosition] = useState<VaultPosition | null>(null);
   const [amount, setAmount] = useState("1");
-  const [quote, setQuote] = useState<{ tryOut: string; rate: string; spreadBps: number } | null>(null);
+  const [quoteFor, setQuoteFor] = useState<{ amount: string; tryOut: string; rate: string; spreadBps: number } | null>(null);
   const [record, setRecord] = useState<WithdrawalRecord | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [client, setClient] = useState<"idle" | "vault" | "transfer" | "needs_tap" | "done">("idle");
   const [clientError, setClientError] = useState<SembolError | null>(null);
   const vaultTx = useRef<string | null>(null);
+  const [vaultTxHash, setVaultTxHash] = useState<string | null>(null);
   const started = useRef(false);
 
   const loadPosition = useCallback(async () => {
@@ -93,7 +94,7 @@ function Withdraw() {
   useEffect(() => {
     if (!address) return;
     let alive = true;
-    void loadPosition();
+    const first = setTimeout(() => void loadPosition(), 0);
     api<{ active: WithdrawalRecord | null }>(`/api/withdraw?contractId=${address}`)
       .then((res) => {
         if (!alive) return;
@@ -111,35 +112,36 @@ function Withdraw() {
       });
     return () => {
       alive = false;
+      clearTimeout(first);
     };
   }, [address, loadPosition]);
 
-  // Indicative sell quote, debounced.
+  // Indicative sell quote, debounced; shown only while it matches the typed amount.
   useEffect(() => {
     if (view !== "form" || !address) return;
-    const stroops = toStroops(amount || "0");
-    if (stroops < 10_000_000n) {
-      setQuote(null);
-      return;
-    }
+    if (toStroops(amount || "0") < 10_000_000n) return;
+    const wanted = amount;
     const handle = setTimeout(() => {
-      api<{ tryOut: string; rate: string; spreadBps: number }>(`/api/withdraw/quote?contractId=${address}&amountUsdc=${encodeURIComponent(amount.replace(",", "."))}`)
-        .then(setQuote)
-        .catch(() => setQuote(null));
+      api<{ tryOut: string; rate: string; spreadBps: number }>(`/api/withdraw/quote?contractId=${address}&amountUsdc=${encodeURIComponent(wanted.replace(",", "."))}`)
+        .then((q) => setQuoteFor({ amount: wanted, ...q }))
+        .catch(() => undefined);
     }, 400);
     return () => clearTimeout(handle);
   }, [amount, address, view]);
+  const quote = quoteFor && quoteFor.amount === amount ? quoteFor : null;
 
   // Poll while the server side has work to do.
+  const recordId = record?.id;
+  const recordStatus = record?.status;
   useEffect(() => {
-    if (!record || FINAL.includes(record.status)) return;
+    if (!recordId || !recordStatus || FINAL.includes(recordStatus)) return;
     const id = setInterval(() => {
-      api<WithdrawalRecord>(`/api/withdraw/${record.id}`)
+      api<WithdrawalRecord>(`/api/withdraw/${recordId}`)
         .then((next) => setRecord(next))
         .catch(() => undefined);
     }, 3000);
     return () => clearInterval(id);
-  }, [record?.id, record?.status]);
+  }, [recordId, recordStatus]);
 
   // The browser's part: vault withdrawal, then the transfer to the landing account.
   const runClientSteps = useCallback(async () => {
@@ -158,6 +160,7 @@ function Withdraw() {
         });
         const result = await signAndSubmit(tx);
         vaultTx.current = result.hash;
+        setVaultTxHash(result.hash);
       }
       if (!record.landing) return; // landing not ready yet; the poll effect re-triggers
       setClient("transfer");
@@ -176,13 +179,17 @@ function Withdraw() {
 
   useEffect(() => {
     if (!record || !kit || !info) return;
+    let kick: ReturnType<typeof setTimeout> | null = null;
     if (record.status === "created" && !started.current) {
       started.current = true;
-      void runClientSteps(); // vault withdrawal overlaps with the server building the landing account
-    } else if (record.status === "awaiting_usdc" && vaultTx.current && client !== "transfer" && client !== "done" && client !== "needs_tap") {
-      void runClientSteps();
+      kick = setTimeout(() => void runClientSteps(), 0); // vault withdrawal overlaps with the server building the landing account
+    } else if (record.status === "awaiting_usdc" && vaultTxHash && client !== "transfer" && client !== "done" && client !== "needs_tap") {
+      kick = setTimeout(() => void runClientSteps(), 0);
     }
-  }, [record, kit, info, client, runClientSteps]);
+    return () => {
+      if (kick) clearTimeout(kick);
+    };
+  }, [record, kit, info, client, vaultTxHash, runClientSteps]);
 
   const start = async () => {
     if (!address) return;
@@ -203,6 +210,7 @@ function Withdraw() {
     setRecord(null);
     setClient("idle");
     vaultTx.current = null;
+    setVaultTxHash(null);
     started.current = false;
     void loadPosition();
     setView("form");
@@ -346,7 +354,7 @@ function Withdraw() {
               )}
             </p>
             <button type="button" onClick={() => void runClientSteps()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
-              {vaultTx.current ? t.withdraw.tapTransfer : t.withdraw.tapVault}
+              {vaultTxHash ? t.withdraw.tapTransfer : t.withdraw.tapVault}
             </button>
           </div>
         )}
@@ -367,9 +375,9 @@ function Withdraw() {
             </dd>
           </dl>
         )}
-        {(vaultTx.current || record.vaultTxHash || record.transferTxHash || record.paymentTxHash) && (
+        {(vaultTxHash || record.vaultTxHash || record.transferTxHash || record.paymentTxHash) && (
           <div className="mt-4 flex flex-col gap-1">
-            {(record.vaultTxHash ?? vaultTx.current) && <TxLink hash={(record.vaultTxHash ?? vaultTx.current) as string} label={t.withdraw.links.vault} />}
+            {(record.vaultTxHash ?? vaultTxHash) && <TxLink hash={(record.vaultTxHash ?? vaultTxHash) as string} label={t.withdraw.links.vault} />}
             {record.transferTxHash && <TxLink hash={record.transferTxHash} label={t.withdraw.links.transfer} />}
             {record.paymentTxHash && <TxLink hash={record.paymentTxHash} label={t.withdraw.links.payment} />}
           </div>

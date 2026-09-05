@@ -3,7 +3,7 @@
  * the funder (instead of the relay) so the inner result code is visible.
  *   pnpm exec node --env-file=.env --import tsx spikes/probe-landing.ts
  */
-import { Asset, TransactionBuilder, xdr, type Transaction } from "@stellar/stellar-sdk";
+import { Asset, TransactionBuilder, type Transaction } from "@stellar/stellar-sdk";
 import { Anchor } from "./lib/anchor";
 import { assertTestnet, networkPassphrase } from "./lib/env";
 import { createLandingAccount } from "./lib/forwarder";

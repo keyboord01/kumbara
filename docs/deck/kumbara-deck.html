@@ -251,9 +251,8 @@ sequenceDiagram
     <tr><td><strong>TR Mock Anchor</strong> · SEP-1/6/38 + Partner API</td><td>The regulated lira side: IBAN and reference, quotes with a 120 s lock, on-ramps to the bridge account, off-ramps by memo, simulated FAST payouts. Issuer and endpoints read from its stellar.toml.</td><td class="mono">USDC SAC CBIELTK6…XQDAMA</td></tr>
     <tr><td><strong>Fee-sponsoring relay</strong> (OpenZeppelin Channels today)</td><td>Signed authorization entries go to our server route, which adds the project key and forwards to the relay; the visitor never sees XLM. Per-IP and per-booth caps, sponsor threshold.</td><td class="mono">channels.openzeppelin.com/testnet</td></tr>
     <tr><td><strong>Reflector</strong></td><td>The USD/TRY foreign-exchange oracle behind the lira equivalent on the Savings and stats pages (read by simulation, anchor rate as fallback).</td><td class="mono">CBKGPWGK…4DXMCJZC (mainnet oracle, read only)</td></tr>
-    <tr><td><strong>Soroswap</strong> <span class="badge sm">flagged</span></td><td>Evaluated, not wired: the vault accepts the anchor's USDC directly. The router dry run is recorded for the day a swap is needed.</td><td class="mono">router CCJUD55A…ZZE7BRD</td></tr>
   </table>
-  <p style="margin-top:22px;font-size:24px"><strong>Upstream:</strong> the fix Sembol needed for passkey signing was merged into <span class="mono teal">stellar/smart-account-kit</span> and shipped in 0.6.2 <span class="placeholder" style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:20px">[PR link]</span>.</p>
+  <p style="margin-top:26px;font-size:24px"><strong>Upstream:</strong> "Fix wallet creation crash on default Next.js apps" was merged into <span class="mono teal">stellar/smart-account-kit</span> on 19 August 2026 and shipped in 0.6.2 · <span class="mono teal">github.com/stellar/smart-account-kit/pull/4</span></p>
   <div class="foot"><span>Full addresses and links in the README contracts table · Stellar TESTNET</span><span class="n">6 / 10</span></div>
 </section>
 
@@ -280,9 +279,8 @@ sequenceDiagram
           <tr><td>Deposit with invest=true moved USDC into the strategy (invest)</td><td class="mono">b615e7dc…76b7f981</td></tr>
           <tr><td>Withdrawal unwound the shares from the strategy (divest)</td><td class="mono">466f48d2…07a9f5ca</td></tr>
         </table>
-        <p style="font-size:22px">Recorded fallback demo: docs/demo/round-trip.mp4, the full round trip on production, 2:31 with a caption per step.</p>
+        <p style="font-size:22px">Recorded fallback demo: docs/demo/round-trip.mp4, the full round trip on kumbara.sembol.xyz, 2:39 with a caption per step.</p>
       </div>
-      <div class="placeholder"><span class="tag">Placeholder · fill after 20 September</span>Hackathon onboarding: N accounts in 2 days (from /stats since event start, seed and E2E excluded).</div>
     </div>
   </div>
   <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET · stellar.expert/explorer/testnet/tx/&lt;hash&gt;</span><span class="n">7 / 10</span></div>
@@ -307,23 +305,21 @@ sequenceDiagram
 <!-- 9 · Team -->
 <section class="slide" id="s9">
   <div class="eyebrow">Team</div>
-  <h2>Small, shipping, already in the ecosystem.</h2>
-  <div class="row" style="gap:34px">
-    <div class="card col stack">
-      <h3>Ahmed <span class="muted" style="font-weight:500">· lead</span></h3>
-      <p>Instaward grantee. Author of <span class="mono teal">@sembol/passkey-react</span>, the passkey wallet layer Kumbara runs on; contributor to <span class="mono teal">stellar/smart-account-kit</span>. Built Kumbara end to end for this submission.</p>
-      <p class="mono muted" style="font-size:20px">github.com/keyboord01</p>
-      <div class="placeholder" style="font-size:20px;padding:12px 16px">[LinkedIn URL]</div>
+  <h2>One builder, already shipping in the ecosystem.</h2>
+  <div class="row" style="gap:40px;align-items:stretch">
+    <div class="card col stack" style="flex:1.15;padding:40px 44px;gap:22px">
+      <h3 style="font-size:44px;margin:0">Ahmed <span class="muted" style="font-weight:500;font-size:30px">· founder, builds and pitches</span></h3>
+      <p style="font-size:28px">Instaward grantee (Stellar Türkiye). Author of <span class="mono teal">@sembol/passkey-react</span>, the passkey wallet layer Kumbara runs on, and contributor to <span class="mono teal">stellar/smart-account-kit</span>. Designed and built Kumbara end to end: the app, the bridge accounts, the CI round trips and this deck's evidence.</p>
+      <div class="stack" style="gap:8px;font-size:24px">
+        <p><span class="muted" style="display:inline-block;width:150px">Site</span><span class="mono teal">ahmed.bet</span></p>
+        <p><span class="muted" style="display:inline-block;width:150px">LinkedIn</span><span class="mono teal">linkedin.com/in/ahmed-zm</span></p>
+        <p><span class="muted" style="display:inline-block;width:150px">GitHub</span><span class="mono teal">github.com/keyboord01</span></p>
+      </div>
     </div>
-    <div class="card col stack">
-      <h3>Ibo <span class="muted" style="font-weight:500">· engineer</span></h3>
-      <p>Engineering across the stack; ships the second tenant on the same infrastructure alongside Kumbara.</p>
-      <div class="placeholder" style="font-size:20px;padding:12px 16px">[LinkedIn URL] · [one-line bio to confirm]</div>
-    </div>
-    <div class="card col stack" style="border-style:dashed">
-      <h3>Atahan <span class="muted" style="font-weight:500">· [role, if confirmed]</span></h3>
-      <p>Deck, booth and visitor wrangling on event days, if confirmed.</p>
-      <div class="placeholder" style="font-size:20px;padding:12px 16px">[confirm participation] · [LinkedIn URL]</div>
+    <div class="col stack" style="gap:22px">
+      <div class="card stack" style="gap:8px"><span class="eyebrow">Shipped upstream</span><p style="font-size:24px"><strong>stellar/smart-account-kit #4</strong>, "Fix wallet creation crash on default Next.js apps", merged 19 August 2026, in release 0.6.2.</p></div>
+      <div class="card stack" style="gap:8px"><span class="eyebrow">Published</span><p style="font-size:24px"><strong>@sembol/passkey-react</strong> on npm: passkey creation and signing, recovery, spending-limit policy UI, the pieces every screen in this deck uses.</p></div>
+      <div class="card stack" style="gap:8px"><span class="eyebrow">Funded</span><p style="font-size:24px">Instawards grantee; Kumbara is the consumer proof for that work, built for this submission.</p></div>
     </div>
   </div>
   <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n">9 / 10</span></div>

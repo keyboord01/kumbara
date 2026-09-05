@@ -34,9 +34,9 @@ Read aloud; at most 60 words per slide. TR first, then EN. Everything shown is S
 
 ## 6 · Integrations and contracts
 
-**TR.** Kumbara kendi cüzdan, kasa veya strateji kodu yazmaz. OpenZeppelin akıllı hesap ve harcama limiti, DeFindex kasası ve hodl stratejisi, SEP tabanlı anchor, ücret sponsoru relay, Reflector kuru. Soroswap değerlendirildi, bağlanmadı. Passkey imzası için gereken düzeltme smart-account-kit'e üst akımda birleşti.
+**TR.** Kumbara kendi cüzdan, kasa veya strateji kodu yazmaz. OpenZeppelin akıllı hesap ve harcama limiti, DeFindex kasası ve hodl stratejisi, SEP tabanlı anchor, ücret sponsoru relay, Reflector kuru. Passkey ile cüzdan açılışını düzelten yamamız smart-account-kit'e üst akımda birleşti ve 0.6.2 ile yayınlandı.
 
-**EN.** Kumbara writes no wallet, vault or strategy code. OpenZeppelin smart account and spending limit, DeFindex vault and hodl strategy, the SEP-based anchor, a fee-sponsoring relay, Reflector for the rate. Soroswap evaluated, not wired. The fix passkey signing needed was merged upstream into smart-account-kit.
+**EN.** Kumbara writes no wallet, vault or strategy code. OpenZeppelin smart account and spending limit, DeFindex vault and hodl strategy, the SEP-based anchor, a fee-sponsoring relay, Reflector for the rate. Our fix for passkey wallet creation was merged upstream into smart-account-kit and shipped in 0.6.2.
 
 ## 7 · Traction and evidence
 
@@ -52,9 +52,9 @@ Read aloud; at most 60 words per slide. TR first, then EN. Everything shown is S
 
 ## 9 · Team
 
-**TR.** Ekip küçük ve üretiyor. Ben Instaward hibesi aldım, passkey-react kütüphanesinin yazarıyım, smart-account-kit'e katkı verdim. Ibo mühendis; aynı altyapı üzerinde ikinci kiracıyı yapıyor. Atahan, katılımı kesinleşirse, sunum ve stant tarafında.
+**TR.** Tek kişilik bir ekip, ama üreten bir ekip. Instaward hibesi aldım, passkey-react kütüphanesini yazdım ve smart-account-kit'e birleşen bir düzeltme gönderdim. Kumbara'yı uçtan uca ben kurdum: uygulama, köprü hesapları, CI turları. Bağlantılar ekranda.
 
-**EN.** The team is small and shipping. I hold an Instaward grant, wrote the passkey-react library, and contributed to smart-account-kit. Ibo is our engineer, building the second tenant on the same infrastructure. Atahan, if confirmed, covers the deck and the booth.
+**EN.** A team of one, but one that ships. I hold an Instaward grant, wrote the passkey-react library, and landed a fix in smart-account-kit. I built Kumbara end to end: the app, the bridge accounts, the CI round trips. Links are on the slide.
 
 ## 10 · Roadmap and the ask
 

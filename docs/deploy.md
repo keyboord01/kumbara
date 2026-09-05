@@ -53,6 +53,8 @@ vercel deploy --prod --yes --token "$VERCEL_TOKEN"
 vercel alias set <deployment-url> kumbara.vercel.app --token "$VERCEL_TOKEN"
 ```
 
+`kumbara.vercel.app` is a deployment alias, not a project domain (the project's own domain is `kumbara-theta.vercel.app`), so it does **not** move on its own: after every production deploy, including the ones the GitHub integration makes on a push to `main`, run the `vercel alias set` line above or the public URL keeps serving the previous deployment. Check with `curl -s "https://kumbara.vercel.app/api/anchor/info?cb=$(date +%s)"` (the vault id) before running the E2Es.
+
 ### Environment variables (production)
 
 | Variable | Kind | Value |
@@ -67,7 +69,7 @@ vercel alias set <deployment-url> kumbara.vercel.app --token "$VERCEL_TOKEN"
 | `STELLAR_RPC_URL` | config | `https://soroban-testnet.stellar.org` |
 | `ANCHOR_BASE_URL` | config | `https://tr-mock-anchor.fly.dev` |
 | `SEMBOL_CLOUD_URL`, `SEMBOL_PROJECT_ID` | config | `https://channels.openzeppelin.com/testnet`, `kumbara` |
-| `DEFINDEX_VAULT_ID` | config | `CBUEZTX2U7GBOOAWIFQW2QOYW6DVQJNCMSLR2I6JCD3RJQLW67VJ5ZNV` |
+| `DEFINDEX_VAULT_ID` | config | `CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL` |
 | `SOROSWAP_ENABLED`, `ONRAMP_MODE`, `OFFRAMP_MODE` | config | `false`, `landing`, `landing` |
 | `BOOTH_START_TS`, `MAINNET_DEMO_ENABLED` | config | counter start (unix seconds), `false` |
 | `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` | config | `60` (booth Wi-Fi shares one IP) |

@@ -1,14 +1,21 @@
 /**
  * Gate 0 spike: DeFindex vault for the anchor's USDC.
  *
- * 1. Uses DEFINDEX_VAULT_ID if it accepts the anchor's USDC; otherwise deploys
- *    a vault through the DeFindex factory (no strategies yet: the testnet Blend
- *    strategies are for Blend's own test USDC, not Circle's).
- * 2. Deposits from the smart account (passkey-signed, relay-submitted),
- *    reads shares and underlying value, withdraws everything back.
+ * 1. Uses DEFINDEX_VAULT_ID if it accepts the anchor's USDC (and, when
+ *    DEFINDEX_STRATEGY_ID is set, lists that strategy); otherwise deploys a
+ *    vault through the DeFindex factory with the strategy attached from the
+ *    start (the vault has no add_strategy). The testnet Blend strategies are
+ *    for Blend's own test USDC, not Circle's, so the strategy is our own
+ *    deployment of DeFindex's hodl strategy for the anchor's USDC.
+ * 2. Deposits from the smart account (passkey-signed, relay-submitted) with
+ *    invest=true, proves the funds reached the strategy, reads shares and
+ *    underlying value, withdraws this run's shares back (the vault unwinds
+ *    them from the strategy). Invest-on-deposit is proportional to the
+ *    vault's current allocation, so on a fresh vault the Manager bootstraps
+ *    it once with rebalance(Invest) and a 1 USDC seed position stays invested.
  * 3. Records how the token-scoped spending limit interacts with vault deposits.
  *
- *   pnpm spike:defindex
+ *   DEFINDEX_STRATEGY_ID=C... pnpm spike:defindex
  */
 import { Asset, scValToNative, xdr } from "@stellar/stellar-sdk";
 import { Anchor } from "./lib/anchor";
@@ -41,29 +48,47 @@ async function vaultAssets(vaultId: string): Promise<AssetStrategySet[]> {
 
 step("Find or deploy a DeFindex vault that accepts this USDC");
 const funder = await ensureFunder();
+const strategyId = optionalEnv("DEFINDEX_STRATEGY_ID");
+const invest = Boolean(strategyId);
 let vaultId = optionalEnv("DEFINDEX_VAULT_ID") ?? loadState().vaultId;
 let deployedNow = false;
 if (vaultId) {
   const assets = await vaultAssets(vaultId);
-  if (assets.some((a) => a.address === usdcContract)) {
-    ok(`vault ${vaultId} accepts ${usdcContract}`);
+  const acceptsAsset = assets.some((a) => a.address === usdcContract);
+  const hasStrategy = !strategyId || assets.some((a) => a.strategies.some((st) => st.address === strategyId));
+  if (acceptsAsset && hasStrategy) {
+    ok(`vault ${vaultId} accepts ${usdcContract}${strategyId ? ` with strategy ${strategyId}` : ""}`);
   } else {
-    warn(`vault ${vaultId} accepts ${assets.map((a) => a.address).join(",")}, not the anchor's USDC; deploying a new one`);
+    warn(`vault ${vaultId} does not match (asset ok: ${acceptsAsset}, strategy ok: ${hasStrategy}); deploying a new one`);
     vaultId = undefined;
   }
 }
 if (!vaultId) {
   const factory = defindexFactoryId();
   const router = soroswapRouterId();
+  if (strategyId) {
+    const strategyAsset = await readNative<string>(strategyId, "asset");
+    if (strategyAsset !== usdcContract) fail(`strategy ${strategyId} is for ${strategyAsset}, not ${usdcContract}`);
+    ok(`strategy ${strategyId} reports asset ${strategyAsset}`);
+  }
   const roles = xdr.ScVal.scvMap(
     [0, 1, 2, 3].map(
       (role) => new xdr.ScMapEntry({ key: xdr.ScVal.scvU32(role), val: addressScVal(funder.publicKey()) }),
     ),
   );
+  const strategies = strategyId
+    ? [
+        xdr.ScVal.scvMap([
+          new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("address"), val: addressScVal(strategyId) }),
+          new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("name"), val: xdr.ScVal.scvString("Hodl USDC") }),
+          new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("paused"), val: xdr.ScVal.scvBool(false) }),
+        ]),
+      ]
+    : [];
   const assets = xdr.ScVal.scvVec([
     xdr.ScVal.scvMap([
       new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("address"), val: addressScVal(usdcContract) }),
-      new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("strategies"), val: xdr.ScVal.scvVec([]) }),
+      new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("strategies"), val: xdr.ScVal.scvVec(strategies) }),
     ]),
   ]);
   const nameSymbol = xdr.ScVal.scvMap([
@@ -109,30 +134,74 @@ if (balance < DEPOSIT) {
 }
 ok(`smart account ${wallet.contractId} holds ${fromStroops(balance)} USDC`);
 
-step("Deposit 1 USDC into the vault from the smart account (passkey-signed, relay-submitted)");
+type ManagedFunds = Array<{ idle_amount: bigint; invested_amount: bigint; strategy_allocations: Array<{ amount: bigint; strategy_address: string }> }>;
+async function managedFunds(): Promise<{ idle: bigint; invested: bigint; raw: ManagedFunds }> {
+  const raw = await readNative<ManagedFunds>(vaultId!, "fetch_total_managed_funds");
+  return { idle: BigInt(raw[0]?.idle_amount ?? 0n), invested: BigInt(raw[0]?.invested_amount ?? 0n), raw };
+}
+const strategyUsdc = async () => (strategyId ? tokenBalance(usdcContract, strategyId) : 0n);
+const depositArgs = () => [xdr.ScVal.scvVec([i128(DEPOSIT)]), xdr.ScVal.scvVec([i128(DEPOSIT)]), addressScVal(wallet.contractId), xdr.ScVal.scvBool(invest)];
+
+step(`Deposit 1 USDC into the vault from the smart account (passkey-signed, relay-submitted, invest=${invest})`);
 const sharesBefore = await tokenBalance(vaultId, wallet.contractId);
-const deposit = await call(wallet.kit, vaultId, "deposit", [
-  xdr.ScVal.scvVec([i128(DEPOSIT)]),
-  xdr.ScVal.scvVec([i128(DEPOSIT)]),
-  addressScVal(wallet.contractId),
-  xdr.ScVal.scvBool(false),
-]);
+const investedBefore = (await managedFunds()).invested;
+const deposit = await call(wallet.kit, vaultId, "deposit", depositArgs());
 persistAuthenticator(wallet.authenticator, wallet.contractId);
 ok(`deposit confirmed: ${txLink(deposit.hash)}`);
 const sharesAfter = await tokenBalance(vaultId, wallet.contractId);
 const underlying = await readNative<bigint[]>(vaultId, "get_asset_amounts_per_shares", [i128(sharesAfter)]);
 const usdcAfterDeposit = await tokenBalance(usdcContract, wallet.contractId);
 ok(`vault shares ${fromStroops(sharesBefore)} -> ${fromStroops(sharesAfter)}; underlying ${underlying.map((u) => fromStroops(BigInt(u))).join(",")} USDC; wallet USDC now ${fromStroops(usdcAfterDeposit)}`);
-const managed = await readNative<unknown>(vaultId, "fetch_total_managed_funds");
-findings.set("deposit", { tx: deposit.hash, sharesBefore: fromStroops(sharesBefore), sharesAfter: fromStroops(sharesAfter), underlyingUsdc: underlying.map((u) => fromStroops(BigInt(u))), totalManagedFunds: managed });
+const managed = await managedFunds();
+const strategyBalance = await strategyUsdc();
+ok(`vault idle ${fromStroops(managed.idle)} / invested ${fromStroops(managed.invested)} USDC${strategyId ? `; strategy holds ${fromStroops(strategyBalance)} USDC` : ""}`);
+findings.set("deposit", { tx: deposit.hash, invest, sharesBefore: fromStroops(sharesBefore), sharesAfter: fromStroops(sharesAfter), underlyingUsdc: underlying.map((u) => fromStroops(BigInt(u))), totalManagedFunds: managed.raw, strategyUsdcAfterDeposit: fromStroops(strategyBalance) });
 
-step("Withdraw all shares back to the smart account");
-const withdraw = await call(wallet.kit, vaultId, "withdraw", [i128(sharesAfter), xdr.ScVal.scvVec([i128(0n)]), addressScVal(wallet.contractId)]);
+// The deposit whose shares this run withdraws again; earlier shares stay in the vault as the seed position.
+let investTx = deposit.hash;
+let proofSharesBefore = sharesBefore;
+let proofSharesAfter = sharesAfter;
+if (invest && strategyId && managed.invested - investedBefore < DEPOSIT) {
+  // Fresh vault: invest-on-deposit is proportional to the current allocation (vault/src/investment.rs,
+  // generate_investment_allocations invests only when the asset already has invested funds), so the
+  // Manager bootstraps the allocation once with rebalance(Invest). Testnet only; the Manager is the spike funder.
+  step("Bootstrap the allocation: Manager rebalance(Invest) moves the idle funds into the strategy");
+  const instruction = xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("Invest"), addressScVal(strategyId), i128(managed.idle)]);
+  const rebalance = await invokeFromClassic(funder, vaultId, "rebalance", [addressScVal(funder.publicKey()), xdr.ScVal.scvVec([instruction])]);
+  const booted = await managedFunds();
+  ok(`rebalance confirmed: ${txLink(rebalance.hash)}; vault idle ${fromStroops(booted.idle)} / invested ${fromStroops(booted.invested)} USDC; strategy holds ${fromStroops(await strategyUsdc())} USDC`);
+  if (booted.invested < managed.idle) fail("rebalance(Invest) did not move the idle funds into the strategy");
+  findings.set("bootstrapRebalance", { tx: rebalance.hash, investedUsdc: fromStroops(booted.invested), why: "invest-on-deposit follows the vault's current allocation, so a fresh vault needs one Manager Invest before deposits reach the strategy; the 1 USDC seed position stays invested" });
+
+  step("Deposit 1 more USDC with invest=true: the deposit itself must reach the strategy");
+  const second = await call(wallet.kit, vaultId, "deposit", depositArgs());
+  persistAuthenticator(wallet.authenticator, wallet.contractId);
+  const after = await managedFunds();
+  const strategyAfterSecond = await strategyUsdc();
+  ok(`deposit confirmed: ${txLink(second.hash)}; invested ${fromStroops(booted.invested)} -> ${fromStroops(after.invested)} USDC; strategy holds ${fromStroops(strategyAfterSecond)} USDC`);
+  if (after.invested - booted.invested < DEPOSIT) fail("deposit with invest=true did not move funds into the strategy");
+  investTx = second.hash;
+  proofSharesBefore = sharesAfter;
+  proofSharesAfter = await tokenBalance(vaultId, wallet.contractId);
+  findings.set("investDeposit", { tx: second.hash, investedBefore: fromStroops(booted.invested), investedAfter: fromStroops(after.invested), strategyUsdcAfter: fromStroops(strategyAfterSecond) });
+} else if (invest && strategyId) {
+  ok(`invest path: deposit moved ${fromStroops(managed.invested - investedBefore)} USDC into the strategy`);
+}
+if (strategyId) findings.set("investTx", investTx);
+
+const withdrawShares = proofSharesAfter - proofSharesBefore;
+step(`Withdraw this run's ${fromStroops(withdrawShares)} shares back to the smart account${strategyId ? " (the vault unwinds them from the strategy; the seed position stays)" : ""}`);
+const strategyBeforeWithdraw = await strategyUsdc();
+const withdraw = await call(wallet.kit, vaultId, "withdraw", [i128(withdrawShares), xdr.ScVal.scvVec([i128(0n)]), addressScVal(wallet.contractId)]);
 persistAuthenticator(wallet.authenticator, wallet.contractId);
 const sharesFinal = await tokenBalance(vaultId, wallet.contractId);
 const usdcFinal = await tokenBalance(usdcContract, wallet.contractId);
-ok(`withdraw confirmed: ${txLink(withdraw.hash)}; shares ${fromStroops(sharesFinal)}, wallet USDC ${fromStroops(usdcFinal)}`);
-findings.set("withdraw", { tx: withdraw.hash, sharesAfter: fromStroops(sharesFinal), walletUsdc: fromStroops(usdcFinal), usdcBeforeDeposit: fromStroops(balance) });
+const managedAfter = await managedFunds();
+const strategyAfter = await strategyUsdc();
+ok(`withdraw confirmed: ${txLink(withdraw.hash)}; shares ${fromStroops(sharesFinal)}, wallet USDC ${fromStroops(usdcFinal)}; vault invested now ${fromStroops(managedAfter.invested)}${strategyId ? `, strategy holds ${fromStroops(strategyAfter)} (was ${fromStroops(strategyBeforeWithdraw)})` : ""}`);
+if (strategyId && strategyAfter >= strategyBeforeWithdraw) fail("withdraw did not divest from the strategy");
+findings.set("withdraw", { tx: withdraw.hash, divestsFromStrategy: Boolean(strategyId), sharesWithdrawn: fromStroops(withdrawShares), sharesKept: fromStroops(sharesFinal), walletUsdc: fromStroops(usdcFinal), usdcBeforeDeposit: fromStroops(balance), investedAfterWithdraw: fromStroops(managedAfter.invested), strategyUsdcBeforeWithdraw: fromStroops(strategyBeforeWithdraw), strategyUsdcAfterWithdraw: fromStroops(strategyAfter) });
+if (strategyId) findings.set("divestTx", withdraw.hash);
 
 step("Spending limit vs. vault deposit (does the token-scoped limit count deposits?)");
 const limit = await readSpendingLimit(wallet.kit, usdcContract);

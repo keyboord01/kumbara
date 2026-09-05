@@ -303,7 +303,7 @@ export default function BoothAdminPage() {
                 const dep = deps?.[name];
                 return (
                   <li key={name} className="flex items-center gap-2" title={dep?.detail ?? ""}>
-                    <span className={`h-3 w-3 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                    <span role="img" className={`h-3 w-3 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
                     <span className="font-medium">{t.admin.healthNames[name]}</span>
                     {dep && <span className="tnum text-xs text-muted">{dep.ms} ms</span>}
                   </li>

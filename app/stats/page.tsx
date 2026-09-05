@@ -387,7 +387,7 @@ function Stats() {
               const dep = deps?.[name];
               return (
                 <li key={name} className="flex items-center gap-2">
-                  <span className={`h-3 w-3 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                  <span role="img" className={`h-3 w-3 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
                   <span>{t.admin.healthNames[name]}</span>
                 </li>
               );

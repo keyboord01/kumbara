@@ -81,6 +81,7 @@ jobs:
           node scripts/e2e-withdraw.mjs
           node scripts/e2e-booth.mjs
           node scripts/e2e-stats.mjs
+          node scripts/e2e-failures.mjs
       - name: Upload screenshots
         if: failure()
         uses: actions/upload-artifact@v4
@@ -145,6 +146,10 @@ jobs:
         id: stats
         if: steps.preflight.outputs.skip != 'true'
         run: node scripts/e2e-stats.mjs
+      - name: Failure screens
+        id: failures
+        if: steps.preflight.outputs.skip != 'true'
+        run: node scripts/e2e-failures.mjs
       - name: Upload screenshots
         if: failure()
         id: shots
@@ -159,7 +164,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.deposit.outcome == 'failure' && 'deposit' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || 'preflight' }}
+          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.deposit.outcome == 'failure' && 'deposit' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
           ARTIFACT_URL: ${{ steps.shots.outputs.artifact-url }}
         run: |
           TITLE="Scheduled E2E failed at step: $STEP"

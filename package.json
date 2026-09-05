@@ -27,7 +27,8 @@
     "lint": "eslint .",
     "e2e:booth": "node --env-file=.env scripts/e2e-booth.mjs",
     "e2e:stats": "node scripts/e2e-stats.mjs",
-    "e2e:all": "pnpm e2e:onboard && pnpm e2e:deposit && pnpm e2e:withdraw && pnpm e2e:booth && pnpm e2e:stats",
+    "e2e:failures": "node scripts/e2e-failures.mjs",
+    "e2e:all": "pnpm e2e:onboard && pnpm e2e:deposit && pnpm e2e:withdraw && pnpm e2e:booth && pnpm e2e:stats && pnpm e2e:failures",
     "demo:record": "node --env-file=.env scripts/demo-record.mjs"
   },
   "devDependencies": {

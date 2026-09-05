@@ -105,6 +105,7 @@ APP_URL=http://localhost:3000 pnpm e2e:deposit   # onboard → deposit 100 TRY �
 APP_URL=http://localhost:3000 pnpm e2e:withdraw  # … → withdraw 1 USDC → simulated FAST payout
 APP_URL=http://localhost:3000 pnpm e2e:booth     # booth QR, presenter console, seed demo account, metrics
 APP_URL=http://localhost:3000 pnpm e2e:stats     # public /stats page
+APP_URL=http://localhost:3000 pnpm e2e:failures  # wrong-network block, offline banner, recovery page, failure gallery
 node scripts/shots-failures.mjs                  # screenshots of every failure screen from /failures
 node scripts/demo-record.mjs                     # record the fallback round-trip video into docs/demo/
 ```

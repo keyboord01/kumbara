@@ -2,54 +2,100 @@
 
 Rise In × Stellar Pro Hackathon, Istanbul, 19–20 September 2026. Everything below is **Stellar testnet**: no real lira moves, and every screen says so.
 
-## Setup (10 minutes before)
+## Pre-doors checklist (30 minutes before)
 
-1. Open `https://kumbara.vercel.app/booth/admin?token=<BOOTH_ADMIN_TOKEN>` on the presenter's phone or laptop. The token leaves the URL immediately; keep the tab open.
-2. Check the four dots: Anchor, Relay, Stellar RPC, DeFindex vault must all be green. The sponsor card must say "Sufficient" (≥ 3 XLM; keep it around 20 XLM, use "Fund via Friendbot" on testnet).
-3. Open `https://kumbara.vercel.app/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`.
-4. Seed one demo account for the jury withdraw: on the admin page tap "Seed a demo account" (Face ID on the presenter's device, then a second Face ID when the USDC arrives). About 90 seconds. Leave that account connected on the presenter's phone.
+1. **Alias re-pointed.** A production deploy is not finished until `kumbara.vercel.app` points at it: `curl -s "https://kumbara.vercel.app/api/anchor/info?cb=$(date +%s)"` must show the vault id from `docs/deploy.md`, and `/api/health` must answer `ok:true`. If not, run the `vercel alias set` line in `docs/deploy.md`.
+2. **CI green.** The last "Production round trip (scheduled)" run under GitHub → Actions → E2E is green, and `/booth/admin` shows no red "Last CI run failed" banner. If it is red, open the linked run: the failing step names the subsystem (onboard = relay, deposit = anchor or landing, withdraw = anchor payout, booth = admin/sponsor, stats = metrics).
+3. **Sponsor topped up.** The sponsor card on `/booth/admin` says "Sufficient"; keep it around 20 XLM (Fund via Friendbot on testnet). Below 3 XLM onboarding pauses; the scheduled CI run skips itself below 8 XLM.
+4. **Rate limits set.** Booth Wi-Fi shares one IP: `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR=60` and `RATE_LIMIT_ACCOUNTS_PER_REF=300` in the production environment (see `docs/deploy.md`). Changing them is an env change plus a deploy plus the alias step.
+5. **Admin token loaded on the presenter phone.** Open `https://kumbara.vercel.app/booth/admin?token=<BOOTH_ADMIN_TOKEN>`; the token leaves the URL immediately. Keep the tab open; the four dots must be green.
+6. **Stats page open.** Second screen: `https://kumbara.vercel.app/stats?mode=tv` (projector mode: big numbers, live feed, auto-cycling chart). Phone or laptop: `https://kumbara.vercel.app/stats` for the full page with contracts and how-it-works.
+7. **Booth QR screen.** `https://kumbara.vercel.app/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`. The link carries `&net=testnet`, so a mainnet build would refuse it.
+8. **Demo account seeded.** On the admin page tap "Seed a demo account" (Face ID on the presenter's device, then a second Face ID when the USDC arrives). About 90 seconds. Leave that account connected on the presenter's phone for the jury withdraw.
+9. **Backup videos ready.** The phone recording of the round trip, and the fallback `docs/demo/round-trip.mp4` with its captions.
 
 ## The three-minute script
 
-Times are from the automated browser runs on testnet (`pnpm e2e:onboard`, `pnpm e2e:deposit`, `pnpm e2e:withdraw`, `pnpm e2e:booth`, several runs on 5 September 2026, ranges given); a phone on booth Wi-Fi is within a few seconds of these.
+Times are from the automated browser runs on testnet (`pnpm e2e:onboard`, `pnpm e2e:deposit`, `pnpm e2e:withdraw`, `pnpm e2e:booth`, several runs on 5–6 September 2026, ranges given); a phone on booth Wi-Fi is within a few seconds of these. The second screen shows `/stats?mode=tv`: the counter and the live feed move as the visitor goes through the steps.
 
 | Step | What the visitor does | What happens | Time |
 | --- | --- | --- | --- |
-| 1 | Scans the QR, taps **Kumbaranı aç**, Face ID | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link | 8–16 s |
+| 1 | Scans the QR, taps **Kumbaranı aç**, Face ID | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link; the counter on the booth screen and the stats feed tick | 8–16 s |
 | 2 | Waits on Savings | Spending limit (1,000 USDC per transaction) installs in the background; second Face ID prompt; Deposit unlocks | +13–25 s |
 | 3 | Taps **Yükle**, enters 100, **Devam** | IBAN, alıcı, açıklama (the reference) in the familiar transfer layout | 1–3 s |
 | 4 | Presenter taps **Play the bank** on the admin page | Sandbox transfer matched; the app detects the lira, runs the landing-account on-ramp and moves the USDC into the kumbara | 35–55 s |
-| 5 | Face ID once more (autopilot) | USDC deposited into the DeFindex vault; three TESTNET transaction links | 10–20 s |
+| 5 | Face ID once more (autopilot) | USDC deposited into the DeFindex vault (through its strategy); three TESTNET transaction links; "deposited" appears in the stats feed | 10–20 s |
 | 6 | Back on Savings | Vault balance and its TRY equivalent (Reflector rate) | instant |
-| 7 | Taps **Çek**, enters 1 (or **Tümünü çek**), **Devam**, two Face IDs | Vault withdrawal, transfer to the reverse landing account, anchor payout; payout reference shown | 40–65 s |
+| 7 | Taps **Çek**, enters 1 (or **Tümünü çek**), **Devam**, two Face IDs | Vault withdrawal, transfer to the reverse landing account, anchor payout; payout reference shown; "withdrew" in the feed | 40–65 s |
 
-Measured totals: scan to Savings 8–16 s; scan to USDC in the vault 80–120 s; a full deposit-and-withdraw round trip 2–3 minutes. The counter on the booth screen goes up by one at step 1 (deploy confirmed). Seeding the jury demo account from the admin page takes about 90 s.
+Measured totals: scan to Savings 8–16 s; scan to USDC in the vault 80–120 s; a full deposit-and-withdraw round trip 2–3 minutes. Seeding the jury demo account from the admin page takes about 90 s.
 
-What to say while waiting (all true): the kumbara is an OpenZeppelin smart account whose only key is the visitor's passkey; Kumbara never holds their money; the lira leg is a regulated anchor's job; fees are paid by Sembol's relay so nobody needs XLM; the USDC sits in a DeFindex vault that can earn yield (no active strategy on testnet, and no rate is ever promised).
+What to say while waiting (all true): the kumbara is an OpenZeppelin smart account whose only key is the visitor's passkey; Kumbara never holds their money; the lira leg is a regulated anchor's job; fees are paid by Sembol's relay so nobody needs XLM; the USDC sits in a DeFindex vault that runs DeFindex's hodl strategy on testnet (no yield accrues there, and no rate is ever promised).
+
+If the phone locks or the visitor closes the tab mid-flow: reopening the link returns to the same status timeline from stored state ("Deposit in progress: resumed"). Nothing needs to be redone.
 
 ## Failure playbook
 
-**Anchor down (red Anchor dot, or deposits stuck on "Waiting for your transfer" after playing the bank).**
-Deposits and withdrawals cannot progress; onboarding and the Savings screen still work. Say so and demo onboarding plus the security page (backup passkey, spending limit). Already-started deposits resume by themselves when the anchor returns (the pipeline retries every poll, six attempts per step). The anchor's own status page: `https://tr-mock-anchor.fly.dev/health`. If the treasury USDC is low, on-ramps wait with `pending_reason: treasury_low`; ask the anchor team to refill.
+Every failure has its own screen in the app (TR/EN, plain language, one action, raw detail behind "Details"); the screen names the section below. The full table is `docs/failure-states.md`; every screen can be previewed at `/failures`.
 
-**Relay down (red Relay dot, onboarding shows "Sembol Cloud could not be reached").**
-Nothing that needs a signature can go through: no new accounts, no vault deposits, no withdrawals. Do not ask anyone for XLM; the app never will. Use the seeded account to walk through Savings and the security page, and show the recorded backup video for the round trip. Pre-authorized landing transactions have no expiry, so in-flight deposits complete once the relay is back. If only the hosted Channels service is down, switching `SEMBOL_CLOUD_URL` to another relay and redeploying takes about three minutes.
+### Anchor down
 
-**Passkey refused ("Face ID was cancelled", or nothing happens on tap).**
-On iPhone, Safari needs a tap for every WebAuthn prompt: the deposit and withdraw screens show a button ("Put it in the vault", "Send") whenever an automatic prompt was refused; tap it. Private browsing on iOS blocks passkeys; ask the visitor to open the link in normal Safari. Android Chrome works with a screen lock set. If the visitor's device has no platform authenticator at all, the button explains it; hand them the presenter's phone for the demo.
+Red Anchor dot, "The anchor is not answering", deposits stuck on "Waiting for your transfer" after playing the bank, or "The anchor has not matched the payment" on a withdrawal. Deposits and withdrawals cannot progress; onboarding and the Savings screen still work. Say so and demo onboarding plus the security page (backup passkey, spending limit). Already-started deposits resume by themselves when the anchor returns (the pipeline retries every poll, six attempts per step). The anchor's own status page: `https://tr-mock-anchor.fly.dev/health`. If the treasury USDC is low, on-ramps wait with `pending_reason: treasury_low`; ask the anchor team to refill. An unmatched withdrawal payment shows up in the anchor's `/v1/sandbox/unmatched-deposits`; the visitor's USDC is at the anchor, their lira has not been sent; the anchor team matches it by memo.
 
-**Onboarding paused ("sponsor account is low on XLM").**
-The sponsor dropped below `SPONSOR_MIN_XLM`. On the admin page tap "Fund via Friendbot" (testnet) and retry; on mainnet send XLM to the address shown.
+### Relay down
 
-**Rate limited ("No new kumbaras from this device or booth for now").**
-Per-IP cap is 5 accounts per hour (booth Wi-Fi shares one IP: raise `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` in `fly.toml` before the event, e.g. to 60) and the per-ref cap is 300; both are env-configurable.
+Red Relay dot; "The relay is not answering", "The relay refused the request" or "The relay's fee budget is used up". Nothing that needs a signature can go through: no new accounts, no vault deposits, no withdrawals. Do not ask anyone for XLM; the app never will. Use the seeded account to walk through Savings and the security page, and show the backup video for the round trip. Pre-authorized landing transactions have no expiry, so in-flight deposits complete once the relay is back. Budget exhausted: top up the project's budget on the relay (OpenZeppelin Channels: the channel accounts' XLM) and retry. If only the hosted Channels service is down, switching `SEMBOL_CLOUD_URL` to another relay, redeploying and re-pointing the alias takes about three minutes.
 
-**Deposit stuck on "The anchor is sending USDC" (order `pending`, reason `treasury_low`).**
-The amount was larger than the anchor's shared testnet USDC treasury (the anchor dot on the admin page shows the balance; the deposit form now refuses amounts above about 90% of it). The anchor keeps the order and pays when its treasury is refilled; the app cannot cancel it on the anchor's side. After 90 seconds the Deposit screen offers "Abandon and start over": the visitor can then make a smaller deposit, and the abandoned one appears under "Waiting at the anchor / abandoned" on the admin page with a Resume button for after the refill. Keep booth deposits between 100 and 2,000 TRY.
+### Passkey refused
 
-**Vault red, everything else green.**
-The vault contract does not answer simulations (RPC hiccup or a testnet reset). Deposits stop at "USDC arrived; putting it in the vault" and withdrawals cannot start; the USDC stays in the visitor's kumbara. Retry after a minute; if a testnet reset happened, the contract set in `fly.toml` must be redeployed (see `docs/anchor-notes.md`).
+"Face ID was cancelled", "This browser cannot use passkeys", "Can't find your passkey?", or nothing happens on tap. On iPhone, Safari needs a tap for every WebAuthn prompt: the deposit and withdraw screens show a button ("Put it in the vault", "Send") whenever an automatic prompt was refused; tap it. Private browsing on iOS blocks passkeys; ask the visitor to open the link in normal Safari. Android Chrome works with a screen lock set. If the visitor's device has no platform authenticator at all, the screen says so; hand them the presenter's phone for the demo. A visitor who already has a kumbara taps "I already have a kumbara" (their passkey) or, if the passkey is gone, "I can't find my passkey" → `/kurtar`, which uses the backup passkey or recovery key they enrolled on the security page. Without an enrolled backup there is no way in, for anyone.
+
+### Onboarding paused
+
+"Opening kumbaras is paused": the sponsor dropped below `SPONSOR_MIN_XLM`. On the admin page tap "Fund via Friendbot" (testnet) and have the visitor tap "Try again"; on mainnet send XLM to the address shown on the admin page.
+
+### Rate limited
+
+"Too many kumbaras from this connection" (per-IP cap, 60 per hour on booth Wi-Fi) or "This booth reached its limit" (per-ref cap, 300 per booth link). Wait, or raise `RATE_LIMIT_ACCOUNTS_PER_IP_HOUR` / `RATE_LIMIT_ACCOUNTS_PER_REF` (env change + deploy + alias). A second booth link (`/booth?n=2`) has its own per-ref count.
+
+### Deposit stuck at the anchor (treasury low)
+
+"The anchor is sending USDC" for more than 90 seconds (order `pending`, reason `treasury_low`). The amount was larger than the anchor's shared testnet USDC treasury (the anchor dot shows the balance; the deposit form refuses amounts above about 90% of it). The anchor keeps the order and pays when its treasury is refilled; the app cannot cancel it on the anchor's side. The Deposit screen offers "Abandon and start over": the visitor makes a smaller deposit, and the abandoned one appears under "Waiting at the anchor / abandoned" on the admin page with a Resume button for after the refill. Keep booth deposits between 100 and 2,000 TRY.
+
+### Transfer never arrives
+
+"Your transfer has not arrived yet" after `DEPOSIT_TRANSFER_TIMEOUT_MIN` (30) minutes on the IBAN screen. On testnet this means nobody played the bank: tap "Play the bank" on the admin page for that reference (the newest pending deposit is preselected). The visitor can also keep waiting (30 more minutes) or cancel; a late transfer still completes the deposit because the record stays open.
+
+### Amount mismatch
+
+"The anchor paid a different amount" (presenter screen, shows the bridge account with its explorer link). The anchor sent an amount that differs from what the pre-authorized forward was signed for, so the forward cannot fire and the USDC sits on the ownerless bridge account: visible on-chain, spendable by nobody, not custodied by Kumbara. Procedure:
+
+1. Open the bridge account on stellar.expert (link on the screen, or from "Waiting at the anchor / abandoned" on the admin page, which shows paid / expected) and read its USDC balance.
+2. **Paid more than expected**: tap **Resume** on the admin page. The pre-authorized forward moves exactly the expected amount into the kumbara; the surplus stays on the bridge account (nobody can move it; on testnet that is the end of it, on mainnet the anchor reconciles it with the visitor).
+3. **Paid less than expected**: the bridge account needs topping up to the expected amount before the forward can fire. On testnet, send the difference in USDC to the bridge address from a funded test account (the spike funder: `pnpm spike:anchor` shows its address, or any wallet holding the anchor's USDC), then tap **Resume**. On mainnet the anchor, as the paying party, sends the difference.
+4. Tell the visitor: the USDC is theirs on-chain the moment the forward fires; nothing was lost and nobody else holds it. Retry the deposit with the same amount only after the record shows "Done. USDC is in the vault."
+
+### Vault red
+
+The vault dot is red while the others are green: "The vault refused the transaction" or "The vault's strategy failed". The vault contract does not answer simulations (RPC hiccup or a testnet reset). Deposits stop at "USDC arrived; putting it in the vault" and withdrawals cannot start; the USDC stays in the visitor's kumbara. Retry after a minute; if a testnet reset happened, the contract set in `docs/deploy.md` (vault, strategy) must be redeployed (`docs/architecture.md`, "DeFindex strategy on testnet").
+
+### Withdrawal stuck
+
+"The USDC never reached the bridge account": the browser reported the transfer but the bridge account shows no USDC after three minutes. Check the transfer link on the screen; if that transaction failed, the USDC is still in the kumbara and the visitor can start a new withdrawal. A reload never repeats the vault withdrawal: the app remembers it server-side.
+
+### Vercel login
+
+"Vercel login is on" (presenter screen) or `/api/health` answers an HTML page: deployment protection was switched back on for the deployment. Fix from a laptop: `curl -X PATCH "https://api.vercel.com/v9/projects/kumbara" -H "Authorization: Bearer $VERCEL_TOKEN" -H "content-type: application/json" -d '{"ssoProtection": null}'` (or Vercel dashboard → Project → Settings → Deployment Protection → off). No redeploy needed; reload the app.
+
+### CI failed
+
+Red "Last CI run failed at step X" banner on `/booth/admin`: the 6-hourly production round trip failed. Open the run (link on the banner) and the issue it opened (label `e2e-failure`, with the screenshot artifact). The failing step tells you where to look: onboard → relay or sponsor, deposit → anchor or landing account, withdraw → anchor payout, booth → admin token or sponsor, stats → metrics. The banner clears on the next green run (Actions → E2E → Run workflow to trigger one by hand), which also closes the issue.
 
 ## After the event
 
-`https://kumbara.vercel.app/api/metrics?since=<BOOTH_START_TS>` is the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals, each with transaction links. It is public and cached for 30 seconds.
+`https://kumbara.vercel.app/stats` and `https://kumbara.vercel.app/api/metrics?since=<BOOTH_START_TS>` are the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals with transaction links, TRY in/out, the live vault total and the timings. Both are public; the seeded demo account and the automated E2E runs are excluded unless `?include=seed,e2e`.
+
+## Backup videos
+
+- The phone recording of the round trip made at the booth is the backup demo.
+- `docs/demo/round-trip.mp4` (+ `round-trip.captions.md`, `round-trip.vtt`) is the fallback to that fallback: the same round trip recorded against production by `pnpm demo:record` (Playwright, virtual passkey), under five minutes, with a caption per step.

@@ -54,9 +54,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 ## 8 · Regulatory positioning
 
-**TR.** Kumbara emanet almayan bir yazılım: lira, USDC ya da anahtar tutmaz. Lisanslı anchor düzenlemeye tabi taraf; parayı o tutar, KYC'yi o yapar, kişinin kendi IBAN'ına öder. Türkiye'de ödeme özelliği yok. MASAK kuralları arayüzü şekillendirir. Türkiye hukuki görüşü kendi bütçemizden; ana ağ onu bekler.
+**TR.** Kumbara emanet almayan bir yazılım: lira, USDC ya da anahtar tutmaz. Lisanslı anchor düzenlemeye tabi taraf; parayı o tutar, KYC'yi o yapar, kişinin kendi hesabına öder. Ödeme özelliği yok. Türkiye ilk aday; birinci dilimde pazar ve anchor için git/gitme kararı veririz. Türkiye geçemezse pilot, geçen bir sonraki pazarda açılır.
 
-**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys. The licensed anchor is the regulated party; it holds the fiat, does KYC, and pays out to the person's own IBAN. No payments feature in Türkiye. MASAK rules shape the interface. The Turkish legal opinion is self-funded; mainnet waits for it.
+**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys. The licensed anchor is the regulated party; it holds the fiat, does KYC, and pays out to the person's own account. No payments feature. Türkiye is the first candidate; Tranche 1 makes a market and anchor go/no-go. If Türkiye fails, the pilot launches in the next market that passes.
 
 ## 9 · Team
 
@@ -66,9 +66,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 ## 10 · Roadmap and the ask
 
-**TR.** Üç dilim, toplam altı ay. Birincisi zemin: SEP'e hazır anchor seçimi, Audit Bank başvurusu, relay bütçeleri, dağıtım belgeleri. İkincisi test ağı tam ve güvenli: STRIDE tehdit modeli, izleme planı, denetim ve düzeltmeler. Üçüncüsü ana ağ ve açık pilot; ölçüt kasadaki NAV, otuz gün. Her satırın maliyeti ve doğrulaması ekranda.
+**TR.** Üç dilim, toplam altı ay, yetmiş yedi bin dolar. Birincisi zemin: pazar ve anchor kararı, Audit Bank başvurusu, relay bütçeleri, dağıtım belgeleri. İkincisi test ağı tam ve güvenli: STRIDE tehdit modeli, izleme planı, denetim ve düzeltmeler. Üçüncüsü ana ağ ve açık pilot; ölçüt otuz günde ortalama beş bin USDC NAV. Her satırın maliyeti ve doğrulaması ekranda.
 
-**EN.** Three tranches, six months in total. First, groundwork: a SEP-ready anchor chosen, the Audit Bank application, relay budgets, deployment docs. Second, testnet-complete and secured: STRIDE threat model, monitoring plan, audit and fixes. Third, mainnet launch and public pilot; the metric is vault NAV over thirty days. Every line has a cost and a way to verify it.
+**EN.** Three tranches, six months, seventy-seven thousand dollars. First, groundwork: the market and anchor go/no-go, the Audit Bank application, relay budgets, deployment docs. Second, testnet-complete and secured: STRIDE threat model, monitoring plan, audit and fixes. Third, mainnet launch and public pilot; the metric is an average NAV of five thousand USDC over thirty days. Every line has a cost and check.
 
 ## A · Appendix · sequence diagram (hackathon variant)
 

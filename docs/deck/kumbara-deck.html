@@ -80,14 +80,26 @@
   body[data-variant="hackathon"] #s4 .step b { width: 40px; height: 40px; font-size: 21px; }
   body[data-variant="hackathon"] #s4 .appendix-note { display: block; }
   .appendix-note { display: none; font-size: 21px; color: var(--muted); margin-top: 26px; }
-  .costs { border-collapse: collapse; width: 100%; font-size: 16px; }
-  .costs th, .costs td { padding: 4px 9px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.2; }
+  .costs { border-collapse: collapse; width: 100%; font-size: 14px; table-layout: fixed; }
+  .costs th, .costs td { padding: 3px 8px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.2; }
   .costs th { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
   .costs td { color: var(--ink-2); }
   .costs td.usd { font-family: var(--mono); color: var(--danger); white-space: nowrap; text-align: right; }
-  .costs td.ver { color: var(--muted); font-size: 15.5px; }
+  .costs td.ver { color: var(--muted); font-size: 13px; }
+  .costs td.who { font-family: var(--mono); font-size: 12.5px; color: var(--teal); white-space: nowrap; text-align: right; }
+  .costs tr.tr td.t.who { white-space: normal; }
+  .costs tr.ctr td { color: var(--muted); }
+  .costs tr.ctr td:first-child { padding-left: 24px; }
+  .costs tr.ctr td.who, .costs tr.ctr td.usd { color: var(--coral); }
+  .costs tr.tr td.t.who { text-align: right; color: var(--teal); }
+  .cands { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; }
+  .cands li { font-size: 14px; line-height: 1.3; color: var(--ink-2); }
+  .cands li b { color: var(--ink); }
+  .mini { font-size: 14.5px; border-collapse: collapse; width: 100%; }
+  .mini td { padding: 3px 0; border: 0; font-size: 14px; line-height: 1.3; vertical-align: top; }
+  .mini td:first-child { color: var(--muted); width: 31%; padding-right: 10px; }
   .costs tr.sub td { font-weight: 700; color: var(--ink); background: var(--paper-2); }
-  .costs tr.tr td.t { font-family: var(--mono); font-size: 12.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--teal); padding-top: 9px; }
+  .costs tr.tr td.t { font-family: var(--mono); font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); padding-top: 8px; }
   .cite-foot { position: absolute; left: 110px; right: 110px; bottom: 60px; font-size: 15px; color: var(--muted); line-height: 1.35; }
 </style>
 </head>
@@ -129,7 +141,8 @@
       <p>A bank-transfer habit and a phone with Face ID are what people have. That is the whole interface Kumbara asks for: no seed phrase, no XLM, no install.</p>
     </div>
   </div>
-  <p class="cite"><sup>1</sup> TÜİK (Turkish Statistical Institute), <em>Tüketici Fiyat Endeksi, Ağustos 2026</em>, news bulletin of 3 September 2026: CPI +31.51% against August 2025 (monthly +1.84%). Listed on tuik.gov.tr ("%31,51 (yıl)") and published at veriportali.tuik.gov.tr/tr/press/58290; verified there on 6 September 2026.</p>
+  <p style="margin-top:30px;font-size:25px;line-height:1.42;max-width:1660px"><strong>Türkiye is market one.</strong> The product is built for a class of markets: high-inflation economies with a bank-transfer habit and an existing Stellar anchor. The anchor is configuration, not code, so the same app serves the next such market.</p>
+  <p class="cite"><sup>1</sup> TÜİK (Turkish Statistical Institute), <em>Tüketici Fiyat Endeksi, Ağustos 2026</em>, news bulletin of 3 September 2026: CPI +31.51% against August 2025 (monthly +1.84%). Listed on tuik.gov.tr ("%31,51 (yıl)") with the bulletin at veriportali.tuik.gov.tr/tr/press/58290; verified on tuik.gov.tr on 6 September 2026.</p>
   <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
 </section>
 
@@ -331,24 +344,27 @@ sequenceDiagram
 <!-- 8 · Regulatory positioning -->
 <section class="slide" id="s8">
   <div class="eyebrow">Regulatory posture · and where it launches</div>
-  <h2>Non-custodial software in front of a licensed anchor. The launch market is a decision, not a promise.</h2>
-  <div class="row" style="gap:36px;align-items:stretch;flex:1;min-height:0">
-    <div class="card" style="flex:1.25;padding:36px 42px">
-      <ul style="font-size:29px;line-height:1.45;display:flex;flex-direction:column;gap:18px;margin:0">
+  <h2 style="font-size:50px;margin-bottom:22px">Non-custodial software in front of a licensed anchor. Built for any market that has one; Türkiye is market one.</h2>
+  <div class="row" style="gap:32px;align-items:stretch;flex:1;min-height:0">
+    <div class="card" style="flex:1;padding:24px 30px">
+      <ul style="font-size:22px;line-height:1.38;display:flex;flex-direction:column;gap:10px;margin:0">
         <li><strong>Kumbara never holds lira, USDC or keys.</strong> Every transfer is authorized by the visitor's own passkey on their own smart account; the bridge accounts have no owner.</li>
-        <li><strong>The licensed anchor is the regulated party:</strong> it holds the fiat, performs KYC and pays out only to the customer's own named IBAN.</li>
+        <li><strong>The licensed anchor is the regulated party:</strong> it holds the fiat, performs KYC and pays out only to the customer's own named bank account.</li>
         <li><strong>No payments feature:</strong> no send, no P2P, no merchant flow. Deposit into a vault and withdraw back to your own account, nothing else.</li>
         <li><strong>Local AML rules shape the UX</strong> wherever it launches: named accounts in and out, an on-chain per-transaction cap, anchor-side limits, no cash or third-party paths.</li>
+        <li><strong>The regulatory gate is the anchor's own position:</strong> the selected anchor's written compliance position on a non-custodial front end, obtained during the Tranche 1 go/no-go. No paid counsel; no entity is needed to receive the award.</li>
       </ul>
     </div>
-    <div class="col stack" style="gap:22px">
-      <div class="card stack" style="gap:10px;padding:30px 34px;flex:1;justify-content:center">
-        <span class="eyebrow">Türkiye first, by fit</span>
-        <p style="font-size:24px;line-height:1.42">Annual inflation of 31.5% (TÜİK, August 2026), a bank-transfer habit everyone already has, and a Stellar anchor sandbox that already runs the TRY rails this deck demonstrates.</p>
+    <div class="col stack" style="flex:1;gap:20px">
+      <div class="card stack" style="gap:8px;padding:22px 30px;flex:1;justify-content:center">
+        <span class="eyebrow">Any licensed Stellar anchor · the anchor is a config choice</span>
+        <p style="font-size:21px;line-height:1.4">Issuer and endpoints come from the anchor's stellar.toml, deposits and withdrawals run on SEP rails, and the bridge accounts pay any classic account, so they are anchor-agnostic. The vault and wallet layer never change. Per market: copy, currency display and the rate oracle.</p>
+        <p style="font-size:21px;line-height:1.4"><strong>Market class:</strong> high-inflation economies with a bank-transfer habit and an existing Stellar anchor. <strong>Türkiye first, by fit:</strong> 31.5% annual inflation (TÜİK, August 2026), a transfer habit everyone already has, and the TRY sandbox rails this deck demonstrates.</p>
       </div>
-      <div class="card stack" style="gap:10px;padding:30px 34px;flex:1;justify-content:center;border-color:var(--teal)">
-        <span class="eyebrow">Go / no-go in Tranche 1</span>
-        <p style="font-size:24px;line-height:1.42">Candidate markets are scored on two things: a licensed Stellar anchor with SEP rails, and rules that allow a non-custodial savings app. If Türkiye fails the second test, the pilot launches in the next market that passes; the app does not change, only the anchor in front of it.</p>
+      <div class="card stack" style="gap:8px;padding:22px 30px;flex:1;justify-content:center;border-color:var(--teal)">
+        <span class="eyebrow">Go / no-go in Tranche 1 · fallback built in</span>
+        <p style="font-size:21px;line-height:1.4">Tranche 1 ranks the on/off-ramps on the SCF Integration List by market: licensed status, bank-transfer rails to the customer's own account, a written non-custodial position, and whether a counterparty entity is required (a shortlist criterion, not a cost). Türkiye stays first only with a licensed TRY anchor that passes; otherwise the pilot launches in the top-ranked market and the app does not change.</p>
+        <p style="font-size:21px;line-height:1.4">The same shortlist is the market-two shortlist. A second market is the natural follow-on award once the metric is hit; it is not promised inside this one.</p>
       </div>
     </div>
   </div>
@@ -382,51 +398,62 @@ sequenceDiagram
 </section>
 
 <!-- 10 · Roadmap and the ask -->
-<section class="slide" id="s10" style="padding-top:56px;padding-bottom:104px">
-  <div class="eyebrow">Roadmap and the ask · SCF Build Award · Integration Track · three tranches, 45 + 60 + 75 days, 6 months total</div>
-  <h2 style="margin:6px 0 12px;font-size:38px">Groundwork, then testnet-complete and secured, then mainnet. Every line has a cost and a check.</h2>
-  <div class="row" style="gap:26px;align-items:flex-start">
-    <div style="flex:1.6;min-width:0">
+<section class="slide" id="s10" style="padding-top:44px;padding-bottom:100px">
+  <div class="eyebrow">Roadmap and the ask · SCF Build Award · Integration Track · 60 + 60 + 60 days, the handbook's six-month maximum</div>
+  <h2 style="margin:6px 0 10px;font-size:33px">Groundwork, testnet-complete and secured, then mainnet in the selected pilot market. The ask, one engineer at 60% plus contractor lines: $54,810.</h2>
+  <div class="row" style="gap:20px;align-items:flex-start">
+    <div style="flex:2.05;min-width:0">
       <table class="costs">
-        <tr><th style="width:55%">Deliverable</th><th style="width:31%">How reviewers verify</th><th style="text-align:right">USD</th></tr>
-        <tr class="tr"><td class="t" colspan="2">Tranche 1 · groundwork · ≤ 45 days</td><td class="t usd" style="color:var(--teal)">subtotal $14,000</td></tr>
-        <tr><td>Market and anchor go/no-go: candidate markets scored on a licensed Stellar anchor with SEP rails (1, 6, 10, 12, 24, 38) and rules that allow a non-custodial savings app; launch market and anchor selected</td><td class="ver">scoring document and decision memo in the repo</td><td class="usd">$3,000</td></tr>
-        <tr><td>Audit Bank application submitted with scope: policy install, bridge accounts, server path</td><td class="ver">submission confirmation and scope document</td><td class="usd">$1,000</td></tr>
-        <tr><td>Relay budgets and allowlists: per-project caps, contract allowlist, refusal alerts</td><td class="ver">config in repo; a refused call's log and tx</td><td class="usd">$6,000</td></tr>
-        <tr><td>Hosted (Vercel + Turso) and self-host (Fly + SQLite) deployment docs with scripted setup</td><td class="ver">docs URLs; a fresh deploy from the docs</td><td class="usd">$4,000</td></tr>
-        <tr class="tr"><td class="t" colspan="2">Tranche 2 · testnet-complete and secured · ≤ 60 days</td><td class="t usd" style="color:var(--teal)">subtotal $31,000</td></tr>
-        <tr><td>Threat model in SDF's STRIDE template format (assets, threat table, mitigations)</td><td class="ver">docs/security/threat-model.md</td><td class="usd">$5,000</td></tr>
-        <tr><td>On-chain monitoring plan in the builders template, implemented for the vault, policy, sponsor and bridge accounts with alert routing</td><td class="ver">monitoring-plan.md; a live alert on testnet</td><td class="usd">$8,000</td></tr>
-        <tr><td>Audit of the policy install, bridge accounts and server path via Audit Bank (our scoping and engineering support; the audit fee is the Audit Bank's)</td><td class="ver">audit report link</td><td class="usd">$3,000</td></tr>
-        <tr><td>Findings remediated, with regression tests</td><td class="ver">fix commits, CI green, auditor re-check</td><td class="usd">$8,000</td></tr>
-        <tr><td>Mainnet path behind a capped, presenter-only flag: real USDC, enforced budgets</td><td class="ver">mainnet tx hashes from the capped path</td><td class="usd">$7,000</td></tr>
-        <tr class="tr"><td class="t" colspan="2">Tranche 3 · mainnet launch and public pilot · ≤ 75 days (metric window runs inside it)</td><td class="t usd" style="color:var(--teal)">subtotal $32,000</td></tr>
-        <tr><td>Mainnet launch in the selected market: vault, strategy and policy contracts registered; sponsor account and relay budgets live</td><td class="ver">mainnet contract IDs on stellar.expert</td><td class="usd">$9,000</td></tr>
-        <tr><td>Public pilot cohort on the selected anchor's production rails; validation-focused user testing (within the 1/3 exception)</td><td class="ver">/stats on mainnet, tx hashes, cohort report</td><td class="usd">$12,000</td></tr>
-        <tr><td>Metric window: 30-day NAV measurement, public dashboard, footprint registered</td><td class="ver">NAV dashboard URL; registered IDs</td><td class="usd">$3,000</td></tr>
-        <tr><td>Minor: native mobile (Expo) SDK for the passkey layer, published with docs</td><td class="ver">npm package and docs URL</td><td class="usd">$8,000</td></tr>
-        <tr class="sub"><td colspan="2" style="font-size:18px">Total ask (Integration Track "Medium" band, $50k–100k)</td><td class="usd" style="font-size:18px">$77,000</td></tr>
+        <tr><th style="width:58%">Deliverable</th><th style="width:22%">How reviewers verify</th><th style="width:11.5%;text-align:right">Who · hours</th><th style="width:8.5%;text-align:right">USD</th></tr>
+        <tr class="tr"><td class="t" colspan="2">Tranche 1 · groundwork · 60 days</td><td class="t who" colspan="2">me 206 h · $14,420</td></tr>
+        <tr><td>Anchor shortlist and go/no-go: Integration List on/off-ramps ranked by market on licence, own-account bank rails, written non-custodial position, entity requirement; pilot anchor and market selected</td><td class="ver">ranked shortlist, decision memo, the anchor's written position (repo)</td><td class="who">me · 50 h</td><td class="usd">$3,500</td></tr>
+        <tr><td>Audit Bank application with scope: policy install, bridge accounts, server path</td><td class="ver">submission confirmation; scope document</td><td class="who">me · 12 h</td><td class="usd">$840</td></tr>
+        <tr><td>Selected anchor wired in via its sandbox or API in place of the mock anchor (SEP-6/24, SEP-38 where offered); bridge accounts unchanged</td><td class="ver">sandbox round trip green in CI</td><td class="who">me · 70 h</td><td class="usd">$4,900</td></tr>
+        <tr><td>Relay budgets and allowlists (per-project caps, contract allowlist, refusal alerts); hosted and self-host deployment docs with scripted setup</td><td class="ver">config and docs in repo; a refused call's tx; a fresh deploy</td><td class="who">me · 74 h</td><td class="usd">$5,180</td></tr>
+        <tr class="tr"><td class="t" colspan="2">Tranche 2 · testnet-complete and secured · 60 days</td><td class="t who" colspan="2">me 206 h + 60 h hired · $17,720</td></tr>
+        <tr><td>Threat model in SDF's STRIDE template format (assets, threat table, mitigations)</td><td class="ver">docs/security/threat-model.md</td><td class="who">me · 36 h</td><td class="usd">$2,520</td></tr>
+        <tr><td>Monitoring plan in the builders template; core alerts for the vault, policy, sponsor and bridge accounts implemented by me (the gate)</td><td class="ver">monitoring-plan.md; a live alert on testnet</td><td class="who">me · 50 h</td><td class="usd">$3,500</td></tr>
+        <tr class="ctr"><td>└ Monitoring, full coverage: dashboards, alert routing, runbook. Parallel; without a hire the tranche closes on the core alerts, unbilled</td><td class="ver">dashboard URL; a routed alert</td><td class="who">contractor · 60 h</td><td class="usd">$3,300</td></tr>
+        <tr><td>Audit Bank audit of the policy install, bridge accounts and server path: our scoping and support; findings remediated with regression tests (fee: Audit Bank)</td><td class="ver">audit report; fix commits; auditor re-check</td><td class="who">me · 80 h</td><td class="usd">$5,600</td></tr>
+        <tr><td>Mainnet path behind a capped, presenter-only flag: real USDC, enforced budgets</td><td class="ver">mainnet tx hashes from the capped path</td><td class="who">me · 40 h</td><td class="usd">$2,800</td></tr>
+        <tr class="tr"><td class="t" colspan="2">Tranche 3 · mainnet launch and public pilot, selected pilot market · 60 days</td><td class="t who" colspan="2">me 206 h + 150 h hired · $22,670</td></tr>
+        <tr><td>Mainnet launch in the selected pilot market by week 3: contracts registered, sponsor account and relay budgets live, the anchor's production rails</td><td class="ver">mainnet contract IDs on stellar.expert</td><td class="who">me · 70 h</td><td class="usd">$4,900</td></tr>
+        <tr><td>Public pilot cohort recruited and run by me; validation-focused user testing (within the 1/3 exception)</td><td class="ver">/stats on mainnet; tx hashes; cohort report</td><td class="who">me · 50 h</td><td class="usd">$3,500</td></tr>
+        <tr class="ctr"><td>└ User-testing ops: structured sessions, interviews, write-ups. Parallel; without a hire the report comes from /stats data alone, unbilled</td><td class="ver">session log; cohort report</td><td class="who">contractor · 50 h</td><td class="usd">$2,750</td></tr>
+        <tr><td>Metric window and pilot support: 30-day NAV measurement, public dashboard, footprint registered; fixes during the window</td><td class="ver">NAV dashboard URL; registered IDs; issue log</td><td class="who">me · 86 h</td><td class="usd">$6,020</td></tr>
+        <tr class="ctr"><td>└ Minor, contractor only: native mobile (Expo) SDK for the passkey layer, with docs. Not a gate; billed only if delivered, dropped if no hire lands</td><td class="ver">npm package and docs URL</td><td class="who">contractor · 100 h</td><td class="usd">$5,500</td></tr>
+        <tr class="sub"><td colspan="2" style="font-size:14.5px">Total ask · Integration Track Medium band ($50k–100k) at its floor, under $60k on purpose: sized to the scope, not the cap · without the optional Expo line: $49,310</td><td class="who" style="font-size:12px">618 h + 210 h hired</td><td class="usd" style="font-size:16px">$54,810</td></tr>
       </table>
     </div>
-    <div class="col stack" style="gap:16px">
-      <div class="card stack" style="gap:6px;padding:22px 26px">
-        <span class="eyebrow">Final-tranche metric commitment</span>
-        <table style="font-size:18px">
-          <tr><td style="padding:6px 0;color:var(--muted);width:40%;vertical-align:top">Metric type</td><td style="padding:6px 0">DeFindex vault NAV from local-currency deposits (USDC in Kumbara's vault position, mainnet)</td></tr>
-          <tr><td style="padding:6px 0;color:var(--muted);vertical-align:top">Threshold</td><td style="padding:6px 0">average daily NAV of <strong>5,000 USDC</strong>: modest by design</td></tr>
-          <tr><td style="padding:6px 0;color:var(--muted);vertical-align:top">Measurement window</td><td style="padding:6px 0">the 30 days after the pilot launch, measured over the window, not a snapshot</td></tr>
-          <tr><td style="padding:6px 0;color:var(--muted);vertical-align:top">On-chain footprint, registered at award time</td><td style="padding:6px 0">vault contract, strategy contract, spending-limit policy contract, sponsor account (sponsored bridge accounts per CAP-33), app-created smart accounts</td></tr>
+    <div class="col stack" style="gap:10px">
+      <div class="card stack" style="gap:4px;padding:14px 18px">
+        <span class="eyebrow" style="font-size:14px">Final-tranche metric commitment</span>
+        <table class="mini">
+          <tr><td>Metric type</td><td>DeFindex vault NAV: USDC in Kumbara's mainnet vault position, from local-currency deposits in the pilot market</td></tr>
+          <tr><td>Threshold</td><td>average daily NAV of <strong>5,000 USDC</strong> = 200 pilot users × 50 USDC average balance × 50% still holding through the window</td></tr>
+          <tr><td>Window</td><td>the 30 days after the pilot launch, averaged over the window, not a snapshot</td></tr>
+          <tr><td>Footprint, registered at award time</td><td>vault, strategy and policy contracts; sponsor account (bridge accounts sponsored per CAP-33); app-created smart accounts</td></tr>
         </table>
-        <p style="font-size:17px;line-height:1.35">The panel ratifies or adjusts the threshold during panel review. Self-generated, wash or gamed activity is excluded; seed and E2E accounts are already tagged out of every number.</p>
+        <p style="font-size:14px;line-height:1.3">The panel ratifies or adjusts the threshold during panel review. Seed and E2E accounts are tagged out; wash or gamed activity is excluded.</p>
       </div>
-      <div class="card stack" style="gap:6px;padding:22px 26px">
-        <span class="eyebrow">Budget hygiene</span>
-        <p style="font-size:17px;line-height:1.35">Only development, testing, monitoring, deployment and validation work is in the ask. No legal fees, no entity setup, no audit fee (Audit Bank), no marketing beyond the user-testing exception. Nothing here depends on a third party signing: the anchor decision is our own go/no-go, and the pilot runs wherever it passes.</p>
+      <div class="card stack" style="gap:4px;padding:14px 18px">
+        <span class="eyebrow" style="font-size:14px">Candidate anchors · SCF Integration List · unranked until Tranche 1</span>
+        <ul class="cands">
+          <li><b>Koywe</b> · Argentina, Brazil, Chile, Colombia, Mexico, Peru, Bolivia, United States · sandbox; API in 1–2 weeks</li>
+          <li><b>alfredpay</b> · stablecoin-to-banking rails across Latin America &nbsp;·&nbsp; <b>Abroad</b> · local instant payment rails · 1–2 weeks</li>
+          <li><b>BlindPay</b> · fiat and stablecoin transfers worldwide · 1–2 weeks &nbsp;·&nbsp; <b>Mercuryo</b> · fiat-to-crypto on/off-ramp · 1–2 weeks</li>
+          <li><b>Bridge</b> · multi-currency payments settled on Stellar · 1–5 days</li>
+        </ul>
+        <p style="font-size:14px;line-height:1.3"><strong>Türkiye:</strong> the TRY rails in this deck are a sandbox and no TRY anchor is on the list today; Türkiye stays market one only if a licensed TRY anchor passes the same criteria. MoneyGram (cash) and Etherfuse (bonds) are listed but outside the bank-transfer shape.</p>
+      </div>
+      <div class="card stack" style="gap:4px;padding:14px 18px">
+        <span class="eyebrow" style="font-size:14px">Budget hygiene</span>
+        <p style="font-size:14px;line-height:1.3">Only development, testing, monitoring, deployment and validation work is in the ask; nothing is self-funded. No legal fees, no entity setup (none is needed to receive the award), no audit fee (Audit Bank), no marketing beyond the user-testing exception. Contractor lines are parallel capacity, never dependencies: each has a no-hire outcome that still closes the tranche. Nothing waits on a third party signing.</p>
       </div>
     </div>
   </div>
-  <p class="cite-foot" style="font-size:13.5px;bottom:56px;line-height:1.3">Paid in XLM in tranches of 10% on acceptance, 20% at MVP, 30% at testnet and 40% at mainnet: SCF Handbook, Build Award, "Budget &amp; Deliverable Guidelines" → "How Tranche Payments Work" (stellar.gitbook.io/scf-handbook/scf-awards/build-award/budget-and-deliverable-guidelines). Eligible categories per the same page: core development, frontend and UX, testing and verification, deployment and release.</p>
-  <div class="foot"><span>Kumbara by Sembol · kumbara.sembol.xyz · Stellar TESTNET today; mainnet after the audit, in the market that passes the go/no-go</span><span class="n"></span></div>
+  <p class="cite-foot" style="font-size:12.5px;bottom:50px;line-height:1.3">Paid in XLM in tranches of 10% on acceptance, 20% at MVP, 30% at testnet and 40% at mainnet; "Project timeline should not exceed 6 months"; each tranche form within 90 days of the previous payment: SCF Handbook, Build Award, "Budget &amp; Deliverable Guidelines" (stellar.gitbook.io/scf-handbook/scf-awards/build-award/budget-and-deliverable-guidelines). Rates: one engineer at 60% of full-time (24 h/week, 206 h per 60-day tranche) at $70/h; contractors $55/h; hours × rate on every line.</p>
+  <div class="foot"><span>Kumbara by Sembol · kumbara.sembol.xyz · Stellar TESTNET today; mainnet after the audit, in the selected pilot market</span><span class="n"></span></div>
 </section>
 
 <!-- A · Appendix (hackathon variant only): the sequence diagram -->

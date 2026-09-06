@@ -12,9 +12,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 ## 2 · Problem
 
-**TR.** TÜİK'e göre Ağustos'ta yıllık enflasyon yüzde 31,5. İnsanlar dolarda birikmek istiyor. Kripto yolu var ama önünde bir duvar: eklenti kur, on iki kelime yaz, gaz için XLM al, telefonu kaybetme. Her adımda kullanıcı kaybediyoruz; en çok ihtiyacı olan en az hizmet alıyor.
+**TR.** TÜİK'e göre Ağustos'ta yıllık enflasyon yüzde 31,5. İnsanlar dolarda birikmek istiyor ama kripto yolunun önünde bir duvar var: eklenti, on iki kelime, gaz için XLM. Her adımda kullanıcı kaybediyoruz. Türkiye ilk pazar; ürün, banka havalesi alışkanlığı ve Stellar anchor'ı olan tüm yüksek enflasyonlu ekonomiler için yapıldı.
 
-**EN.** Per TÜİK, annual inflation was 31.5 percent in August. People want to save in dollars. The crypto route exists, but a wall stands in front of it: install an extension, write twelve words, buy XLM for gas, never lose the phone. Every step sheds users; the people who need it most are served least.
+**EN.** Per TÜİK, annual inflation was 31.5 percent in August. People want to save in dollars, but a wall stands in front of the crypto route: an extension, twelve words, XLM for gas. Every step sheds users. Türkiye is market one; the product is built for every high-inflation economy with a bank-transfer habit and a Stellar anchor.
 
 ## 3 · Product
 
@@ -54,9 +54,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 ## 8 · Regulatory positioning
 
-**TR.** Kumbara emanet almayan bir yazılım: lira, USDC ya da anahtar tutmaz. Lisanslı anchor düzenlemeye tabi taraf; parayı o tutar, KYC'yi o yapar, kişinin kendi hesabına öder. Ödeme özelliği yok. Türkiye ilk aday; birinci dilimde pazar ve anchor için git/gitme kararı veririz. Türkiye geçemezse pilot, geçen bir sonraki pazarda açılır.
+**TR.** Kumbara emanet almayan bir yazılım: lira, USDC ya da anahtar tutmaz; lisanslı anchor düzenlemeye tabi taraf. Anchor bir yapılandırma seçimi: stellar.toml, SEP rayları, anchor'dan bağımsız köprü hesapları. Türkiye uyumdan ötürü ilk pazar; birinci dilim SCF listesindeki anchor'ları sıralar. Türkiye geçemezse pilot en üstteki pazarda açılır. İkinci pazar, ölçüt tutunca sonraki ödülün işi.
 
-**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys. The licensed anchor is the regulated party; it holds the fiat, does KYC, and pays out to the person's own account. No payments feature. Türkiye is the first candidate; Tranche 1 makes a market and anchor go/no-go. If Türkiye fails, the pilot launches in the next market that passes.
+**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys; the licensed anchor is the regulated party. The anchor is a config choice: stellar.toml, SEP rails, anchor-agnostic bridge accounts. Türkiye is market one by fit; Tranche 1 ranks the anchors on the SCF list. If Türkiye fails, the pilot launches in the top-ranked market; market two is the follow-on award.
 
 ## 9 · Team
 
@@ -66,9 +66,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 ## 10 · Roadmap and the ask
 
-**TR.** Üç dilim, toplam altı ay, yetmiş yedi bin dolar. Birincisi zemin: pazar ve anchor kararı, Audit Bank başvurusu, relay bütçeleri, dağıtım belgeleri. İkincisi test ağı tam ve güvenli: STRIDE tehdit modeli, izleme planı, denetim ve düzeltmeler. Üçüncüsü ana ağ ve açık pilot; ölçüt otuz günde ortalama beş bin USDC NAV. Her satırın maliyeti ve doğrulaması ekranda.
+**TR.** Üç dilim, altmışar gün, toplam altı ay ve elli dört bin sekiz yüz on dolar: tek mühendis yüzde altmış zamanla, paralel işler için yüklenici saatleri ayrı satırlarda. Birincisi zemin: anchor kısa listesi ve git/gitme, Audit Bank başvurusu, relay bütçeleri. İkincisi tehdit modeli, izleme, denetim ve düzeltmeler. Üçüncüsü seçilen pilot pazarda ana ağ; ölçüt otuz günde ortalama beş bin USDC NAV.
 
-**EN.** Three tranches, six months, seventy-seven thousand dollars. First, groundwork: the market and anchor go/no-go, the Audit Bank application, relay budgets, deployment docs. Second, testnet-complete and secured: STRIDE threat model, monitoring plan, audit and fixes. Third, mainnet launch and public pilot; the metric is an average NAV of five thousand USDC over thirty days. Every line has a cost and check.
+**EN.** Three tranches of sixty days, six months, fifty-four thousand eight hundred ten dollars: one engineer at sixty percent, contractor hours on their own lines. First, groundwork: anchor shortlist and go/no-go, Audit Bank application, relay budgets. Second, threat model, monitoring, audit and fixes. Third, mainnet in the selected pilot market; the metric is five thousand USDC average NAV over thirty days.
 
 ## A · Appendix · sequence diagram (hackathon variant)
 

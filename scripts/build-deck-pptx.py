@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Export the rendered deck as a 16:9 PPTX: one full-bleed PNG per slide
-(docs/deck/slides/slide-NN.png from scripts/build-deck.mjs) with the speaker
-notes (docs/deck/speaker-notes.md) in each slide's notes pane. Image-based:
-the slides are not editable text. Needs python-pptx:
+"""Export each rendered deck variant as a 16:9 PPTX: one full-bleed PNG per
+slide (docs/deck/slides-<variant>/ from scripts/build-deck.mjs) with the
+matching speaker notes (docs/deck/speaker-notes.md) in the notes pane.
+Image-based: the slides are not editable text. Needs python-pptx:
     python3 -m venv .venv && .venv/bin/pip install python-pptx
-    .venv/bin/python scripts/build-deck-pptx.py
+    .venv/bin/python scripts/build-deck-pptx.py            # both variants
+    VARIANT=hackathon .venv/bin/python scripts/build-deck-pptx.py
 """
 import os
 import re
@@ -17,24 +18,31 @@ except ImportError:  # pragma: no cover
     sys.exit("python-pptx is not installed: python3 -m venv .venv && .venv/bin/pip install python-pptx")
 
 DECK = os.path.join(os.path.dirname(__file__), "..", "docs", "deck")
-SLIDES = sorted(f for f in os.listdir(os.path.join(DECK, "slides")) if re.match(r"slide-\d+\.png$", f))
-if not SLIDES:
-    sys.exit("no slide PNGs; run node scripts/build-deck.mjs first")
+VARIANTS = [os.environ["VARIANT"]] if os.environ.get("VARIANT") else ["scf", "hackathon"]
 
 notes_md = open(os.path.join(DECK, "speaker-notes.md"), encoding="utf-8").read()
-notes = re.split(r"^## \d+ · .*$", notes_md, flags=re.M)[1:]  # one block per slide, TR then EN
+# Notes are keyed by slide id: "## <id> · <title>" (ids: 1..10, 3b, A).
+blocks = {}
+for m in re.finditer(r"^## ([\w]+) · .*?$\n(.*?)(?=^## |\Z)", notes_md, flags=re.M | re.S):
+    blocks[m.group(1)] = re.sub(r"\*\*(TR|EN)\.\*\*", r"\1:", m.group(2)).strip()
+ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7", "8", "9", "10", "A"]}
 
-prs = Presentation()
-prs.slide_width = Inches(13.333)
-prs.slide_height = Inches(7.5)
-blank = prs.slide_layouts[6]
-for i, png in enumerate(SLIDES):
-    slide = prs.slides.add_slide(blank)
-    slide.shapes.add_picture(os.path.join(DECK, "slides", png), 0, 0, width=prs.slide_width, height=prs.slide_height)
-    if i < len(notes):
-        text = re.sub(r"\*\*(TR|EN)\.\*\*", r"\1:", notes[i]).strip()
-        slide.notes_slide.notes_text_frame.text = text
-
-out = os.path.join(DECK, "kumbara-deck.pptx")
-prs.save(out)
-print(f"{out}: {len(SLIDES)} slides, {os.path.getsize(out) / 1_000_000:.1f} MB (image-based, notes attached)")
+for variant in VARIANTS:
+    slides_dir = os.path.join(DECK, f"slides-{variant}")
+    pngs = sorted(f for f in os.listdir(slides_dir) if re.match(r"slide-\d+\.png$", f))
+    if not pngs:
+        sys.exit(f"no slide PNGs in {slides_dir}; run node scripts/build-deck.mjs first")
+    ids = ORDER[variant]
+    if len(ids) != len(pngs):
+        sys.exit(f"{variant}: {len(pngs)} slides rendered but {len(ids)} notes ids expected")
+    prs = Presentation()
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
+    blank = prs.slide_layouts[6]
+    for png, sid in zip(pngs, ids):
+        slide = prs.slides.add_slide(blank)
+        slide.shapes.add_picture(os.path.join(slides_dir, png), 0, 0, width=prs.slide_width, height=prs.slide_height)
+        slide.notes_slide.notes_text_frame.text = blocks.get(sid, "")
+    out = os.path.join(DECK, f"kumbara-deck-{variant}.pptx")
+    prs.save(out)
+    print(f"{os.path.relpath(out)}: {len(pngs)} slides, {os.path.getsize(out) / 1_000_000:.1f} MB (image-based, notes attached)")

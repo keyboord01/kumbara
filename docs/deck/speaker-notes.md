@@ -2,7 +2,7 @@
 
 Read aloud; at most 60 words per slide. TR first, then EN. Everything shown is Stellar TESTNET.
 
-Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10 in order. **Hackathon** (`kumbara-deck-hackathon.pdf`): slides 1, 2, 3, then **3b · Try it now**, then 4 to 10, then **A · Appendix** (the sequence diagram, which in the SCF deck sits on slide 4).
+Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 9, then **10 · Roadmap**, **11 · Budget and metric**, and **B · Appendix · hours** (12 slides). **Hackathon** (`kumbara-deck-hackathon.pdf`): slides 1, 2, 3, then **3b · Try it now**, then 4 to 9, 10, 11, then **A · Appendix · sequence diagram** and **B · Appendix · hours** (14 slides).
 
 ## 1 · Title
 
@@ -56,7 +56,7 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 **TR.** Kumbara emanet almayan bir yazılım: lira, USDC ya da anahtar tutmaz; lisanslı anchor düzenlemeye tabi taraf. Anchor bir yapılandırma seçimi: stellar.toml, SEP rayları, anchor'dan bağımsız köprü hesapları. Türkiye uyumdan ötürü ilk pazar; birinci dilim SCF listesindeki anchor'ları sıralar. Türkiye geçemezse pilot en üstteki pazarda açılır. İkinci pazar, ölçüt tutunca sonraki ödülün işi.
 
-**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys; the licensed anchor is the regulated party. The anchor is a config choice: stellar.toml, SEP rails, anchor-agnostic bridge accounts. Türkiye is market one by fit; Tranche 1 ranks the anchors on the SCF list. If Türkiye fails, the pilot launches in the top-ranked market; market two is the follow-on award.
+**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys; the licensed anchor is the regulated party. The anchor is a config choice: stellar.toml, SEP rails, anchor-agnostic bridge accounts. Türkiye is market one by fit; Tranche 1 ranks the anchors on the SCF list. If Türkiye fails, the pilot launches in the top-ranked market; market two is the follow-on.
 
 ## 9 · Team
 
@@ -64,14 +64,26 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 **EN.** A team of one, but one that ships. I hold an Instaward grant, wrote the passkey-react library, and landed a fix in smart-account-kit. I built Kumbara end to end: the app, the bridge accounts, the CI round trips. Links are on the slide.
 
-## 10 · Roadmap and the ask
+## 10 · Roadmap
 
-**TR.** Üç dilim, altmışar gün, toplam altı ay ve elli dört bin sekiz yüz on dolar: tek mühendis yüzde altmış zamanla, paralel işler için yüklenici saatleri ayrı satırlarda. Birincisi zemin: anchor kısa listesi ve git/gitme, Audit Bank başvurusu, relay bütçeleri. İkincisi tehdit modeli, izleme, denetim ve düzeltmeler. Üçüncüsü seçilen pilot pazarda ana ağ; ölçüt otuz günde ortalama beş bin USDC NAV.
+**TR.** Üç dilim, altmışar gün. Birincisi cüzdan katmanı ve relay sertleştirme, hepsi benim elimde: tek işlemle açılış, passkey-react 0.4, relay ana ağ sertleştirmesi, anchor kısa listesi ve git/gitme. İkincisi seçilen anchor bağlı, STRIDE tehdit modeli, izleme, denetim ve düzeltmeler, kapalı ana ağ yolu. Üçüncüsü pilot pazarda ana ağ, elli ile yüz kişilik pilot, nöbet, otuz günlük ölçüt penceresi.
 
-**EN.** Three tranches of sixty days, six months, fifty-four thousand eight hundred ten dollars: one engineer at sixty percent, contractor hours on their own lines. First, groundwork: anchor shortlist and go/no-go, Audit Bank application, relay budgets. Second, threat model, monitoring, audit and fixes. Third, mainnet in the selected pilot market; the metric is five thousand USDC average NAV over thirty days.
+**EN.** Three tranches of sixty days. First, wallet layer and relay hardening, all in my control: single-transaction onboarding, passkey-react 0.4, relay mainnet hardening, the anchor shortlist and go/no-go. Second, the selected anchor wired in, STRIDE threat model, monitoring, audit and fixes, a capped mainnet path. Third, mainnet in the pilot market, fifty to a hundred pilot users, the thirty-day window.
+
+## 11 · Budget and metric
+
+**TR.** Yüz yedi bin üç yüz dolar; her dolar saat. Tam zamanlı çalışıyorum, saatte doksan beş dolar, dilim başına üç yüz kırk saat. Yüklenici kapasitesi yüz altmış saat, saatte altmış beş dolar; hiçbir kapı işe alıma bağlı değil. Ölçüt: açılıştan sonraki otuz günde ortalama iki bin beş yüz USDC NAV; yüz kullanıcı, elli USDC, yüzde elli kalış.
+
+**EN.** One hundred seven thousand three hundred dollars, every dollar hours. I work full-time at ninety-five an hour, three hundred forty hours per tranche. Hired capacity is one hundred sixty hours at sixty-five; no gate depends on a hire. Metric: average NAV of two thousand five hundred USDC over the thirty days after launch; a hundred users, fifty USDC, half retained.
 
 ## A · Appendix · sequence diagram (hackathon variant)
 
 **TR.** Referans için tam sıra diyagramı: passkey'den ödemeye kadar her mesaj. Kumbara ile relay arasındaki her ok imzalı bir yetki; anchor'a giden her ok klasik bir ödeme; kasaya giden tek ok kullanıcının Face ID'si. Sorusu olan için sunum sonunda buradayım.
 
 **EN.** The full sequence diagram for reference: every message from the passkey to the payout. Each arrow between Kumbara and the relay is a signed authorization; each arrow to the anchor is a classic payment; the single arrow into the vault is the user's Face ID. I'm here after the session for questions.
+
+## B · Appendix · line-by-line hours
+
+**TR.** Referans için satır satır saatler: yirmi satır, bin yüz seksen saat. Her satırda kimin yaptığı, kaç saat, kaç dolar ve gözden geçirenlerin nasıl doğrulayacağı yazıyor. Yüklenici satırları ayrı işaretli; işe alım gelmezse satır faturalanmaz ve dilim benim satırlarımla kapanır.
+
+**EN.** Line-by-line hours for reference: twenty lines, one thousand one hundred eighty hours. Each line says who does it, how many hours, how many dollars and how reviewers verify it. Hired lines are marked separately; if a hire does not land, the line is unbilled and the tranche closes on my own lines.

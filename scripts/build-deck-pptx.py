@@ -21,11 +21,11 @@ DECK = os.path.join(os.path.dirname(__file__), "..", "docs", "deck")
 VARIANTS = [os.environ["VARIANT"]] if os.environ.get("VARIANT") else ["scf", "hackathon"]
 
 notes_md = open(os.path.join(DECK, "speaker-notes.md"), encoding="utf-8").read()
-# Notes are keyed by slide id: "## <id> · <title>" (ids: 1..10, 3b, A).
+# Notes are keyed by slide id: "## <id> · <title>" (ids: 1..11, 3b, A, B).
 blocks = {}
 for m in re.finditer(r"^## ([\w]+) · .*?$\n(.*?)(?=^## |\Z)", notes_md, flags=re.M | re.S):
     blocks[m.group(1)] = re.sub(r"\*\*(TR|EN)\.\*\*", r"\1:", m.group(2)).strip()
-ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7", "8", "9", "10", "A"]}
+ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "B"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7", "8", "9", "10", "11", "A", "B"]}
 
 for variant in VARIANTS:
     slides_dir = os.path.join(DECK, f"slides-{variant}")

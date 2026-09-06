@@ -1,6 +1,6 @@
 // Render docs/deck/kumbara-deck.html (1920×1080 slides) in its two variants:
-//   scf        → docs/deck/kumbara-deck-scf.pdf        (10 slides)
-//   hackathon  → docs/deck/kumbara-deck-hackathon.pdf  (+ "Try it now" after slide 3, sequence diagram as an appendix)
+//   scf        → docs/deck/kumbara-deck-scf.pdf        (12 slides: 1–9, Roadmap, Budget and metric, hours appendix)
+//   hackathon  → docs/deck/kumbara-deck-hackathon.pdf  (14 slides: + "Try it now" after slide 3, sequence-diagram appendix)
 // plus docs/deck/slides-<variant>/slide-NN.png and docs/deck/contact-sheet-<variant>.png,
 // with Playwright (Chrome). The Mermaid diagram renders in the page (cdnjs) and stays a vector in the PDF.
 //   node scripts/build-deck.mjs            # both variants

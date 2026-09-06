@@ -80,26 +80,42 @@
   body[data-variant="hackathon"] #s4 .step b { width: 40px; height: 40px; font-size: 21px; }
   body[data-variant="hackathon"] #s4 .appendix-note { display: block; }
   .appendix-note { display: none; font-size: 21px; color: var(--muted); margin-top: 26px; }
-  .costs { border-collapse: collapse; width: 100%; font-size: 14px; table-layout: fixed; }
-  .costs th, .costs td { padding: 3px 8px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.2; }
-  .costs th { font-family: var(--mono); font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
-  .costs td { color: var(--ink-2); }
-  .costs td.usd { font-family: var(--mono); color: var(--danger); white-space: nowrap; text-align: right; }
-  .costs td.ver { color: var(--muted); font-size: 13px; }
-  .costs td.who { font-family: var(--mono); font-size: 12.5px; color: var(--teal); white-space: nowrap; text-align: right; }
-  .costs tr.tr td.t.who { white-space: normal; }
-  .costs tr.ctr td { color: var(--muted); }
-  .costs tr.ctr td:first-child { padding-left: 24px; }
-  .costs tr.ctr td.who, .costs tr.ctr td.usd { color: var(--coral); }
-  .costs tr.tr td.t.who { text-align: right; color: var(--teal); }
-  .cands { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; }
-  .cands li { font-size: 14px; line-height: 1.3; color: var(--ink-2); }
-  .cands li b { color: var(--ink); }
-  .mini { font-size: 14.5px; border-collapse: collapse; width: 100%; }
-  .mini td { padding: 3px 0; border: 0; font-size: 14px; line-height: 1.3; vertical-align: top; }
-  .mini td:first-child { color: var(--muted); width: 31%; padding-right: 10px; }
-  .costs tr.sub td { font-weight: 700; color: var(--ink); background: var(--paper-2); }
-  .costs tr.tr td.t { font-family: var(--mono); font-size: 12.5px; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); padding-top: 8px; }
+  .bands { display: flex; flex-direction: column; gap: 14px; }
+  .band { display: grid; grid-template-columns: 290px 1fr; column-gap: 28px; row-gap: 10px; background: #fff; border: 2px solid var(--line); border-radius: 22px; padding: 18px 26px 18px 24px; align-items: start; }
+  .band .meta { display: flex; flex-direction: column; gap: 6px; }
+  .band .meta .when { font-family: var(--mono); font-size: 15px; letter-spacing: .12em; text-transform: uppercase; color: var(--teal); }
+  .band .meta h4 { margin: 0; font-size: 26px; letter-spacing: -.01em; color: var(--ink); line-height: 1.1; }
+  .band .meta p { font-size: 16px; line-height: 1.35; color: var(--muted); }
+  .band ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .band li { font-size: 20px; line-height: 1.35; color: var(--ink-2); padding-left: 26px; position: relative; margin: 0; }
+  .band li::before { content: ""; position: absolute; left: 4px; top: 9px; width: 10px; height: 10px; border-radius: 3px; background: var(--teal); }
+  .band .shortlist { grid-column: 1 / -1; font-size: 16px; line-height: 1.35; color: var(--muted); border-top: 1.5px solid var(--line); padding-top: 10px; margin: 0; }
+  .subs { width: 100%; border-collapse: collapse; font-size: 20px; }
+  .subs th, .subs td { padding: 8px 12px; border-bottom: 2px solid var(--line); vertical-align: middle; line-height: 1.25; }
+  .subs th { font-family: var(--mono); font-size: 15px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .subs th.r, .subs td.n { text-align: right; }
+  .subs td.n { font-family: var(--mono); font-size: 19px; color: var(--ink-2); white-space: nowrap; }
+  .subs td.usd, .ctrs .usd { color: var(--danger); }
+  .subs tr.total td { font-weight: 700; color: var(--ink); background: var(--paper-2); }
+  .subs tr.paid td { font-size: 17px; color: var(--muted); border-bottom: 0; padding-top: 10px; }
+  .ctrs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .ctrs li { font-size: 18px; line-height: 1.35; color: var(--ink-2); display: grid; grid-template-columns: 1fr 64px 84px; gap: 14px; }
+  .ctrs li .n { font-family: var(--mono); font-size: 17px; text-align: right; white-space: nowrap; }
+  .mini { font-size: 17.5px; border-collapse: collapse; width: 100%; }
+  .mini td { padding: 5px 0; border: 0; font-size: 17.5px; line-height: 1.35; vertical-align: top; }
+  .mini td:first-child { color: var(--muted); width: 31%; padding-right: 12px; }
+  .hours { width: 100%; border-collapse: collapse; font-size: 16px; table-layout: fixed; }
+  .hours th, .hours td { padding: 3px 8px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.25; }
+  .hours th { font-family: var(--mono); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .hours td { color: var(--ink-2); }
+  .hours td.ver { color: var(--muted); }
+  .hours td.who { font-family: var(--mono); font-size: 16px; color: var(--teal); text-align: right; white-space: nowrap; }
+  .hours td.usd { font-family: var(--mono); font-size: 16px; color: var(--danger); text-align: right; white-space: nowrap; }
+  .hours tr.hired td { color: var(--muted); }
+  .hours tr.hired td.who, .hours tr.hired td.usd { color: var(--coral); }
+  .hours tr.hired td:first-child { padding-left: 22px; }
+  .hours tr.tr td { font-family: var(--mono); font-size: 15px; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); padding-top: 8px; }
+  .hours tr.sub td { font-weight: 700; color: var(--ink); background: var(--paper-2); }
   .cite-foot { position: absolute; left: 110px; right: 110px; bottom: 60px; font-size: 15px; color: var(--muted); line-height: 1.35; }
 </style>
 </head>
@@ -398,65 +414,105 @@ sequenceDiagram
 </section>
 
 <!-- 10 · Roadmap and the ask -->
-<section class="slide" id="s10" style="padding-top:44px;padding-bottom:100px">
-  <div class="eyebrow">Roadmap and the ask · SCF Build Award · Integration Track · 60 + 60 + 60 days, the handbook's six-month maximum</div>
-  <h2 style="margin:6px 0 10px;font-size:33px">Groundwork, testnet-complete and secured, then mainnet in the selected pilot market. The ask, one engineer at 60% plus contractor lines: $54,810.</h2>
-  <div class="row" style="gap:20px;align-items:flex-start">
-    <div style="flex:2.05;min-width:0">
-      <table class="costs">
-        <tr><th style="width:58%">Deliverable</th><th style="width:22%">How reviewers verify</th><th style="width:11.5%;text-align:right">Who · hours</th><th style="width:8.5%;text-align:right">USD</th></tr>
-        <tr class="tr"><td class="t" colspan="2">Tranche 1 · groundwork · 60 days</td><td class="t who" colspan="2">me 206 h · $14,420</td></tr>
-        <tr><td>Anchor shortlist and go/no-go: Integration List on/off-ramps ranked by market on licence, own-account bank rails, written non-custodial position, entity requirement; pilot anchor and market selected</td><td class="ver">ranked shortlist, decision memo, the anchor's written position (repo)</td><td class="who">me · 50 h</td><td class="usd">$3,500</td></tr>
-        <tr><td>Audit Bank application with scope: policy install, bridge accounts, server path</td><td class="ver">submission confirmation; scope document</td><td class="who">me · 12 h</td><td class="usd">$840</td></tr>
-        <tr><td>Selected anchor wired in via its sandbox or API in place of the mock anchor (SEP-6/24, SEP-38 where offered); bridge accounts unchanged</td><td class="ver">sandbox round trip green in CI</td><td class="who">me · 70 h</td><td class="usd">$4,900</td></tr>
-        <tr><td>Relay budgets and allowlists (per-project caps, contract allowlist, refusal alerts); hosted and self-host deployment docs with scripted setup</td><td class="ver">config and docs in repo; a refused call's tx; a fresh deploy</td><td class="who">me · 74 h</td><td class="usd">$5,180</td></tr>
-        <tr class="tr"><td class="t" colspan="2">Tranche 2 · testnet-complete and secured · 60 days</td><td class="t who" colspan="2">me 206 h + 60 h hired · $17,720</td></tr>
-        <tr><td>Threat model in SDF's STRIDE template format (assets, threat table, mitigations)</td><td class="ver">docs/security/threat-model.md</td><td class="who">me · 36 h</td><td class="usd">$2,520</td></tr>
-        <tr><td>Monitoring plan in the builders template; core alerts for the vault, policy, sponsor and bridge accounts implemented by me (the gate)</td><td class="ver">monitoring-plan.md; a live alert on testnet</td><td class="who">me · 50 h</td><td class="usd">$3,500</td></tr>
-        <tr class="ctr"><td>└ Monitoring, full coverage: dashboards, alert routing, runbook. Parallel; without a hire the tranche closes on the core alerts, unbilled</td><td class="ver">dashboard URL; a routed alert</td><td class="who">contractor · 60 h</td><td class="usd">$3,300</td></tr>
-        <tr><td>Audit Bank audit of the policy install, bridge accounts and server path: our scoping and support; findings remediated with regression tests (fee: Audit Bank)</td><td class="ver">audit report; fix commits; auditor re-check</td><td class="who">me · 80 h</td><td class="usd">$5,600</td></tr>
-        <tr><td>Mainnet path behind a capped, presenter-only flag: real USDC, enforced budgets</td><td class="ver">mainnet tx hashes from the capped path</td><td class="who">me · 40 h</td><td class="usd">$2,800</td></tr>
-        <tr class="tr"><td class="t" colspan="2">Tranche 3 · mainnet launch and public pilot, selected pilot market · 60 days</td><td class="t who" colspan="2">me 206 h + 150 h hired · $22,670</td></tr>
-        <tr><td>Mainnet launch in the selected pilot market by week 3: contracts registered, sponsor account and relay budgets live, the anchor's production rails</td><td class="ver">mainnet contract IDs on stellar.expert</td><td class="who">me · 70 h</td><td class="usd">$4,900</td></tr>
-        <tr><td>Public pilot cohort recruited and run by me; validation-focused user testing (within the 1/3 exception)</td><td class="ver">/stats on mainnet; tx hashes; cohort report</td><td class="who">me · 50 h</td><td class="usd">$3,500</td></tr>
-        <tr class="ctr"><td>└ User-testing ops: structured sessions, interviews, write-ups. Parallel; without a hire the report comes from /stats data alone, unbilled</td><td class="ver">session log; cohort report</td><td class="who">contractor · 50 h</td><td class="usd">$2,750</td></tr>
-        <tr><td>Metric window and pilot support: 30-day NAV measurement, public dashboard, footprint registered; fixes during the window</td><td class="ver">NAV dashboard URL; registered IDs; issue log</td><td class="who">me · 86 h</td><td class="usd">$6,020</td></tr>
-        <tr class="ctr"><td>└ Minor, contractor only: native mobile (Expo) SDK for the passkey layer, with docs. Not a gate; billed only if delivered, dropped if no hire lands</td><td class="ver">npm package and docs URL</td><td class="who">contractor · 100 h</td><td class="usd">$5,500</td></tr>
-        <tr class="sub"><td colspan="2" style="font-size:14.5px">Total ask · Integration Track Medium band ($50k–100k) at its floor, under $60k on purpose: sized to the scope, not the cap · without the optional Expo line: $49,310</td><td class="who" style="font-size:12px">618 h + 210 h hired</td><td class="usd" style="font-size:16px">$54,810</td></tr>
-      </table>
+<section class="slide" id="s10" style="padding-top:54px;padding-bottom:110px">
+  <div class="eyebrow">Roadmap · SCF Build Award · Integration Track · three tranches of 60 days, six months in all</div>
+  <h2 style="font-size:44px;margin:8px 0 18px">Wallet layer and relay hardening first, then testnet-complete and secured, then mainnet in the selected pilot market.</h2>
+  <div class="bands">
+    <div class="band">
+      <div class="meta">
+        <span class="when">Tranche 1 · days 1–60</span>
+        <h4>Wallet layer and relay hardening</h4>
+        <p>me 340 h · no hired lines<br>pays 20% at completion (MVP)</p>
+      </div>
+      <ul>
+        <li>Single-transaction onboarding: spending-limit policy on the default rule at creation; the library's limit UI updated</li>
+        <li>@sembol/passkey-react 0.4 published with projectId: relay project binding, config, docs, migration notes</li>
+        <li>Relay mainnet hardening of the fee-sponsoring path: per-project budgets, allowlists, refusal alerts, sponsor monitoring</li>
+        <li>Anchor shortlist and go/no-go: on/off-ramps ranked by market, written positions from the top two, pilot anchor chosen, runner-up named</li>
+        <li>Audit Bank application submitted with scope: policy install, bridge accounts, server path</li>
+      </ul>
+      <p class="shortlist"><strong>Shortlist input, unranked until this tranche</strong> (SCF Integration List, on/off-ramping): Koywe · alfredpay · Abroad · BlindPay · Mercuryo · Bridge. No TRY anchor is listed today; Türkiye stays market one only if a licensed TRY anchor passes the same criteria, otherwise the pilot launches in the top-ranked market and the app does not change. The runner-up is a shortlist output, not an integration in this award.</p>
     </div>
-    <div class="col stack" style="gap:10px">
-      <div class="card stack" style="gap:4px;padding:14px 18px">
-        <span class="eyebrow" style="font-size:14px">Final-tranche metric commitment</span>
-        <table class="mini">
-          <tr><td>Metric type</td><td>DeFindex vault NAV: USDC in Kumbara's mainnet vault position, from local-currency deposits in the pilot market</td></tr>
-          <tr><td>Threshold</td><td>average daily NAV of <strong>5,000 USDC</strong> = 200 pilot users × 50 USDC average balance × 50% still holding through the window</td></tr>
-          <tr><td>Window</td><td>the 30 days after the pilot launch, averaged over the window, not a snapshot</td></tr>
-          <tr><td>Footprint, registered at award time</td><td>vault, strategy and policy contracts; sponsor account (bridge accounts sponsored per CAP-33); app-created smart accounts</td></tr>
-        </table>
-        <p style="font-size:14px;line-height:1.3">The panel ratifies or adjusts the threshold during panel review. Seed and E2E accounts are tagged out; wash or gamed activity is excluded.</p>
+    <div class="band">
+      <div class="meta">
+        <span class="when">Tranche 2 · days 61–120</span>
+        <h4>Testnet-complete and secured</h4>
+        <p>me 340 h + hired 80 h<br>pays 30% at completion (testnet)</p>
       </div>
-      <div class="card stack" style="gap:4px;padding:14px 18px">
-        <span class="eyebrow" style="font-size:14px">Candidate anchors · SCF Integration List · unranked until Tranche 1</span>
-        <ul class="cands">
-          <li><b>Koywe</b> · Argentina, Brazil, Chile, Colombia, Mexico, Peru, Bolivia, United States · sandbox; API in 1–2 weeks</li>
-          <li><b>alfredpay</b> · stablecoin-to-banking rails across Latin America &nbsp;·&nbsp; <b>Abroad</b> · local instant payment rails · 1–2 weeks</li>
-          <li><b>BlindPay</b> · fiat and stablecoin transfers worldwide · 1–2 weeks &nbsp;·&nbsp; <b>Mercuryo</b> · fiat-to-crypto on/off-ramp · 1–2 weeks</li>
-          <li><b>Bridge</b> · multi-currency payments settled on Stellar · 1–5 days</li>
-        </ul>
-        <p style="font-size:14px;line-height:1.3"><strong>Türkiye:</strong> the TRY rails in this deck are a sandbox and no TRY anchor is on the list today; Türkiye stays market one only if a licensed TRY anchor passes the same criteria. MoneyGram (cash) and Etherfuse (bonds) are listed but outside the bank-transfer shape.</p>
+      <ul>
+        <li>Selected anchor wired in via its sandbox or API in place of the mock anchor (SEP-6/24 and SEP-38 where offered)</li>
+        <li>Threat model in SDF's STRIDE template format: assets, threat table, mitigations</li>
+        <li>Monitoring plan (builders template) with core alerts live for vault, policy, sponsor and bridge accounts; dashboards hired, optional</li>
+        <li>Audit Bank audit of the policy install, bridge accounts and server path; findings remediated with regression tests; QA hired</li>
+        <li>Mainnet path behind a capped, presenter-only flag with real USDC; hosted and self-host deployment docs with scripted setup</li>
+      </ul>
+    </div>
+    <div class="band">
+      <div class="meta">
+        <span class="when">Tranche 3 · days 121–180</span>
+        <h4>Mainnet launch and public pilot</h4>
+        <p>me 340 h + hired 80 h<br>pays 40% at completion (mainnet)</p>
       </div>
-      <div class="card stack" style="gap:4px;padding:14px 18px">
-        <span class="eyebrow" style="font-size:14px">Budget hygiene</span>
-        <p style="font-size:14px;line-height:1.3">Only development, testing, monitoring, deployment and validation work is in the ask; nothing is self-funded. No legal fees, no entity setup (none is needed to receive the award), no audit fee (Audit Bank), no marketing beyond the user-testing exception. Contractor lines are parallel capacity, never dependencies: each has a no-hire outcome that still closes the tranche. Nothing waits on a third party signing.</p>
-      </div>
+      <ul>
+        <li>Mainnet launch in the pilot market by week 3: contracts registered, sponsor and relay budgets live, production rails</li>
+        <li>Public pilot cohort of 50–100 users; validation-focused user testing run by me; session ops and UX polish hired (1/3 exception)</li>
+        <li>Monitoring stack live on mainnet with an on-call runbook: rotation, escalation, incident templates</li>
+        <li>Metric window: 30-day NAV measurement, public dashboard, on-chain footprint registered</li>
+        <li>Pilot support process in operation: support channel, triage rules, response targets, fixes, weekly pilot reports</li>
+      </ul>
     </div>
   </div>
-  <p class="cite-foot" style="font-size:12.5px;bottom:50px;line-height:1.3">Paid in XLM in tranches of 10% on acceptance, 20% at MVP, 30% at testnet and 40% at mainnet; "Project timeline should not exceed 6 months"; each tranche form within 90 days of the previous payment: SCF Handbook, Build Award, "Budget &amp; Deliverable Guidelines" (stellar.gitbook.io/scf-handbook/scf-awards/build-award/budget-and-deliverable-guidelines). Rates: one engineer at 60% of full-time (24 h/week, 206 h per 60-day tranche) at $70/h; contractors $55/h; hours × rate on every line.</p>
+  <p class="cite-foot" style="font-size:15px;bottom:70px;line-height:1.35"><strong>Boundary with the Sembol Instaward.</strong> Instaward Month 3 delivers the testnet relay. This award funds only what lies beyond it: the mainnet hardening of that fee-sponsoring path (per-project budgets, allowlists, refusal alerts, sponsor monitoring), the 0.4 library release and policy-based single-transaction onboarding. No hour appears in both.</p>
   <div class="foot"><span>Kumbara by Sembol · kumbara.sembol.xyz · Stellar TESTNET today; mainnet after the audit, in the selected pilot market</span><span class="n"></span></div>
 </section>
 
-<!-- A · Appendix (hackathon variant only): the sequence diagram -->
+<section class="slide" id="s11" style="padding-top:58px;padding-bottom:104px">
+  <div class="eyebrow">Budget and metric · $107,300 · Integration Track Large band ($100k–150k), at its low end · every dollar is hours</div>
+  <h2 style="font-size:44px;margin:8px 0 22px">One full-time engineer plus hired capacity: 1,180 hours over six months, $107,300.</h2>
+  <div class="row" style="gap:28px;align-items:flex-start">
+    <div class="stack" style="flex:1.3;min-width:0;gap:18px">
+      <table class="subs">
+        <tr><th>Tranche</th><th class="r">Days</th><th class="r">Me h</th><th class="r">Hired h</th><th class="r">Me USD</th><th class="r">Hired USD</th><th class="r">Subtotal</th></tr>
+        <tr><td>1 · Wallet layer and relay hardening</td><td class="n">1–60</td><td class="n">340</td><td class="n">0</td><td class="n usd">$32,300</td><td class="n usd">$0</td><td class="n usd">$32,300</td></tr>
+        <tr><td>2 · Testnet-complete and secured</td><td class="n">61–120</td><td class="n">340</td><td class="n">80</td><td class="n usd">$32,300</td><td class="n usd">$5,200</td><td class="n usd">$37,500</td></tr>
+        <tr><td>3 · Mainnet launch and public pilot</td><td class="n">121–180</td><td class="n">340</td><td class="n">80</td><td class="n usd">$32,300</td><td class="n usd">$5,200</td><td class="n usd">$37,500</td></tr>
+        <tr class="total"><td>Total · six months</td><td class="n">180</td><td class="n">1,020</td><td class="n">160</td><td class="n usd">$96,900</td><td class="n usd">$10,400</td><td class="n usd">$107,300</td></tr>
+        <tr class="paid"><td colspan="7">Paid in XLM per the handbook split: 10% on acceptance $10,730 · 20% after Tranche 1 $21,460 · 30% after Tranche 2 $32,190 · 40% after Tranche 3 $42,920</td></tr>
+      </table>
+      <div class="card stack" style="gap:8px;padding:22px 28px">
+        <span class="eyebrow" style="font-size:16px">Hired capacity · 160 h at $65/h · parallel work only; no tranche gate depends on a hire</span>
+        <ul class="ctrs">
+          <li><span>Monitoring dashboards and alert routing, optional (Tranche 2)</span><span class="n">40 h</span><span class="n usd">$2,600</span></li>
+          <li><span>QA against the audit findings: independent re-test, regression suite (Tranche 2)</span><span class="n">40 h</span><span class="n usd">$2,600</span></li>
+          <li><span>User-testing ops: structured sessions, interviews, write-ups (Tranche 3)</span><span class="n">40 h</span><span class="n usd">$2,600</span></li>
+          <li><span>UX polish for the pilot: copy, edge states, accessibility fixes (Tranche 3)</span><span class="n">40 h</span><span class="n usd">$2,600</span></li>
+        </ul>
+        <p style="font-size:16.5px;line-height:1.35;color:var(--muted)">If a hire does not land, the line is unbilled and the tranche still closes on my own lines: core alerts, my regression tests, the sessions I run, fixes from pilot support. The dashboards line is optional by design.</p>
+      </div>
+    </div>
+    <div class="col stack" style="gap:16px">
+      <div class="card stack" style="gap:6px;padding:22px 28px">
+        <span class="eyebrow" style="font-size:16px">Final-tranche metric commitment</span>
+        <table class="mini">
+          <tr><td>Metric type</td><td>DeFindex vault NAV: USDC in Kumbara's mainnet vault position, from local-currency deposits in the pilot market</td></tr>
+          <tr><td>Threshold</td><td>average daily NAV of <strong>2,500 USDC</strong> = 100 pilot users × 50 USDC average balance × 50% still holding through the window. The cohort is planned at 50–100 users; the threshold takes the top of that range</td></tr>
+          <tr><td>Window</td><td>the 30 days after the pilot launch, averaged over the window, not a snapshot</td></tr>
+          <tr><td>Footprint, registered at award time</td><td>vault, strategy and policy contracts; sponsor account (bridge accounts sponsored per CAP-33); app-created smart accounts</td></tr>
+        </table>
+        <p style="font-size:17px;line-height:1.35">The panel ratifies or adjusts the threshold during panel review. Seed and E2E accounts are tagged out of every number; wash or gamed activity is excluded.</p>
+      </div>
+      <div class="card stack" style="gap:6px;padding:22px 28px">
+        <span class="eyebrow" style="font-size:16px">Budget hygiene</span>
+        <p style="font-size:17.5px;line-height:1.38">Only development, testing, monitoring, deployment and validation work is in the ask; nothing is self-funded and every line is hours × rate. No legal fees, no entity setup (none is needed to receive the award), no audit fee (Audit Bank), no marketing beyond the user-testing exception: validation lines are about 8% of the total against the one-third cap. Nothing waits on a third party signing, and nothing here is paid for by the Instaward.</p>
+      </div>
+    </div>
+  </div>
+  <p class="cite-foot" style="font-size:15px;bottom:70px;line-height:1.35">Paid in XLM in tranches of 10% on acceptance, 20% at MVP, 30% at testnet and 40% at mainnet; "Project timeline should not exceed 6 months"; each tranche completion form within 90 calendar days of the previous payment: SCF Handbook, Build Award, "Budget &amp; Deliverable Guidelines" (stellar.gitbook.io/scf-handbook/scf-awards/build-award/budget-and-deliverable-guidelines). Rates: $95/h for a senior full-stack engineer with Soroban and passkey work shipped upstream (stellar/smart-account-kit PR #4; @sembol/passkey-react on npm), full-time at 40 h/week, 340 h per 60-day tranche; hired capacity at $65/h for parallel work only.</p>
+  <div class="foot"><span>Kumbara by Sembol · kumbara.sembol.xyz · Stellar TESTNET today; mainnet after the audit, in the selected pilot market</span><span class="n"></span></div>
+</section>
+
+
+<!-- 11 · Budget and metric is above; A · Appendix (hackathon only): the sequence diagram; B · Appendix (both): line-by-line hours -->
 <section class="slide" data-only="hackathon" id="sA">
   <div class="eyebrow">Appendix · sequence diagram (docs/architecture.md)</div>
   <h2 style="margin-bottom:12px;font-size:50px">Every message in the round trip, from the passkey to the payout.</h2>
@@ -494,6 +550,40 @@ sequenceDiagram
   </div>
   <div class="foot"><span>Mermaid, rendered as vectors · Stellar TESTNET · the relay is a fee-sponsoring relay, currently OpenZeppelin Channels</span><span class="n"></span></div>
 </section>
+
+<section class="slide" id="sB" style="padding-top:50px;padding-bottom:70px">
+  <div class="eyebrow">Appendix · line-by-line hours · me at $95/h, hired at $65/h · hours × rate on every line</div>
+  <h2 style="font-size:36px;margin:6px 0 14px">20 lines, 1,180 hours, $107,300. Each line names how reviewers verify it.</h2>
+  <table class="hours">
+    <tr><th style="width:56%">Deliverable</th><th style="width:25%">How reviewers verify</th><th style="width:10.5%;text-align:right">Who · hours</th><th style="width:8.5%;text-align:right">USD</th></tr>
+    <tr class="tr"><td colspan="2">Tranche 1 · wallet layer and relay hardening · days 1–60</td><td class="who">me 340 h</td><td class="usd">$32,300</td></tr>
+    <tr><td>Single-transaction onboarding: the spending-limit policy installed on the default rule at account creation; the library's limit UI updated</td><td class="ver">one tx hash per new kumbara on testnet; onboarding timing on /stats</td><td class="who">me · 90 h</td><td class="usd">$8,550</td></tr>
+    <tr><td>@sembol/passkey-react 0.4 published with projectId: relay project binding, config, docs, migration notes; Kumbara moved onto it</td><td class="ver">npm 0.4.x; changelog; Kumbara lockfile</td><td class="who">me · 70 h</td><td class="usd">$6,650</td></tr>
+    <tr><td>Relay mainnet hardening of the fee-sponsoring path: per-project budgets, allowlists, refusal alerts, sponsor monitoring</td><td class="ver">config in repo; a refused call's log and tx; an alert fired; sponsor monitor</td><td class="who">me · 100 h</td><td class="usd">$9,500</td></tr>
+    <tr><td>Anchor shortlist and go/no-go: Integration List on/off-ramps ranked by market; written positions from the top two; pilot anchor and market selected; runner-up named as the fallback</td><td class="ver">ranked shortlist, decision memo, written positions (repo)</td><td class="who">me · 60 h</td><td class="usd">$5,700</td></tr>
+    <tr><td>Audit Bank application with scope: policy install, bridge accounts, server path</td><td class="ver">submission confirmation; scope document</td><td class="who">me · 20 h</td><td class="usd">$1,900</td></tr>
+    <tr class="tr"><td colspan="2">Tranche 2 · testnet-complete and secured · days 61–120</td><td class="who">me 340 h + hired 80 h</td><td class="usd">$37,500</td></tr>
+    <tr><td>Selected anchor wired in via its sandbox or API in place of the mock anchor (SEP-6/24, SEP-38 where offered; adapter otherwise)</td><td class="ver">sandbox round trip green in CI</td><td class="who">me · 100 h</td><td class="usd">$9,500</td></tr>
+    <tr><td>Threat model in SDF's STRIDE template format (assets, threat table, mitigations)</td><td class="ver">docs/security/threat-model.md</td><td class="who">me · 50 h</td><td class="usd">$4,750</td></tr>
+    <tr><td>Monitoring plan in the builders template; core alerts implemented for the vault, policy, sponsor and bridge accounts</td><td class="ver">monitoring-plan.md; a live alert on testnet</td><td class="who">me · 50 h</td><td class="usd">$4,750</td></tr>
+    <tr class="hired"><td>└ Monitoring dashboards and alert routing, optional: boards per contract and account, paging rules</td><td class="ver">dashboard URL; a routed alert</td><td class="who">hired · 40 h</td><td class="usd">$2,600</td></tr>
+    <tr><td>Audit Bank audit of the policy install, bridge accounts and server path: scoping, support, findings remediated with regression tests (fee: Audit Bank)</td><td class="ver">audit report; fix commits; auditor re-check</td><td class="who">me · 80 h</td><td class="usd">$7,600</td></tr>
+    <tr class="hired"><td>└ QA against the audit findings: independent re-test, regression suite extended</td><td class="ver">QA report; CI suite</td><td class="who">hired · 40 h</td><td class="usd">$2,600</td></tr>
+    <tr><td>Mainnet path behind a capped, presenter-only flag: real USDC, enforced budgets</td><td class="ver">mainnet tx hashes from the capped path</td><td class="who">me · 30 h</td><td class="usd">$2,850</td></tr>
+    <tr><td>Hosted (Vercel + Turso) and self-host (Fly + SQLite) deployment docs with scripted setup; CI against the anchor sandbox</td><td class="ver">docs URLs; a fresh deploy from the docs; CI run</td><td class="who">me · 30 h</td><td class="usd">$2,850</td></tr>
+    <tr class="tr"><td colspan="2">Tranche 3 · mainnet launch and public pilot · days 121–180</td><td class="who">me 340 h + hired 80 h</td><td class="usd">$37,500</td></tr>
+    <tr><td>Mainnet launch in the selected pilot market by week 3: contracts registered, sponsor account and relay budgets live, production rails</td><td class="ver">mainnet contract IDs on stellar.expert</td><td class="who">me · 90 h</td><td class="usd">$8,550</td></tr>
+    <tr><td>Public pilot cohort of 50–100 users; validation-focused user testing, run by me (within the 1/3 exception)</td><td class="ver">/stats on mainnet; tx hashes; cohort report</td><td class="who">me · 60 h</td><td class="usd">$5,700</td></tr>
+    <tr class="hired"><td>└ User-testing ops: structured sessions, interviews, write-ups</td><td class="ver">session log; cohort report</td><td class="who">hired · 40 h</td><td class="usd">$2,600</td></tr>
+    <tr class="hired"><td>└ UX polish for the pilot: copy, edge states, accessibility fixes from the sessions</td><td class="ver">fix commits; Lighthouse accessibility score</td><td class="who">hired · 40 h</td><td class="usd">$2,600</td></tr>
+    <tr><td>Monitoring stack live on mainnet with an on-call runbook: rotation, escalation, incident templates</td><td class="ver">runbook in repo; a mainnet alert and its ticket</td><td class="who">me · 50 h</td><td class="usd">$4,750</td></tr>
+    <tr><td>Metric window: 30-day NAV measurement, public dashboard, on-chain footprint registered</td><td class="ver">NAV dashboard URL; registered IDs</td><td class="who">me · 40 h</td><td class="usd">$3,800</td></tr>
+    <tr><td>Pilot support process in operation: support channel, triage rules, response targets, fixes, weekly pilot reports</td><td class="ver">issue log; weekly reports in the repo</td><td class="who">me · 100 h</td><td class="usd">$9,500</td></tr>
+    <tr class="sub"><td colspan="2">Total · Integration Track Large band ($100k–150k), at its low end · me 1,020 h ($96,900) + hired 160 h ($10,400)</td><td class="who">1,180 h</td><td class="usd">$107,300</td></tr>
+  </table>
+  <div class="foot"><span>Kumbara by Sembol · kumbara.sembol.xyz · Stellar TESTNET today; mainnet after the audit, in the selected pilot market</span><span class="n"></span></div>
+</section>
+
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/mermaid/11.15.0/mermaid.min.js"></script>
 <script>

@@ -66,9 +66,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 10
 
 ## 10 · Roadmap and the ask
 
-**TR.** Üç dilim, altı ay. Birincisi zemin: SEP'e hazır anchor seçimi, Audit Bank başvurusu, relay bütçeleri, dağıtım belgeleri. İkincisi test ağı tam ve güvenli: STRIDE tehdit modeli, izleme planı, denetim ve düzeltmeler. Üçüncüsü ana ağ ve açık pilot; ölçüt kasadaki NAV, otuz gün. Her satırın maliyeti ve doğrulaması ekranda.
+**TR.** Üç dilim, toplam altı ay. Birincisi zemin: SEP'e hazır anchor seçimi, Audit Bank başvurusu, relay bütçeleri, dağıtım belgeleri. İkincisi test ağı tam ve güvenli: STRIDE tehdit modeli, izleme planı, denetim ve düzeltmeler. Üçüncüsü ana ağ ve açık pilot; ölçüt kasadaki NAV, otuz gün. Her satırın maliyeti ve doğrulaması ekranda.
 
-**EN.** Three tranches, six months. First, groundwork: a SEP-ready anchor chosen, the Audit Bank application, relay budgets, deployment docs. Second, testnet-complete and secured: STRIDE threat model, monitoring plan, audit and fixes. Third, mainnet launch and public pilot; the metric is vault NAV over thirty days. Every line has a cost and a way to verify it.
+**EN.** Three tranches, six months in total. First, groundwork: a SEP-ready anchor chosen, the Audit Bank application, relay budgets, deployment docs. Second, testnet-complete and secured: STRIDE threat model, monitoring plan, audit and fixes. Third, mainnet launch and public pilot; the metric is vault NAV over thirty days. Every line has a cost and a way to verify it.
 
 ## A · Appendix · sequence diagram (hackathon variant)
 

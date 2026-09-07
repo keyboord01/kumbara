@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Kumbara by Sembol · SCF deck v6</title>
+<style>
+  :root { --paper: #fbf7f0; --paper-2: #f3ede2; --line: #e3dccd; --ink: #12313a; --ink-2: #3f5b63; --muted: #5a6b71; --teal: #0f6b6b; --coral: #e5533d; --mint: #1f9d6a; --amber: #7a4f0f; --amber-bg: #f4e7cf; --danger: #b42318;
+    --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  @page { size: 1920px 1080px; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+  .slide { position: relative; width: 1920px; height: 1080px; overflow: hidden; padding: 84px 110px 90px; page-break-after: always; break-after: page; background: var(--paper); display: flex; flex-direction: column; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+  .eyebrow { font-family: var(--mono); font-size: 18px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  h1 { font-size: 124px; line-height: 1.02; letter-spacing: -.03em; margin: 22px 0 18px; }
+  h2 { font-size: 64px; line-height: 1.06; letter-spacing: -.025em; margin: 12px 0 36px; }
+  h4 { margin: 0; font-size: 30px; letter-spacing: -.01em; }
+  p, li { font-size: 26px; line-height: 1.4; color: var(--ink-2); margin: 0; }
+  strong { color: var(--ink); }
+  .lead { font-size: 44px; line-height: 1.25; color: var(--ink-2); max-width: 1500px; }
+  .badge { display: inline-flex; align-items: center; gap: 10px; border: 2px solid rgba(122,79,15,.4); background: var(--amber-bg); color: var(--amber); font-family: var(--mono); font-size: 20px; letter-spacing: .14em; text-transform: uppercase; border-radius: 999px; padding: 8px 18px; }
+  .badge::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--amber); }
+  .foot { position: absolute; left: 110px; right: 110px; bottom: 34px; display: flex; justify-content: space-between; align-items: center; font-family: var(--mono); font-size: 17px; color: var(--muted); letter-spacing: .04em; }
+  .foot .n { color: var(--ink-2); }
+  .cite { position: absolute; left: 110px; right: 110px; bottom: 74px; font-size: 16.5px; line-height: 1.4; color: var(--muted); }
+  .card { background: #fff; border: 2px solid var(--line); border-radius: 28px; padding: 30px 34px; }
+  .mono { font-family: var(--mono); } .teal { color: var(--teal); } .muted { color: var(--muted); } .num { font-variant-numeric: tabular-nums; }
+  .row { display: flex; gap: 34px; } .col { flex: 1; min-width: 0; } .stack { display: flex; flex-direction: column; gap: 18px; }
+  .centre { justify-content: center; } .centre > .eyebrow { margin-top: -30px; }
+  .kpi { display: flex; flex-direction: column; gap: 6px; } .kpi b { font-size: 72px; letter-spacing: -.03em; line-height: 1; } .kpi span { font-size: 23px; color: var(--muted); line-height: 1.3; }
+  .title-wrap { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .phones { display: grid; grid-template-columns: repeat(4, 1fr); gap: 42px; }
+  .phone { display: flex; flex-direction: column; gap: 18px; align-items: center; }
+  .phone img { width: 100%; border-radius: 34px; border: 3px solid var(--line); display: block; height: 600px; object-fit: cover; object-position: top; background: #fff; }
+  .phone figcaption { font-size: 30px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+  .cmp { width: 100%; border-collapse: collapse; font-size: 25px; }
+  .cmp th, .cmp td { padding: 18px 18px; border-bottom: 2px solid var(--line); text-align: center; vertical-align: middle; }
+  .cmp th { font-family: var(--mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .cmp td:first-child, .cmp th:first-child { text-align: left; font-weight: 700; color: var(--ink); width: 24%; }
+  .cmp td.yes { color: var(--mint); font-size: 32px; font-weight: 700; } .cmp td.no { color: var(--coral); font-size: 32px; font-weight: 700; } .cmp td.part { color: var(--amber); font-size: 20px; }
+  .cmp tr.us td { background: rgba(15,107,107,.08); }
+  .icons { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
+  .icons div { background: #fff; border: 2px solid var(--line); border-radius: 22px; padding: 22px 20px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; font-size: 24px; font-weight: 600; color: var(--ink); line-height: 1.25; }
+  .ic { width: 60px; height: 60px; }
+  .hashes { display: flex; gap: 18px; flex-wrap: wrap; }
+  .hashes a { font-family: var(--mono); font-size: 19px; color: var(--teal); text-decoration: none; border: 2px solid var(--line); border-radius: 999px; padding: 8px 16px; background: #fff; }
+  .mk { width: 100%; border-collapse: collapse; font-size: 22px; }
+  .mk th, .mk td { padding: 13px 14px; border-bottom: 2px solid var(--line); vertical-align: middle; text-align: left; }
+  .mk th { font-family: var(--mono); font-size: 16px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .mk td.n { white-space: nowrap; font-variant-numeric: tabular-nums; } .mk td.tag { font-family: var(--mono); font-size: 17px; white-space: nowrap; }
+  .mk td.good { color: var(--mint); } .mk td.warn { color: var(--amber); } .mk td.bad { color: var(--muted); }
+  .ev { width: 100%; border-collapse: collapse; font-size: 22px; } .ev td { padding: 10px 6px; border-bottom: 1.5px solid var(--line); color: var(--ink-2); } .ev td.mono { text-align: right; white-space: nowrap; color: var(--teal); font-size: 20px; }
+  ul.lines { margin: 0; padding-left: 32px; } ul.lines li { font-size: 28px; line-height: 1.38; } ul.lines li + li { margin-top: 16px; }
+  .reading { color: var(--amber); font-size: 22px; }
+  .proofs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .proofs div { background: #fff; border: 2px solid var(--line); border-radius: 24px; padding: 28px 30px; display: flex; flex-direction: column; gap: 12px; }
+  .proofs div b { font-size: 28px; color: var(--ink); } .proofs div span { font-size: 21px; color: var(--muted); line-height: 1.35; }
+  .tranches { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+  .tr { background: #fff; border: 2px solid var(--line); border-radius: 24px; padding: 24px 28px; display: flex; flex-direction: column; gap: 10px; }
+  .tr .when { font-family: var(--mono); font-size: 16px; letter-spacing: .12em; text-transform: uppercase; color: var(--teal); }
+  .tr ul { margin: 4px 0 0; padding-left: 26px; } .tr li { font-size: 22px; line-height: 1.35; } .tr li + li { margin-top: 6px; }
+  .tr .usd { margin-top: auto; font-family: var(--mono); font-size: 30px; color: var(--danger); }
+  .ask { display: grid; grid-template-columns: 1.1fr 1fr; gap: 24px; margin-top: 22px; }
+  .ask .card { padding: 24px 30px; }
+  .split { display: flex; gap: 26px; margin-top: 10px; } .split div { font-family: var(--mono); font-size: 19px; color: var(--ink-2); } .split div b { display: block; font-size: 26px; color: var(--ink); }
+  .metric { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; } .metric div { font-size: 20px; color: var(--muted); line-height: 1.3; } .metric div b { display: block; font-size: 30px; color: var(--ink); letter-spacing: -.01em; }
+  .hours { width: 100%; border-collapse: collapse; font-size: 18.5px; table-layout: fixed; }
+  .hours th, .hours td { padding: 7px 8px; border-bottom: 1.5px solid var(--line); vertical-align: top; line-height: 1.25; text-align: left; }
+  .hours th { font-family: var(--mono); font-size: 16px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .hours td { color: var(--ink-2); } .hours td.n { font-family: var(--mono); text-align: right; white-space: nowrap; } .hours td.usd { color: var(--danger); } .hours td.ver { color: var(--muted); }
+  .hours tr.sup td { color: var(--muted); } .hours tr.total td { font-weight: 700; color: var(--ink); background: var(--paper-2); }
+  .hours .tn { font-family: var(--mono); font-size: 16px; color: var(--teal); margin-right: 10px; }
+  sup { font-size: 16px; line-height: 0; }
+  svg text { font-family: var(--sans); }
+</style>
+</head>
+<body>
+<section class="slide" id="s1">
+  <div class="eyebrow">Stellar Community Fund · Build Award · Integration Track</div>
+  <div class="title-wrap">
+    <div style="display:flex;align-items:center;gap:26px"><h1 style="margin:0">Kumbara <span class="muted" style="font-weight:500;font-size:64px;letter-spacing:-.01em">by Sembol</span></h1><span class="badge">Testnet</span></div>
+    <p class="lead" style="margin-top:34px">Dollar savings for people paid in lira. One tap.</p>
+    <div class="row" style="margin-top:70px;gap:80px">
+      <div class="kpi"><span>Live · Stellar TESTNET</span><b class="teal" style="font-size:46px;letter-spacing:-.02em">kumbara.sembol.xyz</b></div>
+      <div class="kpi"><span>Repository</span><b class="mono" style="font-size:36px;letter-spacing:0;font-weight:500">github.com/keyboord01/kumbara</b></div>
+    </div>
+  </div>
+  <div class="foot"><span>Every balance and link in this deck is Stellar TESTNET. No mainnet claims, no rates.</span><span class="n"></span></div>
+</section>
+
+<section class="slide centre" id="s2">
+  <div class="eyebrow">Problem</div>
+  <h2>A lira in the bank buys less.</h2>
+  <div class="row" style="gap:48px;align-items:flex-start">
+    <div class="card" style="flex:none;width:1120px;padding:22px 28px 14px"><span class="eyebrow" style="font-size:16px;display:block;margin-bottom:10px">Lira per US dollar · central bank rate · end of year</span><svg style="width:100%;height:auto;display:block" viewBox="0 0 1040 400" role="img" aria-label="Lira per US dollar, central bank indicative rate, end of each year 2019 to 2025 and 4 September 2026"><line x1="60" y1="346" x2="1020" y2="346" stroke="#e3dccd" stroke-width="2"/><rect x="60" y="310" width="78" height="36" rx="8" fill="#0f6b6b"/><text x="99" y="300" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">5.94</text><text x="99" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2019</text><rect x="186" y="301" width="78" height="45" rx="8" fill="#0f6b6b"/><text x="225" y="291" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">7.42</text><text x="225" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2020</text><rect x="312" y="264" width="78" height="82" rx="8" fill="#0f6b6b"/><text x="351" y="254" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">13.33</text><text x="351" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2021</text><rect x="438" y="232" width="78" height="114" rx="8" fill="#0f6b6b"/><text x="477" y="222" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">18.70</text><text x="477" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2022</text><rect x="564" y="166" width="78" height="180" rx="8" fill="#0f6b6b"/><text x="603" y="156" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">29.44</text><text x="603" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2023</text><rect x="690" y="130" width="78" height="216" rx="8" fill="#0f6b6b"/><text x="729" y="120" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">35.28</text><text x="729" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2024</text><rect x="816" y="84" width="78" height="262" rx="8" fill="#0f6b6b"/><text x="855" y="74" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">42.85</text><text x="855" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">2025</text><rect x="942" y="51" width="78" height="295" rx="8" fill="#e5533d"/><text x="981" y="41" text-anchor="middle" font-size="20" font-weight="700" fill="#12313a">48.23</text><text x="981" y="376" text-anchor="middle" font-size="17" fill="#5a6b71">4 Sep 2026</text></svg></div>
+    <div class="col stack" style="gap:30px;padding-top:6px">
+      <div class="kpi"><b class="num" style="font-size:84px">8.1×</b><span>lira per dollar since end-2019</span></div>
+      <div class="kpi"><b class="num" style="font-size:84px">31.5%</b><span>inflation, August 2026</span></div>
+      <p style="font-size:25px">₺100,000 since 2019 → <strong>$2,073</strong> as lira, <strong>$16,835</strong> as dollars.</p>
+    </div>
+  </div>
+  <p class="cite">TCMB indicative USD buying rate, last business day of each year and 4 September 2026 (tcmb.gov.tr/kurlar) · TÜİK CPI, August 2026, +31.51% year on year (veriportali.tuik.gov.tr/tr/press/58290) · dollar figures are ₺100,000 divided by those rates.</p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
+</section>
+
+<section class="slide centre" id="s3">
+  <div class="eyebrow">Solution</div>
+  <h2 style="margin-bottom:30px">Tap once. Save in dollars.</h2>
+  <div class="phones">
+    <figure class="phone" style="margin:0"><img src="../screenshots/app/onboard-en.png" alt="Onboard screen"><figcaption>Tap once</figcaption></figure>
+    <figure class="phone" style="margin:0"><img src="../screenshots/app/deposit-en.png" alt="Deposit screen"><figcaption>Transfer lira</figcaption></figure>
+    <figure class="phone" style="margin:0"><img src="../screenshots/app/savings-en.png" alt="Savings screen"><figcaption>Held as USDC</figcaption></figure>
+    <figure class="phone" style="margin:0"><img src="../screenshots/app/withdraw-en.png" alt="Withdraw screen"><figcaption>Lira back</figcaption></figure>
+  </div>
+  <div class="foot"><span>Screens captured on kumbara.sembol.xyz · Stellar TESTNET · sandbox amounts</span><span class="n"></span></div>
+</section>
+
+<section class="slide centre" id="s4">
+  <div class="eyebrow">Why it is better</div>
+  <h2>Self-custody without the homework.</h2>
+  <table class="cmp">
+    <tr><th></th><th>You hold the key</th><th>No seed phrase</th><th>No XLM to buy</th><th>Lira in and out by bank transfer</th><th>Nothing to install</th></tr>
+    <tr><td>Bank dollar account</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Crypto exchange</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+    <tr><td>Seed-phrase wallet</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td class="part">anchor by anchor</td><td class="no">✗</td></tr>
+    <tr class="us"><td>Kumbara</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+  </table>
+  <p style="margin-top:30px;font-size:30px;color:var(--ink)"><strong>You hold the key. No homework.</strong></p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
+</section>
+
+<section class="slide" id="s5" style="padding-top:64px">
+  <div class="eyebrow">How it works · Stellar TESTNET</div>
+  <h2 style="margin-bottom:24px">Five moves, one tap.</h2>
+  <div class="icons">
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="19" cy="35" r="10"/><path d="M27 29 L50 8 M43 13 l6 6 M37 19 l6 6"/></svg>Passkey opens account</div>
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M28 6 L48 14 V30 C48 42 38 50 28 54 C18 50 8 42 8 30 V14 Z"/><path d="M19 30 l6 6 12-12"/></svg>Spending limit on-chain</div>
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 22 L28 9 L48 22 Z"/><path d="M14 24 V44 M24 24 V44 M32 24 V44 M42 24 V44"/><path d="M8 47 H48"/></svg>Anchor issues IBAN</div>
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 20 H42 M34 12 l8 8 -8 8"/><path d="M50 38 H14 M22 30 l-8 8 8 8"/></svg>Bridge forwards USDC</div>
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="40" height="40" rx="7"/><circle cx="28" cy="28" r="9"/><path d="M28 20 V28 l6 4 M12 48 v6 M44 48 v6"/></svg>One tap, vault</div>
+  </div>
+  <div class="row" style="gap:30px;margin-top:26px;align-items:stretch">
+    <div class="card" style="flex:1.45;padding:22px 28px 14px"><svg style="width:100%;height:auto;display:block" viewBox="0 0 1000 300" role="img" aria-label="Anchor pays a bridge account; a pre-signed transaction forwards the USDC to the smart account; a second pre-signed transaction merges the bridge account back into the sponsor"><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#0f6b6b"/></marker></defs><rect x="10" y="30" width="210" height="90" rx="14" fill="#fff" stroke="#0f6b6b" stroke-width="2.5"/><text x="115.0" y="68" text-anchor="middle" font-size="21" font-weight="700" fill="#12313a">Anchor treasury</text><text x="115.0" y="96" text-anchor="middle" font-size="17" fill="#5a6b71">classic account</text><line x1="222" y1="75" x2="366" y2="75" stroke="#0f6b6b" stroke-width="3" marker-end="url(#ah)"/><text x="294" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#0f6b6b">USDC payment</text><rect x="370" y="30" width="260" height="90" rx="14" fill="#f4e7cf" stroke="#7a4f0f" stroke-width="2.5"/><text x="500.0" y="68" text-anchor="middle" font-size="21" font-weight="700" fill="#12313a">Bridge account</text><text x="500.0" y="96" text-anchor="middle" font-size="17" fill="#5a6b71">ownerless · pre-authorized</text><line x1="632" y1="75" x2="766" y2="75" stroke="#0f6b6b" stroke-width="3" marker-end="url(#ah)"/><text x="699" y="58" text-anchor="middle" font-size="16" font-weight="700" fill="#0f6b6b">forward · seq +1</text><rect x="770" y="30" width="220" height="90" rx="14" fill="#fff" stroke="#0f6b6b" stroke-width="2.5"/><text x="880.0" y="68" text-anchor="middle" font-size="21" font-weight="700" fill="#12313a">User's kumbara</text><text x="880.0" y="96" text-anchor="middle" font-size="17" fill="#5a6b71">smart account</text><line x1="500" y1="122" x2="500" y2="206" stroke="#0f6b6b" stroke-width="3" marker-end="url(#ah)"/><text x="636" y="170" text-anchor="middle" font-size="16" font-weight="700" fill="#0f6b6b">cleanup · seq +2</text><rect x="370" y="210" width="260" height="80" rx="14" fill="#fff" stroke="#0f6b6b" stroke-width="2.5"/><text x="500.0" y="248" text-anchor="middle" font-size="21" font-weight="700" fill="#12313a">Sponsor</text><text x="500.0" y="276" text-anchor="middle" font-size="17" fill="#5a6b71">reserves return</text></svg></div>
+    <div class="card col stack" style="gap:14px;padding:26px 30px;justify-content:center">
+      <p style="font-size:25px">Anchors pay classic accounts, so a throwaway pre-authorized bridge account carries the USDC into the smart account.</p>
+      <div class="kpi"><b class="num" style="font-size:64px">10 / 10</b><span>exact amount matches</span></div>
+      <div class="hashes"><a href="https://stellar.expert/explorer/testnet/tx/778215b3a70debb505ad6f9a05946914ae000de4ef2165e1c9ee8e91e3c3a8f1">payment 778215b3…</a><a href="https://stellar.expert/explorer/testnet/tx/f580e030d4d8e15fe4aca47d07ee131152ae91417ea983459afdbe3ff22c9eab">forward f580e030…</a><a href="https://stellar.expert/explorer/testnet/tx/6223c61c20cd3dc115f67ef5170112cab64e61ac86686545eb18c7927416291d">cleanup 6223c61c…</a></div>
+    </div>
+  </div>
+  <div class="foot"><span>OpenZeppelin smart account · policy CABXBYJN…2TIP5G · DeFindex vault CAT76PQM…MKSKL · USDC CBIELTK6…XQDAMA · relay: OpenZeppelin Channels</span><span class="n"></span></div>
+</section>
+
+<section class="slide centre" id="s6">
+  <div class="eyebrow">Where it works</div>
+  <h2>Same app, next anchor.</h2>
+  <table class="mk">
+    <tr><th>Market</th><th>Inflation</th><th>Anchor on the SCF Integration List</th><th>Published integration time</th><th>Fit</th></tr>
+    <tr><td><strong>Türkiye</strong></td><td class="n">34.9% <span class="muted">(2025)</span></td><td>sandbox today; licensed TRY anchor = Tranche 1 go/no-go</td><td>—</td><td class="tag good">market one</td></tr><tr><td><strong>Argentina</strong></td><td class="n">219.9% <span class="muted">(2024)</span></td><td>Koywe</td><td>widget < 1 day · API 1–2 weeks</td><td class="tag good">strong fit</td></tr><tr><td><strong>Bolivia</strong></td><td class="n">19.5% <span class="muted">(2025)</span></td><td>Koywe</td><td>widget < 1 day · API 1–2 weeks</td><td class="tag good">strong fit</td></tr><tr><td><strong>Nigeria</strong></td><td class="n">23.0% <span class="muted">(2025)</span></td><td>none by country; global ramps to verify</td><td>BlindPay, Mercuryo 1–2 weeks · Bridge 1–5 days</td><td class="tag warn">to verify</td></tr><tr><td><strong>Egypt</strong></td><td class="n">14.1% <span class="muted">(2025)</span></td><td>none by country; global ramps to verify</td><td>BlindPay, Mercuryo 1–2 weeks · Bridge 1–5 days</td><td class="tag warn">to verify</td></tr><tr><td><strong>Colombia</strong></td><td class="n">5.1% <span class="muted">(2025)</span></td><td>Koywe</td><td>widget < 1 day · API 1–2 weeks</td><td class="tag bad">low inflation</td></tr>
+  </table>
+  <p style="margin-top:28px;font-size:30px;color:var(--ink)"><strong>The anchor is config, not code.</strong></p>
+  <p class="cite">Inflation: World Bank, consumer prices, annual %, 2025 (Argentina 2024, latest published). Anchors and integration times as published on the SCF Integration List, on/off-ramping section, read 6 September 2026. Türkiye runs on a sandbox anchor today.</p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
+</section>
+
+<section class="slide centre" id="s7">
+  <div class="eyebrow">Evidence</div>
+  <h2>Built, tested, public.</h2>
+  <div class="row" style="gap:24px">
+    <div class="card kpi col"><b class="num">6</b><span>real-browser round trips in CI, every push and every 6 h</span></div>
+    <div class="card kpi col"><b class="num">25</b><span>failure states, each a TR/EN screen</span></div>
+    <div class="card kpi col"><b class="num">94</b><span>Lighthouse performance on /stats; 100 accessibility, best practices, SEO</span></div>
+    <div class="card kpi col"><b class="num">378</b><span>testnet transactions, each with a hash</span></div>
+  </div>
+  <div class="row" style="gap:24px;margin-top:24px;align-items:stretch">
+    <div class="card col stack" style="gap:8px;justify-content:center">
+      <span class="eyebrow" style="font-size:16px">kumbara.sembol.xyz/stats</span>
+      <p style="font-size:24px">Live onboarding at Rise In × Stellar Pro, Sep 19–20; on-chain count on /stats.</p>
+    </div>
+    <div class="card" style="flex:1.4">
+      <table class="ev">
+        <tr><td>Vault deployed with the hodl strategy</td><td class="mono">dbf0d5b7…6faa8f96</td></tr>
+        <tr><td>Deposit into the strategy (invest)</td><td class="mono">b615e7dc…76b7f981</td></tr>
+        <tr><td>Withdrawal from the strategy (divest)</td><td class="mono">466f48d2…07a9f5ca</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET · stellar.expert/explorer/testnet/tx/&lt;hash&gt;</span><span class="n"></span></div>
+</section>
+
+<section class="slide" id="s8">
+  <div class="eyebrow">Regulation</div>
+  <h2 style="font-size:58px">Non-custodial software. The anchor is the regulated party.</h2>
+  <div class="row" style="gap:32px;align-items:stretch">
+    <div class="card" style="flex:1.5;padding:30px 36px">
+      <ul class="lines">
+        <li>We never hold lira, USDC or keys.</li>
+        <li>The licensed anchor holds fiat, does KYC, pays only your own IBAN.</li>
+        <li>No send, no P2P, no merchant flow. Türkiye's 2021 payments ban respected.</li>
+        <li>Per-transaction cap on-chain; MASAK limits at the anchor.</li>
+        <li>Outside Türkiye's CASP definitions: no custody, no trading, no transfer service by us; the user signs with their own key. <span class="reading">Our reading, to be confirmed with the anchor's compliance team.</span></li>
+      </ul>
+    </div>
+    <div class="card col stack" style="gap:14px;justify-content:center;border-color:var(--teal)">
+      <span class="eyebrow" style="font-size:16px">Gate before mainnet</span>
+      <p style="font-size:27px">The anchor's written position.</p>
+      <span class="eyebrow" style="font-size:16px;margin-top:12px">Fallback</span>
+      <p style="font-size:27px">Top-ranked market on the SCF list, same app.</p>
+    </div>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
+</section>
+
+<section class="slide centre" id="s9">
+  <div class="eyebrow">Team</div>
+  <h2>Founder-led, already shipping on Stellar.</h2>
+  <div class="proofs">
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="14" cy="12" r="6"/><circle cx="14" cy="44" r="6"/><circle cx="42" cy="28" r="6"/><path d="M14 18 V38 M14 24 C14 32 28 28 36 28"/></svg><b>Upstream PR merged</b><span>stellar/smart-account-kit #4, merged 19 August 2026, shipped in 0.6.2</span></div>
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M28 6 L50 17 V39 L28 50 L6 39 V17 Z"/><path d="M6 17 L28 28 L50 17 M28 28 V50"/></svg><b>npm package</b><span>@sembol/passkey-react: passkey creation and signing, recovery, spending-limit UI</span></div>
+    <div><svg class="ic" viewBox="0 0 56 56" fill="none" stroke="var(--teal)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="28" cy="20" r="12"/><path d="M20 30 L16 52 L28 45 L40 52 L36 30"/></svg><b>Instaward grantee</b><span>Stellar Türkiye. Kumbara is the consumer proof for that work.</span></div>
+  </div>
+  <p style="margin-top:30px;font-size:27px;color:var(--ink)"><strong>Ahmed.</strong> Two engineers planned on award; no deliverable depends on a hire.</p>
+  <p style="margin-top:14px;font-size:22px" class="mono teal">ahmed.bet · linkedin.com/in/ahmed-zm · github.com/keyboord01</p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
+</section>
+
+<section class="slide" id="s10" style="padding-top:60px;padding-bottom:100px">
+  <div class="eyebrow">Roadmap · ask · metric</div>
+  <h2 style="font-size:54px;margin-bottom:22px">Three tranches, five months, mainnet.</h2>
+  <div class="tranches"><div class="tr"><span class="when">Tranche 1 · 60 days</span><h4>Integration</h4><ul><li>Selected anchor wired in via sandbox or API (SEP-6/24/38)</li><li>Single-transaction onboarding</li><li>Bridge-account adapter hardened for that anchor</li><li>Audit Bank scope submitted</li></ul><b class="usd">$32,300</b></div><div class="tr"><span class="when">Tranche 2 · 45 days</span><h4>Secured</h4><ul><li>Threat model and monitoring plan (SDF templates)</li><li>Audit Bank audit and remediation</li><li>Mainnet behind a capped flag</li></ul><b class="usd">$29,520</b></div><div class="tr"><span class="when">Tranche 3 · 45 days</span><h4>Mainnet</h4><ul><li>Mainnet launch in the pilot market</li><li>50–100 user pilot</li><li>30-day NAV window</li></ul><b class="usd">$26,920</b></div></div>
+  <div class="ask">
+    <div class="card"><span class="eyebrow" style="font-size:16px">The ask · paid in XLM per the handbook split</span>
+      <b class="num" style="display:block;font-size:64px;letter-spacing:-.03em;margin-top:6px">$88,740</b>
+      <div class="split"><div>10% on acceptance<b>$8,874</b></div><div>20% after Tranche 1<b>$17,748</b></div><div>30% after Tranche 2<b>$26,622</b></div><div>40% after Tranche 3<b>$35,496</b></div></div>
+    </div>
+    <div class="card"><span class="eyebrow" style="font-size:16px">Final-tranche metric</span>
+      <div class="metric"><div><b>2,500 USDC</b>average daily NAV in the DeFindex vault</div><div><b>30 days</b>after the pilot launch</div><div><b>Registered</b>vault, strategy, policy, sponsor account, app-created accounts</div></div>
+    </div>
+  </div>
+  <p class="cite" style="bottom:70px">Sembol Cloud v0 and the 0.4.0 release are delivered under Instaward Month 3; nothing here overlaps. Payment split: SCF Handbook, Build Award, Budget &amp; Deliverable Guidelines. The panel ratifies or adjusts the metric threshold.</p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET today; mainnet after the audit, in the selected pilot market</span><span class="n"></span></div>
+</section>
+
+<section class="slide" id="sA" style="padding-top:56px;padding-bottom:84px">
+  <div class="eyebrow">Appendix · hours</div>
+  <table class="hours" style="margin-top:14px">
+    <tr><th style="width:52%">Deliverable</th><th style="width:8%;text-align:right">Hours</th><th style="width:10%;text-align:right">USD</th><th>Verification</th></tr>
+    <tr><td><span class="tn">T1</span>Selected anchor wired in through its sandbox or API in place of the mock (SEP-6/24/38)</td><td class="n">130</td><td class="n usd">$12,350</td><td class="ver">sandbox round trip green in CI</td></tr><tr><td><span class="tn">T1</span>Single-transaction onboarding: spending-limit policy on the default rule at creation</td><td class="n">90</td><td class="n usd">$8,550</td><td class="ver">one tx hash per new kumbara</td></tr><tr><td><span class="tn">T1</span>Bridge-account adapter hardened for that anchor: matching, retries, cleanup guarantees</td><td class="n">80</td><td class="n usd">$7,600</td><td class="ver">10/10 matches on the new anchor; unit tests</td></tr><tr><td><span class="tn">T1</span>Audit Bank scope submitted: policy install, bridge accounts, server path</td><td class="n">20</td><td class="n usd">$1,900</td><td class="ver">submission confirmation</td></tr><tr><td><span class="tn">T1</span>Deployment docs and CI against the anchor sandbox</td><td class="n">20</td><td class="n usd">$1,900</td><td class="ver">fresh deploy from the docs; CI run</td></tr><tr><td><span class="tn">T2</span>Threat model, SDF STRIDE template</td><td class="n">50</td><td class="n usd">$4,750</td><td class="ver">docs/security/threat-model.md</td></tr><tr><td><span class="tn">T2</span>Monitoring plan, SDF builders template; core alerts live</td><td class="n">60</td><td class="n usd">$5,700</td><td class="ver">monitoring-plan.md; a live alert</td></tr><tr class=sup><td><span class="tn">T2</span>Dashboards and alert routing (optional)</td><td class="n">40</td><td class="n usd">$2,600</td><td class="ver">dashboard URL; a routed alert</td></tr><tr><td><span class="tn">T2</span>Audit Bank audit: scoping, support, remediation with regression tests</td><td class="n">96</td><td class="n usd">$9,120</td><td class="ver">audit report; fix commits; re-check</td></tr><tr class=sup><td><span class="tn">T2</span>QA against the audit findings</td><td class="n">40</td><td class="n usd">$2,600</td><td class="ver">QA report; CI suite</td></tr><tr><td><span class="tn">T2</span>Mainnet behind a capped, presenter-only flag</td><td class="n">50</td><td class="n usd">$4,750</td><td class="ver">mainnet tx hashes from the capped path</td></tr><tr><td><span class="tn">T3</span>Mainnet launch in the pilot market: contracts registered, sponsor and relay configured</td><td class="n">90</td><td class="n usd">$8,550</td><td class="ver">mainnet contract IDs on stellar.expert</td></tr><tr><td><span class="tn">T3</span>50–100 user pilot with validation-focused testing</td><td class="n">56</td><td class="n usd">$5,320</td><td class="ver">/stats on mainnet; cohort report</td></tr><tr class=sup><td><span class="tn">T3</span>User-testing ops: sessions, interviews, write-ups</td><td class="n">40</td><td class="n usd">$2,600</td><td class="ver">session log; cohort report</td></tr><tr><td><span class="tn">T3</span>On-call runbook; monitoring live on mainnet</td><td class="n">40</td><td class="n usd">$3,800</td><td class="ver">runbook; a mainnet alert and its ticket</td></tr><tr><td><span class="tn">T3</span>30-day NAV window: measurement, dashboard, footprint registered</td><td class="n">30</td><td class="n usd">$2,850</td><td class="ver">NAV dashboard URL; registered IDs</td></tr><tr><td><span class="tn">T3</span>Pilot support: triage, fixes, weekly reports</td><td class="n">40</td><td class="n usd">$3,800</td><td class="ver">issue log; weekly reports</td></tr>
+    <tr class="total"><td>Total · 150 days</td><td class="n">972</td><td class="n usd">$88,740</td><td class="ver">T1 $32,300 · T2 $29,520 · T3 $26,920</td></tr>
+  </table>
+  <p class="cite" style="bottom:64px">Rates: $95/h engineering; $65/h QA and user-testing support (grey rows). Tranche lengths: 60, 45, 45 days.</p>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
+</section>
+<script>
+  const visible = Array.from(document.querySelectorAll("section.slide"));
+  visible.forEach((el, i) => { const n = el.querySelector(".foot .n"); if (n) n.textContent = `${i + 1} / ${visible.length}`; });
+  document.body.dataset.mermaid = "none";
+</script>
+</body>
+</html>

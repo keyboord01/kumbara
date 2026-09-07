@@ -20,14 +20,19 @@ except ImportError:  # pragma: no cover
 DECK = os.path.join(os.path.dirname(__file__), "..", "docs", "deck")
 VARIANTS = [os.environ["VARIANT"]] if os.environ.get("VARIANT") else ["scf", "hackathon"]
 
-notes_md = open(os.path.join(DECK, "speaker-notes.md"), encoding="utf-8").read()
-# Notes are keyed by slide id: "## <id> · <title>" (ids: 1..11, 3b, B; the hackathon deck uses 1, 2, 3, 3b, 4, 5, 6, 7).
-blocks = {}
-for m in re.finditer(r"^## ([\w]+) · .*?$\n(.*?)(?=^## |\Z)", notes_md, flags=re.M | re.S):
-    blocks[m.group(1)] = re.sub(r"\*\*(TR|EN)\.\*\*", r"\1:", m.group(2)).strip()
-ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "B"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7"]}
+NOTES = {"scf": "speaker-notes-scf.md", "hackathon": "speaker-notes.md"}
+ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7"]}
+
+def load_notes(name):
+    """Notes are keyed by slide id: "## <id> · <title>"."""
+    md = open(os.path.join(DECK, name), encoding="utf-8").read()
+    blocks = {}
+    for m in re.finditer(r"^## ([\w]+) · .*?$\n(.*?)(?=^## |\Z)", md, flags=re.M | re.S):
+        blocks[m.group(1)] = re.sub(r"\*\*(TR|EN)\.\*\*", r"\1:", m.group(2)).strip()
+    return blocks
 
 for variant in VARIANTS:
+    blocks = load_notes(NOTES[variant])
     slides_dir = os.path.join(DECK, f"slides-{variant}")
     pngs = sorted(f for f in os.listdir(slides_dir) if re.match(r"slide-\d+\.png$", f))
     if not pngs:

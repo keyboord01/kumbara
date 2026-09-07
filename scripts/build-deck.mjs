@@ -1,5 +1,5 @@
-// Render docs/deck/kumbara-deck.html (1920×1080 slides) in its two variants:
-//   scf        → docs/deck/kumbara-deck-scf.pdf        (12 slides: 1–9, Roadmap, Budget and metric, hours appendix)
+// Render the two deck sources (1920×1080 slides):
+//   scf        → docs/deck/kumbara-deck-scf.pdf        (from kumbara-deck-scf.html: 10 slides + hours appendix)
 //   hackathon  → docs/deck/kumbara-deck-hackathon.pdf  (8 slides for the Rise In × Stellar Pro Hackathon judges: no SCF material)
 // plus docs/deck/slides-<variant>/slide-NN.png and docs/deck/contact-sheet-<variant>.png,
 // with Playwright (Chrome). The Mermaid diagram renders in the page (cdnjs) and stays a vector in the PDF.
@@ -10,7 +10,7 @@ import path from "node:path";
 import { chromium } from "playwright";
 
 const DECK = path.resolve("docs/deck");
-const HTML = path.join(DECK, "kumbara-deck.html");
+const SOURCES = { scf: path.join(DECK, "kumbara-deck-scf.html"), hackathon: path.join(DECK, "kumbara-deck.html") };
 const VARIANTS = process.env.VARIANT ? [process.env.VARIANT] : ["scf", "hackathon"];
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
@@ -19,7 +19,7 @@ for (const variant of VARIANTS) {
   rmSync(slidesDir, { recursive: true, force: true });
   mkdirSync(slidesDir, { recursive: true });
   const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 });
-  await page.goto(`file://${HTML}#variant=${variant}`, { waitUntil: "networkidle" });
+  await page.goto(`file://${SOURCES[variant]}#variant=${variant}`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => Boolean(document.body.dataset.mermaid), null, { timeout: 30000 }).catch(() => undefined);
   const mermaidState = await page.evaluate(() => document.body.dataset.mermaid ?? "timeout");
   const diagrams = await page.locator("pre.mermaid:visible").count();

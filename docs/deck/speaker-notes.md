@@ -2,13 +2,13 @@
 
 Read aloud; at most 60 words per slide. TR first, then EN. Everything shown is Stellar TESTNET.
 
-Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 9, then **10 · Roadmap**, **11 · Budget and metric**, and **B · Appendix · hours** (12 slides). **Hackathon** (`kumbara-deck-hackathon.pdf`): slides 1, 2, 3, then **3b · Try it now**, then 4 to 9, 10, 11, then **A · Appendix · sequence diagram** and **B · Appendix · hours** (14 slides).
+Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): slides 1 to 9, then **10 · Roadmap**, **11 · Budget and metric**, and **B · Appendix · hours**. **Hackathon** (`kumbara-deck-hackathon.pdf`, 8 slides, judges only, no SCF material): slides 1, 2, 3, then **3b · Try it now**, then 4, 5, 6, 7.
 
 ## 1 · Title
 
-**TR.** Merhaba, ben Ahmed. Kumbara, Türkiye için Face ID ile açılan, anahtarı yalnızca sende olan bir dolar kumbarası. Lira gönderirsin, USDC olarak birikir, istediğinde liraya geri çekersin. Bugün göstereceğim her şey Stellar test ağında; gerçek lira hareket etmiyor.
+**TR.** Merhaba, ben Ahmed: Instaward hibesi aldım, passkey-react kütüphanesini yazdım, smart-account-kit'e katkı verdim. Kumbara, Türkiye için Face ID ile açılan, anahtarı yalnızca sende olan bir dolar kumbarası. Lira gönderirsin, USDC olarak birikir, istediğinde liraya geri çekersin. Bugün göstereceğim her şey Stellar test ağında; gerçek lira hareket etmiyor.
 
-**EN.** Hi, I'm Ahmed. Kumbara is a self-custodial dollar piggy bank for Türkiye that opens with Face ID. You send lira, it is held as USDC, and you take lira back whenever you like. Everything you will see today runs on Stellar testnet; no real lira moves.
+**EN.** Hi, I'm Ahmed: Instaward grantee, author of passkey-react, contributor to smart-account-kit. Kumbara is a self-custodial dollar piggy bank for Türkiye that opens with Face ID. You send lira, it is held as USDC, and you take lira back whenever you like. Everything you will see today runs on Stellar testnet; no real lira moves.
 
 ## 2 · Problem
 
@@ -18,21 +18,21 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 9,
 
 ## 3 · Product
 
-**TR.** Dört ekran. Tek tuş, Face ID, on saniyede hesap; tohum kelime yok, XLM yok, kurulum yok. Kumbaram ekranı kasadaki USDC'yi ve lira karşılığını gösterir. Yükleme, bildiğin havale ekranı: IBAN ve açıklama. Çekim, liraya satış kuru ve kendi IBAN'ına ödeme.
+**TR.** Dört ekran. Tek tuş, Face ID ya da Touch ID, on saniyede hesap; tohum kelime yok, XLM yok, kurulum yok. Kumbaram ekranı kasadaki USDC'yi ve lira karşılığını gösterir. Yükleme, bildiğin havale ekranı: IBAN ve açıklama. Çekim, liraya satış kuru ve kendi IBAN'ına ödeme.
 
-**EN.** Four screens. One button, Face ID, an account in about ten seconds; no seed phrase, no XLM, no install. Savings shows USDC in the vault and its lira value. Deposit is the bank-transfer screen everyone knows: IBAN and a reference. Withdraw is a sell quote and a payout to your own IBAN.
+**EN.** Four screens. One button, Face ID or Touch ID, an account in about ten seconds; no seed phrase, no XLM, no install. Savings shows USDC in the vault and its lira value. Deposit is the bank-transfer screen everyone knows: IBAN and a reference. Withdraw is a sell quote and a payout to your own IBAN.
 
 ## 3b · Try it now (hackathon variant)
 
-**TR.** Şimdi deneyin: kodu okutun, Kumbaranı aç'a dokunun, Face ID. Hesabınız açıldı. Yükle deyin, yüz yazın; bankayı ben oynatıyorum, bir dakikaya USDC kasada. Çek deyin, lira IBAN'a döner. Kurulum yok, kelime yok, XLM yok. Test ağı, gerçek para değil. Sayaç arkamda.
+**TR.** Şimdi deneyin: kodu okutun, Kumbaranı aç'a dokunun, Face ID ya da Touch ID. Hesabınız açıldı. Yükle deyin, yüz yazın; bankayı ben oynatıyorum, bir dakikaya USDC kasada. Çek deyin, lira IBAN'a döner. Kurulum yok, kelime yok, XLM yok. Test ağı, gerçek para değil. Sayaç arkamda.
 
-**EN.** Try it now: scan, tap Kumbaranı aç, Face ID. Your account exists. Tap Yükle, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Çek and the lira comes back to the IBAN. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
+**EN.** Try it now: scan, tap Kumbaranı aç, Face ID or Touch ID. Your account exists. Tap Yükle, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Çek and the lira comes back to the IBAN. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
 
 ## 4 · How it works
 
-**TR.** Yedi adım. Face ID ile bir OpenZeppelin akıllı hesabı açılır, ücreti relay öder. Harcama limiti zincire yazılır. Anchor IBAN verir, lira gelir, USDC'ye çevrilir ve köprü hesabına ödenir. Köprü USDC'yi kumbaraya iletir, kendini kapatır. Bir Face ID ile USDC DeFindex kasasına girer. Çekim aynı yolu tersten yürür.
+**TR.** Yedi adım. Passkey ile bir OpenZeppelin akıllı hesabı açılır, ücreti relay öder. Harcama limiti zincire yazılır. Anchor IBAN verir, lira gelir, USDC'ye çevrilir ve köprü hesabına ödenir. Köprü USDC'yi kumbaraya iletir, kendini kapatır. Bir Face ID ile USDC DeFindex kasasına girer. Çekim aynı yolu tersten yürür.
 
-**EN.** Seven steps. Face ID opens an OpenZeppelin smart account; the relay pays the fees. A spending limit is written on-chain. The anchor issues an IBAN, lira arrives, becomes USDC, and is paid to a bridge account. The bridge forwards it to the kumbara and closes itself. One Face ID puts the USDC in the DeFindex vault. Withdrawal runs backwards.
+**EN.** Seven steps. A passkey opens an OpenZeppelin smart account; the relay pays the fees. A spending limit is written on-chain. The anchor issues an IBAN, lira arrives, becomes USDC, and is paid to a bridge account. The bridge forwards it to the kumbara and closes itself. One Face ID puts the USDC in the DeFindex vault. Withdrawal runs backwards.
 
 ## 5 · The bridge
 
@@ -48,9 +48,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 9,
 
 ## 7 · Traction and evidence
 
-**TR.** Her şey herkese açık ve tekrar çalıştırılabilir. Altı gerçek tarayıcı turu CI'da, her gönderimde ve altı saatte bir üretime karşı. Yirmi beş hata durumu, her biri bir ekran. Lighthouse 94 ve üç kez 100. Kasa kurulumu, yatırma ve çekme işlem karmaları test ağında. Etkinlik sayıları 20 Eylül'den sonra.
+**TR.** Her şey herkese açık ve tekrar çalıştırılabilir: altı gerçek tarayıcı turu CI'da, yirmi beş hata ekranı, Lighthouse 94 ve üç kez 100, kasa kurulum, yatırma ve çekme karmaları test ağında. Sırada: Sembol Cloud v0 ana ağda, Instaward üçüncü ay; anchor ortaklık görüşmeleri sürüyor; etkinlikten sonra SCF Integration Track başvurusu.
 
-**EN.** Everything here is public and re-runnable. Six real-browser round trips in CI, on every push and every six hours against production. Twenty-five failure states, each a screen. Lighthouse 94 and three hundreds. Vault deploy, invest and divest hashes on testnet. The event numbers come after 20 September.
+**EN.** Everything here is public and re-runnable: six real-browser round trips in CI, twenty-five failure screens, Lighthouse 94 and three hundreds, the vault deploy, invest and divest hashes on testnet. Next: Sembol Cloud v0 on mainnet in Instaward Month 3, anchor partnership conversations underway, and the SCF Integration Track after the event.
 
 ## 8 · Regulatory positioning
 
@@ -76,11 +76,6 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`): slides 1 to 9,
 
 **EN.** One hundred seven thousand three hundred dollars, every dollar hours. I work full-time at ninety-five an hour, three hundred forty hours per tranche. Hired capacity is one hundred sixty hours at sixty-five; no gate depends on a hire. Metric: average NAV of two thousand five hundred USDC over the thirty days after launch; a hundred users, fifty USDC, half retained.
 
-## A · Appendix · sequence diagram (hackathon variant)
-
-**TR.** Referans için tam sıra diyagramı: passkey'den ödemeye kadar her mesaj. Kumbara ile relay arasındaki her ok imzalı bir yetki; anchor'a giden her ok klasik bir ödeme; kasaya giden tek ok kullanıcının Face ID'si. Sorusu olan için sunum sonunda buradayım.
-
-**EN.** The full sequence diagram for reference: every message from the passkey to the payout. Each arrow between Kumbara and the relay is a signed authorization; each arrow to the anchor is a classic payment; the single arrow into the vault is the user's Face ID. I'm here after the session for questions.
 
 ## B · Appendix · line-by-line hours
 

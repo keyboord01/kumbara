@@ -21,7 +21,7 @@ DECK = os.path.join(os.path.dirname(__file__), "..", "docs", "deck")
 VARIANTS = [os.environ["VARIANT"]] if os.environ.get("VARIANT") else ["scf", "hackathon"]
 
 NOTES = {"scf": "speaker-notes-scf.md", "hackathon": "speaker-notes.md"}
-ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "A"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7"]}
+ORDER = {"scf": ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"], "hackathon": ["1", "2", "3", "3b", "4", "5", "6", "7"]}
 
 def load_notes(name):
     """Notes are keyed by slide id: "## <id> · <title>"."""

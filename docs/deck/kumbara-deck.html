@@ -147,6 +147,14 @@
   .mk td.good { color: var(--mint); } .mk td.warn { color: var(--amber); } .mk td.bad { color: var(--muted); }
   ul.tight { margin: 10px 0 0; padding-left: 26px; } ul.tight li { font-size: 22px; line-height: 1.35; } ul.tight li + li { margin-top: 8px; }
   ul.big { margin: 0; padding-left: 30px; } ul.big li { font-size: 27px; line-height: 1.4; } ul.big li + li { margin-top: 18px; }
+  .cmp td.who { font-weight: 700; color: var(--ink); font-size: 24px; } .cmp td.who.you { color: var(--mint); }
+  .hashes { display: flex; gap: 16px; flex-wrap: wrap; }
+  .hashes a { font-family: var(--mono); font-size: 18px; color: var(--teal); text-decoration: none; border: 2px solid var(--line); border-radius: 999px; padding: 8px 16px; background: #fff; }
+  .stat { background: #fff; border: 2px solid var(--line); border-radius: 26px; padding: 28px 30px; display: flex; flex-direction: column; gap: 10px; }
+  .stat b { font-size: 80px; letter-spacing: -.03em; line-height: 1; color: var(--ink); } .stat span { font-size: 23px; color: var(--muted); line-height: 1.3; } .stat a { font-family: var(--mono); font-size: 15px; color: var(--teal); text-decoration: none; word-break: break-all; line-height: 1.35; }
+  .teamstrip { display: flex; align-items: center; gap: 14px; margin-top: 56px; } .teamstrip p { font-size: 24px; margin-left: 12px; }
+  .ph { border-radius: 16px; border: 2px dashed var(--teal); background: var(--paper-2); display: grid; place-items: center; font-family: var(--mono); color: var(--teal); object-fit: cover; }
+  body[data-variant="hackathon"] #s7 .next { display: flex; }
 </style>
 </head>
 <body>
@@ -166,7 +174,7 @@
       <div class="kpi"><span>Repository</span><b class="mono" style="font-size:34px;letter-spacing:0;font-weight:500">github.com/keyboord01/kumbara</b></div>
       <div class="kpi"><span>Deck date</span><b style="font-size:34px;letter-spacing:-.01em">7 September 2026</b></div>
     </div>
-    <p data-only="hackathon" style="margin-top:56px;font-size:24px;color:var(--ink-2)"><strong>Ahmed</strong> · Instaward grantee · author of <span class="mono teal">@sembol/passkey-react</span> · contributor to <span class="mono teal">stellar/smart-account-kit</span></p>
+    <div data-only="hackathon" class="teamstrip"><div class="ph" style="width:72px;height:72px;font-size:24px">AM</div><div class="ph" style="width:72px;height:72px;font-size:24px">KS</div><div class="ph" style="width:72px;height:72px;font-size:24px">BL</div><p><strong>Ahmed Murshed · Kutay Sarı · Ben Luelo</strong> · three engineers, already shipping on Stellar</p></div>
   </div>
   <div class="foot"><span>Every balance and link in this deck is Stellar TESTNET. No mainnet claims, no rates.</span><span class="n"></span></div>
 </section>
@@ -233,45 +241,36 @@
   <div class="eyebrow">Why it is better</div>
   <h2 style="margin-bottom:28px">Self-custody without the crypto homework.</h2>
   <table class="cmp">
-    <tr><th></th><th>You hold the key</th><th>No seed phrase</th><th>No XLM to buy</th><th>Lira in and out by bank transfer</th><th>Nothing to install</th></tr>
-    <tr><td>Bank dollar account</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
-    <tr><td>Crypto exchange</td><td class="no">✗</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
-    <tr><td>Stellar wallet app</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td><td class="part">anchor by anchor</td><td class="no">✗</td></tr>
-    <tr class="us"><td>Kumbara</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><th></th><th>Who holds your money</th><th>No seed phrase</th><th>No XLM to buy</th><th>Lira in and out by bank transfer</th><th>Nothing to install</th></tr>
+    <tr><td>Bank dollar account</td><td class="who">bank</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+    <tr><td>Crypto exchange</td><td class="who">exchange</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="no">✗</td></tr>
+    <tr><td>Seed-phrase wallet</td><td class="who you">you</td><td class="no">✗</td><td class="no">✗</td><td class="no">✗<sup>*</sup></td><td class="no">✗</td></tr>
+    <tr class="us"><td>Kumbara</td><td class="who you">you</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
   </table>
-  <p style="margin-top:26px;font-size:24px;line-height:1.4;max-width:1500px">The bank and the exchange hold your dollars. A wallet gives you the key and the homework. Kumbara gives you the key; a passkey signs, a relay pays the fees, a licensed anchor moves the lira.</p>
+  <p class="cite"><sup>*</sup> Depends on the wallet's anchor support.</p>
   <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
 </section>
 
 <!-- 5 · How it works -->
 <section class="slide" id="s5">
   <div class="eyebrow">How it works · all Stellar TESTNET</div>
-  <h2 style="margin-bottom:24px">Five moves, three audited building blocks.</h2>
+  <h2 style="margin-bottom:24px">Five moves, one tap.</h2>
   <div class="chips">
     <div class="chip"><b>1</b>Passkey → OpenZeppelin smart account. The relay pays the fees.</div>
     <div class="chip"><b>2</b>A 1,000 USDC per-transaction limit, written on-chain.</div>
     <div class="chip"><b>3</b>The anchor gives an IBAN. Lira in, USDC out.</div>
-    <div class="chip"><b>4</b>A bridge account forwards the USDC to your kumbara and closes itself.</div>
+    <div class="chip"><b>4</b>A temporary account forwards the USDC to your kumbara and closes itself.</div>
     <div class="chip"><b>5</b>One approval puts it in the DeFindex vault. Withdrawal runs backwards.</div>
   </div>
-  <div class="row" style="gap:32px;margin-top:26px;align-items:stretch">
-    <div class="card col" style="padding:24px 30px">
-      <span class="eyebrow" style="font-size:15px">What we found, what we built</span>
-      <p style="font-size:23px;line-height:1.4;margin-top:8px">Anchors pay classic accounts. Smart accounts are contracts. The ramp could not reach the wallet.<br><strong>Fix:</strong> an ownerless bridge account with two pre-signed transactions: forward, then cleanup. Nothing else can ever be signed.</p>
-      <div class="row" style="gap:40px;margin-top:16px">
-        <div class="kpi"><b class="num" style="font-size:44px">10 / 10</b><span>exact amount matches</span></div>
-        <div class="kpi"><b class="num" style="font-size:44px">900</b><span>stroops net per deposit</span></div>
-      </div>
+  <div class="row" style="gap:30px;margin-top:26px;align-items:stretch">
+    <div class="card" style="flex:1.25;padding:26px 30px;display:flex;flex-direction:column;justify-content:center;gap:22px"><svg style="width:100%;height:auto;display:block" viewBox="0 0 1200 170" role="img" aria-label="The anchor pays a temporary account; a pre-signed transaction forwards the USDC to your kumbara and the account closes"><defs><marker id="ah" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#0f6b6b"/></marker></defs><rect x="10" y="30" width="280" height="110" rx="14" fill="#fff" stroke="#0f6b6b" stroke-width="2.5"/><text x="150.0" y="74" text-anchor="middle" font-size="25" font-weight="700" fill="#12313a">Anchor</text><text x="150.0" y="106" text-anchor="middle" font-size="21" fill="#5a6b71">pays a normal account</text><line x1="292" y1="85" x2="468" y2="85" stroke="#0f6b6b" stroke-width="3" marker-end="url(#ah)"/><text x="380" y="66" text-anchor="middle" font-size="21" font-weight="700" fill="#0f6b6b">USDC</text><rect x="470" y="30" width="280" height="110" rx="14" fill="#f4e7cf" stroke="#7a4f0f" stroke-width="2.5"/><text x="610.0" y="74" text-anchor="middle" font-size="25" font-weight="700" fill="#12313a">Temporary account</text><text x="610.0" y="106" text-anchor="middle" font-size="21" fill="#5a6b71">two pre-signed transactions</text><line x1="752" y1="85" x2="928" y2="85" stroke="#0f6b6b" stroke-width="3" marker-end="url(#ah)"/><text x="840" y="66" text-anchor="middle" font-size="21" font-weight="700" fill="#0f6b6b">forward, then close</text><rect x="930" y="30" width="260" height="110" rx="14" fill="#fff" stroke="#0f6b6b" stroke-width="2.5"/><text x="1060.0" y="74" text-anchor="middle" font-size="25" font-weight="700" fill="#12313a">Your kumbara</text><text x="1060.0" y="106" text-anchor="middle" font-size="21" fill="#5a6b71">smart account</text></svg>
+      <div class="hashes"><a href="https://stellar.expert/explorer/testnet/tx/778215b3a70debb505ad6f9a05946914ae000de4ef2165e1c9ee8e91e3c3a8f1">payment 778215b3…</a><a href="https://stellar.expert/explorer/testnet/tx/f580e030d4d8e15fe4aca47d07ee131152ae91417ea983459afdbe3ff22c9eab">forward f580e030…</a><a href="https://stellar.expert/explorer/testnet/tx/6223c61c20cd3dc115f67ef5170112cab64e61ac86686545eb18c7927416291d">close 6223c61c…</a></div>
     </div>
-    <div class="card col" style="padding:24px 30px">
-      <span class="eyebrow" style="font-size:15px">Evidence · stellar.expert/explorer/testnet/tx/…</span>
-      <table class="ev">
-        <tr><td>Anchor pays the bridge account</td><td class="mono">778215b3…e3c3a8f1</td></tr>
-        <tr><td>Pre-signed forward lands in the smart account</td><td class="mono">f580e030…f22c9eab</td></tr>
-        <tr><td>Pre-signed cleanup, account merged</td><td class="mono">6223c61c…7416291d</td></tr>
-        <tr><td>Vault deposit, invest path</td><td class="mono">b615e7dc…76b7f981</td></tr>
-        <tr><td>Vault withdrawal, divest path</td><td class="mono">466f48d2…07a9f5ca</td></tr>
-      </table>
+    <div class="card col stack" style="gap:14px;padding:26px 30px;justify-content:center">
+      <p style="font-size:23px">The anchor can only pay a normal Stellar account, not a smart account.</p>
+      <p style="font-size:23px">So we create a temporary account whose only two possible transactions are signed before any money arrives: forward the USDC to your kumbara, then close itself.</p>
+      <p style="font-size:23px">Nobody, including us, can ever redirect it.</p>
+      <p style="font-size:25px"><strong>No custody, no trust in us.</strong></p>
     </div>
   </div>
   <div class="foot"><span data-only="scf">Policy CABXBYJN…2TIP5G · vault CAT76PQM…MKSKL · strategy CDFLOE4H…JLDMQN · USDC CBIELTK6…XQDAMA · relay: OpenZeppelin Channels · TESTNET</span><span data-only="hackathon">Skills: Anchors (SEP-1/6/38) · DeFindex SDK (vault + hodl) · SEPs/CAPs (CAP-33 sponsored accounts) · TESTNET</span><span class="n"></span></div>
@@ -281,71 +280,33 @@
 <section class="slide" id="s6">
   <div class="eyebrow">Where else it works</div>
   <h2 style="margin-bottom:24px">Same app, next anchor.</h2>
-  <div class="row" style="gap:32px;align-items:flex-start">
-    <table class="mk" style="flex:1.5">
-      <tr><th>Market</th><th class="r">Inflation</th><th>Anchor on the SCF Integration List</th><th>Fit</th></tr>
-      <tr><td><strong>Türkiye</strong></td><td class="n">34.9% <span class="muted">(2025)</span></td><td>sandbox today; licensed TRY anchor = Tranche 1 go/no-go</td><td class="tag good">market one</td></tr>
-      <tr><td><strong>Argentina</strong></td><td class="n">219.9% <span class="muted">(2024)</span></td><td>Koywe (sandbox; API in 1–2 weeks)</td><td class="tag good">strong fit</td></tr>
-      <tr><td><strong>Bolivia</strong></td><td class="n">19.5% <span class="muted">(2025)</span></td><td>Koywe</td><td class="tag good">strong fit</td></tr>
-      <tr><td><strong>Nigeria</strong></td><td class="n">23.0% <span class="muted">(2025)</span></td><td>none by country; global ramps to verify</td><td class="tag warn">to verify</td></tr>
-      <tr><td><strong>Egypt</strong></td><td class="n">14.1% <span class="muted">(2025)</span></td><td>none by country; global ramps to verify</td><td class="tag warn">to verify</td></tr>
-      <tr><td><strong>Colombia</strong></td><td class="n">5.1% <span class="muted">(2025)</span></td><td>Koywe</td><td class="tag bad">weak fit: low inflation</td></tr>
-    </table>
-    <div class="col stack" style="gap:16px">
-      <div class="card" style="padding:24px 28px">
-        <span class="eyebrow" style="font-size:15px">Adding a market</span>
-        <ul class="tight">
-          <li>One anchor config: stellar.toml, SEP-6/24 rails, SEP-38 quotes</li>
-          <li>One translation file, one currency pair for the rate</li>
-          <li>Vault, wallet and bridge accounts do not change</li>
-          <li>Our estimate: about 100 hours to wire an anchor sandbox</li>
-        </ul>
-      </div>
-      <div class="card" style="padding:24px 28px;border-color:var(--teal)">
-        <span class="eyebrow" style="font-size:15px">Who it is for</span>
-        <p style="font-size:22px;line-height:1.4">High inflation, a bank-transfer habit, a Stellar anchor. Türkiye first. Argentina and Bolivia next, on the same list.</p>
-      </div>
-    </div>
-  </div>
-  <p class="cite">Inflation: World Bank, consumer prices, annual %, 2025 (Argentina 2024, latest published). Anchors: SCF Integration List, on/off-ramping section, read 6 September 2026.</p>
+  <table class="mk" style="width:100%;font-size:24px">
+    <tr><th>Market</th><th class="r">Inflation</th><th>Anchor on the SCF Integration List</th></tr>
+    <tr><td><strong>Türkiye</strong></td><td class="n">34.9% <span class="muted">(2025)</span></td><td>Sandbox anchor today; a licensed TRY anchor is the go/no-go</td></tr>
+    <tr><td><strong>Argentina</strong></td><td class="n">219.9% <span class="muted">(2024)</span></td><td>Koywe · API in 1–2 weeks (published)</td></tr>
+    <tr><td><strong>Bolivia</strong></td><td class="n">19.5% <span class="muted">(2025)</span></td><td>Koywe · API in 1–2 weeks (published)</td></tr>
+  </table>
+  <p style="margin-top:32px;font-size:26px;max-width:1640px">Before mainnet we pick the anchor: licensed, pays your own bank account, confirms in writing that a non-custodial app can integrate. Türkiye if a TRY anchor qualifies; otherwise Argentina on Koywe. Same app either way.</p>
+  <p class="cite">Inflation: World Bank, consumer prices, annual %, 2025 (Argentina 2024, latest published). Anchors and integration times as published on the SCF Integration List, on/off-ramping section, read 6 September 2026.</p>
   <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET</span><span class="n"></span></div>
 </section>
 
 <!-- 7 · Evidence -->
 <section class="slide" id="s7">
-  <div class="eyebrow">Evidence</div>
-  <h2 style="margin-bottom:24px">Built, tested against production, public.</h2>
-  <div class="row" style="gap:32px;align-items:stretch">
-    <div style="width:400px;flex:none">
-      <img class="statsimg" src="../screenshots/stats/stats-mobile-en.png" alt="/stats page" style="width:400px;height:540px;object-fit:cover;object-position:top;border-radius:34px;border:3px solid var(--line);display:block;background:#fff">
-      <p style="font-size:19px;margin-top:10px"><strong>kumbara.sembol.xyz/stats</strong> · live counters, TESTNET badge, seed and test accounts excluded.</p>
-    </div>
-    <div class="col stack" style="gap:18px">
-      <div class="row" style="gap:22px">
-        <div class="card kpi col" style="padding:22px 26px"><b class="num">6</b><span>real-browser round trips in CI, every push and every 6 h against production</span></div>
-        <div class="card kpi col" style="padding:22px 26px"><b class="num">25</b><span>failure states, each a TR/EN screen with one action</span></div>
-        <div class="card kpi col" style="padding:22px 26px"><b class="num">94·100·100·100</b><span>Lighthouse mobile on /stats</span></div>
-      </div>
-      <div class="card stack" style="gap:10px;padding:22px 26px">
-        <div class="row" style="align-items:center;gap:18px"><span class="pill"><span class="dot"></span>E2E · passing · production run 7 Sep 2026</span><span class="muted" style="font-size:19px">GitHub Actions, e2e.yml</span></div>
-        <table class="ev">
-          <tr><td>Vault deployed with the hodl strategy</td><td class="mono">dbf0d5b7…6faa8f96</td></tr>
-          <tr><td>Deposit into the strategy (invest)</td><td class="mono">b615e7dc…76b7f981</td></tr>
-          <tr><td>Withdrawal from the strategy (divest)</td><td class="mono">466f48d2…07a9f5ca</td></tr>
-        </table>
-        <p style="font-size:20px">Fallback demo: docs/demo/round-trip.mp4, 2:39, one caption per step.</p>
-      </div>
-      <div class="card next" data-only="hackathon">
-        <span class="eyebrow" style="font-size:15px">What's next</span>
-        <ul>
-          <li>Sembol Cloud v0 on mainnet (Instaward Month 3)</li>
-          <li>Anchor partnership conversations underway</li>
-          <li>SCF Integration Track after the event</li>
-        </ul>
-      </div>
-    </div>
+  <div class="eyebrow">Evidence · Stellar TESTNET · test accounts excluded</div>
+  <h2 style="margin-bottom:24px">Users and transactions, all on chain.</h2>
+  <div class="row" style="gap:24px">
+    <div class="stat col"><b class="num">3</b><span>kumbaras opened</span><a href="https://kumbara.sembol.xyz/stats">https://kumbara.sembol.xyz/stats</a></div>
+    <div class="stat col"><b class="num">2</b><span>deposits completed</span><a href="https://kumbara.sembol.xyz/stats">https://kumbara.sembol.xyz/stats</a></div>
+    <div class="stat col"><b class="num">0</b><span>withdrawals completed</span><a href="https://kumbara.sembol.xyz/stats">https://kumbara.sembol.xyz/stats</a></div>
+    <div class="stat col"><b class="num" style="font-size:60px">208.23</b><span>USDC in the vault, all accounts</span><a href="https://stellar.expert/explorer/testnet/contract/CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL">https://stellar.expert/explorer/testnet/contract/CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL</a></div>
   </div>
-  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET · stellar.expert/explorer/testnet/tx/&lt;hash&gt;</span><span class="n"></span></div>
+  <p style="margin-top:28px;font-size:24px">Rise In × Stellar Pro, 19–20 September: these become the booth numbers.</p>
+  <div class="card next" data-only="hackathon" style="margin-top:24px">
+    <span class="eyebrow" style="font-size:15px">What's next</span>
+    <ul><li>Sembol Cloud v0 on mainnet (Instaward Month 3)</li><li>Anchor partnership conversations underway</li><li>SCF Integration Track after the event</li></ul>
+  </div>
+  <div class="foot"><span>Kumbara by Sembol · Stellar TESTNET · counts as of 7 September 2026</span><span class="n"></span></div>
 </section>
 
 <!-- 8 · Posture (SCF) -->

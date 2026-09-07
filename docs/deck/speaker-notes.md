@@ -6,9 +6,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 1 · Title
 
-**TR.** Merhaba, ben Ahmed. Kumbara, lirayla maaş alanlar için dolar birikimi: havale ile yükle, USDC olarak kasada dursun, istediğinde liraya çek. Tek anahtar bir passkey. Her şey Stellar test ağında.
+**TR.** Merhaba, biz Kumbara ekibiyiz: Ahmed Murshed, Kutay Sarı, Ben Luelo; üç mühendis, hepsi Stellar üzerinde üretiyor. Kumbara, lirayla maaş alanlar için dolar birikimi: havale ile yükle, USDC olarak kasada dursun, istediğinde liraya çek. Tek anahtar bir passkey. Her şey Stellar test ağında.
 
-**EN.** Hi, I'm Ahmed. Kumbara is dollar savings for people paid in lira: bank transfer in, USDC in a vault, lira back out. A passkey is the only key. Everything here runs on Stellar testnet.
+**EN.** Hi, we are the Kumbara team: Ahmed Murshed, Kutay Sarı and Ben Luelo, three engineers, all shipping on Stellar. Kumbara is dollar savings for people paid in lira: bank transfer in, USDC in a vault, lira back out. A passkey is the only key. Everything here runs on Stellar testnet.
 
 ## 2 · Problem
 
@@ -30,27 +30,27 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 4 · Why it is better
 
-**TR.** Banka ve borsa dolarını tutar. Cüzdan anahtarı verir ama tohum kelime ve XLM ister. Kumbara anahtarı sana verir: passkey imzalar, relay ücreti öder, lisanslı anchor lirayı taşır. Kurulacak bir şey yok.
+**TR.** Paranızı kim tutuyor? Bankada banka, borsada borsa; tohum kelimeli cüzdanda ve Kumbara'da siz. Fark ödevde: cüzdan on iki kelime, gaz için XLM ve kurulum ister; lira giriş çıkışı anchor desteğine bağlıdır. Kumbara'da passkey imzalar, relay ücreti öder, lisanslı anchor lirayı taşır; kurulacak bir şey yok.
 
-**EN.** The bank and the exchange hold your dollars. A wallet gives you the key but demands a seed phrase and XLM. Kumbara gives you the key: a passkey signs, a relay pays the fees, a licensed anchor moves the lira. Nothing to install.
+**EN.** Who holds your money? At the bank, the bank; at the exchange, the exchange; with a seed-phrase wallet and with Kumbara, you. The difference is the homework: a wallet demands twelve words, XLM for gas and an install, and lira in and out depends on its anchor support. With Kumbara a passkey signs, a relay pays the fees, a licensed anchor moves the lira; nothing to install.
 
 ## 5 · How it works
 
-**TR.** Beş hamle: passkey ile akıllı hesap, zincirde harcama limiti, anchor'dan IBAN, köprü hesabı USDC'yi kumbaraya iletir ve kendini kapatır, bir onayla kasaya. Bulgumuz: anchor'lar klasik hesaba öder, akıllı hesap sözleşmedir; köprü hesabı bunu çözer. Onda on eşleşme.
+**TR.** Beş hamle: passkey akıllı hesabı açar, limit zincire yazılır, anchor IBAN verir, geçici hesap USDC'yi iletir, bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir. Para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: ilet, sonra kapan. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor.
 
-**EN.** Five moves: passkey to smart account, a spending limit on-chain, an IBAN from the anchor, a bridge account that forwards the USDC and closes itself, one approval into the vault. Our finding: anchors pay classic accounts, smart accounts are contracts; the bridge account fixes that. Ten of ten matches.
+**EN.** Five moves: a passkey opens the smart account, the limit is written on-chain, the anchor issues an IBAN, a temporary account forwards the USDC, one approval into the vault. The bridge: the anchor can only pay a normal Stellar account. We create a temporary account whose only two transactions are signed before any money arrives: forward, then close. Nobody, including us, can redirect it. No custody, no trust in us.
 
 ## 6 · Where else it works
 
-**TR.** Aynı uygulama, sıradaki anchor. Yeni pazar bir anchor yapılandırması, bir çeviri, bir kur çifti; kasa, cüzdan ve köprü hesapları değişmez. Yüksek enflasyon, havale alışkanlığı, Stellar anchor'ı olan yerler: Türkiye önce, Arjantin ve Bolivya aynı listede.
+**TR.** Aynı uygulama, sıradaki anchor. Türkiye bugün sandbox anchor'la; Arjantin ve Bolivya Koywe ile listede, API bir iki hafta. Ana ağdan önce anchor'ı seçeriz: lisanslı, kendi banka hesabına ödeyen, emanet almayan uygulamaya yazılı teyit veren. TRY anchor'ı uyarsa Türkiye; yoksa Koywe ile Arjantin. İki durumda da aynı uygulama.
 
-**EN.** Same app, next anchor. A new market is one anchor config, one translation, one rate pair; vault, wallet and bridge accounts do not change. High inflation, a bank-transfer habit, a Stellar anchor: Türkiye first, Argentina and Bolivia on the same list.
+**EN.** Same app, next anchor. Türkiye runs on a sandbox anchor today; Argentina and Bolivia are on the list through Koywe, API in one to two weeks. Before mainnet we pick the anchor: licensed, pays your own bank account, confirms in writing that a non-custodial app can integrate. Türkiye if a TRY anchor qualifies; otherwise Argentina on Koywe. Same app either way.
 
 ## 7 · Evidence
 
-**TR.** Altı gerçek tarayıcı turu CI'da, her gönderimde ve altı saatte bir üretime karşı. Yirmi beş hata ekranı. Lighthouse 94 ve üç kez 100. Kasa kurulum, yatırma ve çekme karmaları test ağında. Sırada: Sembol Cloud ana ağda, anchor görüşmeleri, etkinlikten sonra SCF.
+**TR.** Kullanıcılar ve işlemler, hepsi zincirde: üç kumbara açıldı, iki yükleme, çekim yok, kasada 208 USDC; test hesapları sayılmadı. Her sayının bağlantısı ekranda. 19–20 Eylül'de bunlar stant sayıları olacak. Sırada: Sembol Cloud v0 ana ağda, anchor görüşmeleri, etkinlikten sonra SCF Integration Track.
 
-**EN.** Six real-browser round trips in CI, every push and every six hours against production. Twenty-five failure screens. Lighthouse 94 and three hundreds. Vault deploy, invest and divest hashes on testnet. Next: Sembol Cloud on mainnet, anchor conversations, SCF after the event.
+**EN.** Users and transactions, all on chain: three kumbaras opened, two deposits, no withdrawals, 208 USDC in the vault; test accounts excluded. Every number links. On 19–20 September these become the booth numbers. Next: Sembol Cloud v0 on mainnet, anchor conversations, the SCF Integration Track after the event.
 
 ## 8 · Regulatory posture
 

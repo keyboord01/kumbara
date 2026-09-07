@@ -13,7 +13,7 @@ import { useAnchorInfo } from "@/lib/useAnchorInfo";
 /** idle → creating (passkey + deploy) | connecting (existing passkey) → done (navigating to Savings) */
 type Stage = "idle" | "creating" | "connecting" | "done";
 
-/** Onboard: one button. Face ID → smart account via the relay → spending limit → Savings. */
+/** Onboard: one button. Passkey (Face ID, Touch ID or a password manager) → smart account via the relay → spending limit → Savings. */
 export default function OnboardPage() {
   const { t } = useLocale();
   const router = useRouter();

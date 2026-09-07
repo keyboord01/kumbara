@@ -7,7 +7,7 @@ import { SITE_URL } from "@/lib/config";
 export const metadata: Metadata = {
   ...(SITE_URL ? { metadataBase: new URL(SITE_URL) } : {}),
   title: { default: "Kumbara", template: "%s · Kumbara" },
-  description: "Face ID ile açılan, anahtarı yalnızca sende olan USDC kumbarası. Lira yükle, USDC biriktir, istediğinde geri çek. Sembol tarafından.",
+  description: "Passkey ile (Face ID, Touch ID ya da parola yöneticin) açılan, anahtarı yalnızca sende olan USDC kumbarası. Lira yükle, USDC biriktir, istediğinde geri çek. Sembol tarafından.",
   applicationName: "Kumbara",
   robots: { index: true, follow: true },
 };

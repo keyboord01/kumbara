@@ -73,7 +73,7 @@ try {
   caption("Landing page on Stellar TESTNET: one button, no password, no app, no XLM.");
   await pause(2500);
   await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
-  caption("Tap 'Kumbaranı aç': the passkey (Face ID) creates the key; the relay deploys the smart account.");
+  caption("Tap 'Kumbaranı aç': the passkey (Face ID, Touch ID or a password manager) creates the key; the relay deploys the smart account.");
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   caption("Savings screen: the kumbara exists on-chain, TESTNET address with a stellar.expert link.");
@@ -122,7 +122,7 @@ try {
   await pause(2000);
   await page.getByRole("button", { name: /Devam/ }).click();
   await waitStatus("withdraw-current", /Tamam\. Lira IBAN/, 120, async () => {
-    const tap = page.getByRole("button", { name: /Face ID/ });
+    const tap = page.getByRole("button", { name: /passkey/i });
     if (await tap.isVisible().catch(() => false)) await tap.click();
   });
   const payout = ((await page.getByTestId("withdraw-payout").textContent()) ?? "").trim();

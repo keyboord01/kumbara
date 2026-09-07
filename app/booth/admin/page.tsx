@@ -5,6 +5,7 @@ import Link from "next/link";
 import { toSembolError, usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { buildVaultDeposit } from "@/lib/autopilot";
+import { StepTimeoutError, withTimeout } from "@/lib/failures";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL } from "@/lib/config";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -222,14 +223,26 @@ export default function BoothAdminPage() {
     return () => clearInterval(id);
   }, [seedDepositId, seedStage]);
 
+  // Every step is bounded (the scheduled E2E once sat on a hung submit for four minutes); one automatic
+  // retry, then the presenter's "put it in the vault" button takes over.
   const runSeedAutopilot = useCallback(async () => {
     if (!seed?.deposit?.paidUsdc || !kit || !info || !address) return;
     setSeed((s) => (s ? { ...s, stage: "autopilot" } : s));
+    const { id, paidUsdc } = seed.deposit;
+    const attempt = async () => {
+      const tx = await withTimeout(buildVaultDeposit(kit, info.vault.id, address, paidUsdc), 30_000, "vault deposit build");
+      const signed = await withTimeout(signAndSubmit(tx), 90_000, "vault deposit submit");
+      const res = await withTimeout(fetch(`/api/deposit/${id}/vault`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hash: signed.hash, amountUsdc: paidUsdc }) }), 30_000, "vault deposit record");
+      return (await res.json()) as SeedDeposit;
+    };
     try {
-      const tx = await buildVaultDeposit(kit, info.vault.id, address, seed.deposit.paidUsdc);
-      const signed = await signAndSubmit(tx);
-      const res = await fetch(`/api/deposit/${seed.deposit.id}/vault`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hash: signed.hash, amountUsdc: seed.deposit.paidUsdc }) });
-      const next = (await res.json()) as SeedDeposit;
+      let next: SeedDeposit;
+      try {
+        next = await attempt();
+      } catch (first) {
+        if (!(first instanceof StepTimeoutError)) throw first;
+        next = await attempt();
+      }
       setSeed((s) => (s ? { ...s, deposit: next, stage: next.status === "in_vault" ? "done" : s.stage } : s));
     } catch (err) {
       setSeed((s) => (s ? { ...s, stage: "needs_tap", message: toSembolError(err).userMessage } : s));

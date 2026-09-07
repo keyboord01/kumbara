@@ -2,13 +2,13 @@
 
 [![CI](https://github.com/keyboord01/kumbara/actions/workflows/ci.yml/badge.svg)](https://github.com/keyboord01/kumbara/actions/workflows/ci.yml)
 
-**Kumbara** is a self-custodial USDC piggy bank on Stellar for Turkish users, by [Sembol](https://github.com/keyboord01/sembol). Open it with Face ID, load Turkish lira through a regulated anchor, hold USDC in a DeFindex vault, withdraw back to lira. No seed phrase, no XLM, no app store. Testnet today.
+**Kumbara** is a self-custodial USDC piggy bank on Stellar for Turkish users, by [Sembol](https://github.com/keyboord01/sembol). Open it with a passkey (Face ID, Touch ID or a password manager), load Turkish lira through a regulated anchor, hold USDC in a DeFindex vault, withdraw back to lira. No seed phrase, no XLM, no app store. Testnet today.
 
 Scale Track entry for the Rise In × Stellar Pro Hackathon (Istanbul, 19–20 September 2026) and the traction exhibit for a Stellar Community Fund Build Award (Integration Track) submission.
 
 ## What Kumbara is
 
-A Next.js web app. A user opens it on their phone, taps Face ID, and gets an OpenZeppelin smart account on Stellar with the passkey as its only signer. They deposit lira through a SEP-compliant anchor, receive USDC in that account, the USDC goes into a DeFindex vault, and they can withdraw back to lira through the same anchor. Fees are sponsored by Sembol Cloud, so the user never sees XLM.
+A Next.js web app. A user opens it on their phone, taps their passkey (Face ID, Touch ID or a password manager), and gets an OpenZeppelin smart account on Stellar with the passkey as its only signer. They deposit lira through a SEP-compliant anchor, receive USDC in that account, the USDC goes into a DeFindex vault, and they can withdraw back to lira through the same anchor. Fees are sponsored by Sembol Cloud, so the user never sees XLM.
 
 Kumbara is non-custodial software. It never holds fiat, never holds keys, never takes custody of USDC. The anchor is the regulated party. Deposit, hold, withdraw; no payments, no sending to friends.
 
@@ -31,7 +31,7 @@ sequenceDiagram
   participant V as DeFindex vault
 
   U->>K: Tap "Kumbaranı aç"
-  K->>U: WebAuthn create (Face ID)
+  K->>U: WebAuthn create (passkey)
   K->>R: { func, auth } deploy smart account (project key, server-side)
   R->>S: fee-bumped createContractV2
   K->>R: { func, auth } add USDC spending-limit rule (2nd passkey approval)

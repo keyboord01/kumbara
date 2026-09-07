@@ -98,7 +98,7 @@ try {
   await page.getByRole("button", { name: /Devam/ }).click();
   const withdrawAt = Date.now();
   await waitFor("withdraw-current", /Tamam\. Lira IBAN/, /Olmadı/, 120, async () => {
-    const tap = page.getByRole("button", { name: /Face ID/ });
+    const tap = page.getByRole("button", { name: /passkey/i });
     if (await tap.isVisible().catch(() => false)) {
       log("  client step needs a tap; tapping");
       await tap.click();

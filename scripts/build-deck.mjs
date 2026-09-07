@@ -1,6 +1,6 @@
 // Render docs/deck/kumbara-deck.html (1920×1080 slides) in its two variants:
 //   scf        → docs/deck/kumbara-deck-scf.pdf        (12 slides: 1–9, Roadmap, Budget and metric, hours appendix)
-//   hackathon  → docs/deck/kumbara-deck-hackathon.pdf  (14 slides: + "Try it now" after slide 3, sequence-diagram appendix)
+//   hackathon  → docs/deck/kumbara-deck-hackathon.pdf  (8 slides for the Rise In × Stellar Pro Hackathon judges: no SCF material)
 // plus docs/deck/slides-<variant>/slide-NN.png and docs/deck/contact-sheet-<variant>.png,
 // with Playwright (Chrome). The Mermaid diagram renders in the page (cdnjs) and stays a vector in the PDF.
 //   node scripts/build-deck.mjs            # both variants
@@ -22,8 +22,9 @@ for (const variant of VARIANTS) {
   await page.goto(`file://${HTML}#variant=${variant}`, { waitUntil: "networkidle" });
   await page.waitForFunction(() => Boolean(document.body.dataset.mermaid), null, { timeout: 30000 }).catch(() => undefined);
   const mermaidState = await page.evaluate(() => document.body.dataset.mermaid ?? "timeout");
-  const svgs = await page.locator("pre.mermaid svg").count();
-  if (mermaidState !== "ok" || svgs < 1) throw new Error(`Mermaid did not render for ${variant} (${mermaidState}, ${svgs} svg)`);
+  const diagrams = await page.locator("pre.mermaid:visible").count();
+  const svgs = await page.locator("pre.mermaid:visible svg").count();
+  if (diagrams > 0 && (mermaidState !== "ok" || svgs < diagrams)) throw new Error(`Mermaid did not render for ${variant} (${mermaidState}, ${svgs}/${diagrams} svg)`);
   await page.evaluate(() => document.fonts.ready);
   await page.waitForTimeout(400);
 

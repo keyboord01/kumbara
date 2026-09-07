@@ -58,7 +58,7 @@ try {
   const seedAt = Date.now();
   await page.getByRole("button", { name: /Demo hesabı hazırla|Seed a demo account/ }).click();
   let last = "";
-  for (let i = 0; i < 80; i += 1) {
+  for (let i = 0; i < 110; i += 1) {
     const status = ((await page.getByTestId("seed-status").textContent().catch(() => "")) ?? "").replace(/\s+/g, " ").trim();
     if (status !== last) {
       log("  seed:", status.slice(0, 140));

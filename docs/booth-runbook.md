@@ -11,7 +11,7 @@ Rise In × Stellar Pro Hackathon, Istanbul, 19–20 September 2026. Everything b
 5. **Admin token loaded on the presenter phone.** Open `https://kumbara.sembol.xyz/booth/admin?token=<BOOTH_ADMIN_TOKEN>`; the token leaves the URL immediately. Keep the tab open; the four dots must be green.
 6. **Stats page open.** Second screen: `https://kumbara.sembol.xyz/stats?mode=tv` (projector mode: big numbers, live feed, auto-cycling chart). Phone or laptop: `https://kumbara.sembol.xyz/stats` for the full page with contracts and how-it-works.
 7. **Booth QR screen.** `https://kumbara.sembol.xyz/booth?n=1` on the booth screen (full-screen QR + counter). Use `n=2` for a second booth; the counter credits `booth-<n>`. The link carries `&net=testnet`, so a mainnet build would refuse it.
-8. **Demo account seeded.** On the admin page tap "Seed a demo account" (Face ID on the presenter's device, then a second Face ID when the USDC arrives). About 90 seconds. Leave that account connected on the presenter's phone for the jury withdraw.
+8. **Demo account seeded.** On the admin page tap "Seed a demo account" (the presenter's passkey, then a second Face ID when the USDC arrives). About 90 seconds. Leave that account connected on the presenter's phone for the jury withdraw.
 9. **Backup videos ready.** The phone recording of the round trip, and the fallback `docs/demo/round-trip.mp4` with its captions.
 
 ## The three-minute script
@@ -20,13 +20,13 @@ Times are from the automated browser runs on testnet (`pnpm e2e:onboard`, `pnpm 
 
 | Step | What the visitor does | What happens | Time |
 | --- | --- | --- | --- |
-| 1 | Scans the QR, taps **Kumbaranı aç**, Face ID | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link; the counter on the booth screen and the stats feed tick | 8–16 s |
-| 2 | Waits on Savings | Spending limit (1,000 USDC per transaction) installs in the background; second Face ID prompt; Deposit unlocks | +13–25 s |
+| 1 | Scans the QR, taps **Kumbaranı aç**, passkey (Face ID, Touch ID or a password manager) | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link; the counter on the booth screen and the stats feed tick | 8–16 s |
+| 2 | Waits on Savings | Spending limit (1,000 USDC per transaction) installs in the background; second passkey prompt; Deposit unlocks | +13–25 s |
 | 3 | Taps **Yükle**, enters 100, **Devam** | IBAN, alıcı, açıklama (the reference) in the familiar transfer layout | 1–3 s |
 | 4 | Presenter taps **Play the bank** on the admin page | Sandbox transfer matched; the app detects the lira, runs the landing-account on-ramp and moves the USDC into the kumbara | 35–55 s |
-| 5 | Face ID once more (autopilot) | USDC deposited into the DeFindex vault (through its strategy); three TESTNET transaction links; "deposited" appears in the stats feed | 10–20 s |
+| 5 | Passkey once more (autopilot) | USDC deposited into the DeFindex vault (through its strategy); three TESTNET transaction links; "deposited" appears in the stats feed | 10–20 s |
 | 6 | Back on Savings | Vault balance and its TRY equivalent (Reflector rate) | instant |
-| 7 | Taps **Çek**, enters 1 (or **Tümünü çek**), **Devam**, two Face IDs | Vault withdrawal, transfer to the reverse landing account, anchor payout; payout reference shown; "withdrew" in the feed | 40–65 s |
+| 7 | Taps **Çek**, enters 1 (or **Tümünü çek**), **Devam**, two passkey approvals | Vault withdrawal, transfer to the reverse landing account, anchor payout; payout reference shown; "withdrew" in the feed | 40–65 s |
 
 Measured totals: scan to Savings 8–16 s; scan to USDC in the vault 80–120 s; a full deposit-and-withdraw round trip 2–3 minutes. Seeding the jury demo account from the admin page takes about 90 s.
 
@@ -48,7 +48,7 @@ Red Relay dot; "The relay is not answering", "The relay refused the request" or 
 
 ### Passkey refused
 
-"Face ID was cancelled", "This browser cannot use passkeys", "Can't find your passkey?", or nothing happens on tap. On iPhone, Safari needs a tap for every WebAuthn prompt: the deposit and withdraw screens show a button ("Put it in the vault", "Send") whenever an automatic prompt was refused; tap it. Private browsing on iOS blocks passkeys; ask the visitor to open the link in normal Safari. Android Chrome works with a screen lock set. If the visitor's device has no platform authenticator at all, the screen says so; hand them the presenter's phone for the demo. A visitor who already has a kumbara taps "I already have a kumbara" (their passkey) or, if the passkey is gone, "I can't find my passkey" → `/kurtar`, which uses the backup passkey or recovery key they enrolled on the security page. Without an enrolled backup there is no way in, for anyone.
+"The passkey prompt was cancelled", "This browser cannot use passkeys", "Can't find your passkey?", or nothing happens on tap. On iPhone, Safari needs a tap for every WebAuthn prompt: the deposit and withdraw screens show a button ("Put it in the vault", "Send") whenever an automatic prompt was refused; tap it. Private browsing on iOS blocks passkeys; ask the visitor to open the link in normal Safari. Android Chrome works with a screen lock set. If the visitor's device has no platform authenticator at all, the screen says so; hand them the presenter's phone for the demo. A visitor who already has a kumbara taps "I already have a kumbara" (their passkey) or, if the passkey is gone, "I can't find my passkey" → `/kurtar`, which uses the backup passkey or recovery key they enrolled on the security page. Without an enrolled backup there is no way in, for anyone.
 
 ### Onboarding paused
 

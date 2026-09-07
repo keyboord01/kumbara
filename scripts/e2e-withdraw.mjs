@@ -77,7 +77,14 @@ try {
 
   log("deposit 100 TRY");
   await page.locator("a[href='/yukle']").click();
-  await page.locator("input[type=number]").fill("100");
+  // The link can be re-rendered under the click while the limit card settles; make sure the deposit page is actually open.
+  await page.waitForURL("**/yukle**", { timeout: 15000 }).catch(async () => {
+    log("  deposit link click did not navigate; opening /yukle directly");
+    await page.goto(`${APP}/yukle`, { waitUntil: "networkidle" });
+  });
+  const depositInput = page.locator("input[type=number]");
+  await depositInput.waitFor({ timeout: 20000 });
+  await depositInput.fill("100");
   await page.getByRole("button", { name: /Devam/ }).click();
   const reference = ((await page.getByTestId("deposit-reference").textContent()) ?? "").trim();
   log("reference:", reference, "→ bank via", await playBank(reference));

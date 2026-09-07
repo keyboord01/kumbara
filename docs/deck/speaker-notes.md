@@ -2,25 +2,25 @@
 
 Read aloud; at most 60 words per slide. TR first, then EN. Everything shown is Stellar TESTNET.
 
-Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): slides 1 to 9, then **10 · Roadmap**, **11 · Budget and metric**, and **B · Appendix · hours**. **Hackathon** (`kumbara-deck-hackathon.pdf`, 8 slides, judges only, no SCF material): slides 1, 2, 3, then **3b · Try it now**, then 4, 5, 6, 7.
+Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 to 8, then **9 · Team**, **10 · Roadmap**, **11 · Budget and metric**, **B · Appendix · hours**. **Hackathon** (`kumbara-deck-hackathon.pdf`, 8 slides, judges only, no SCF material): 1, 2, 3, **3b · Try it now**, 4, 5, 6, 7.
 
 ## 1 · Title
 
-**TR.** Merhaba, ben Ahmed: Instaward hibesi aldım, passkey-react kütüphanesini yazdım, smart-account-kit'e katkı verdim. Kumbara, Türkiye için Face ID ile açılan, anahtarı yalnızca sende olan bir dolar kumbarası. Lira gönderirsin, USDC olarak birikir, istediğinde liraya geri çekersin. Bugün göstereceğim her şey Stellar test ağında; gerçek lira hareket etmiyor.
+**TR.** Merhaba, ben Ahmed. Kumbara, lirayla maaş alanlar için dolar birikimi: havale ile yükle, USDC olarak kasada dursun, istediğinde liraya çek. Tek anahtar bir passkey. Her şey Stellar test ağında.
 
-**EN.** Hi, I'm Ahmed: Instaward grantee, author of passkey-react, contributor to smart-account-kit. Kumbara is a self-custodial dollar piggy bank for Türkiye that opens with Face ID. You send lira, it is held as USDC, and you take lira back whenever you like. Everything you will see today runs on Stellar testnet; no real lira moves.
+**EN.** Hi, I'm Ahmed. Kumbara is dollar savings for people paid in lira: bank transfer in, USDC in a vault, lira back out. A passkey is the only key. Everything here runs on Stellar testnet.
 
 ## 2 · Problem
 
-**TR.** TÜİK'e göre Ağustos'ta yıllık enflasyon yüzde 31,5. İnsanlar dolarda birikmek istiyor ama kripto yolunun önünde bir duvar var: eklenti, on iki kelime, gaz için XLM. Her adımda kullanıcı kaybediyoruz. Türkiye ilk pazar; ürün, banka havalesi alışkanlığı ve Stellar anchor'ı olan tüm yüksek enflasyonlu ekonomiler için yapıldı.
+**TR.** Merkez bankası kuru: 2019 sonunda bir dolar 5,94 lira, bugün 48,23. Sekiz kat. Enflasyon yüzde 31,5. 2019'da bankada bırakılan yüz bin lira bugün iki bin dolar; dolar olarak tutulsaydı on yedi bin. Dolar yolu ise borsa uygulaması, tohum kelime, gaz için XLM.
 
-**EN.** Per TÜİK, annual inflation was 31.5 percent in August. People want to save in dollars, but a wall stands in front of the crypto route: an extension, twelve words, XLM for gas. Every step sheds users. Türkiye is market one; the product is built for every high-inflation economy with a bank-transfer habit and a Stellar anchor.
+**EN.** Central bank rate: a dollar was 5.94 lira at the end of 2019, 48.23 today. Eight times. Inflation is 31.5 percent. A hundred thousand lira left in the bank since 2019 is two thousand dollars now; kept as dollars, seventeen thousand. The dollar route means an exchange app, a seed phrase, XLM for gas.
 
-## 3 · Product
+## 3 · How we solve it
 
-**TR.** Dört ekran. Tek tuş, Face ID ya da Touch ID, on saniyede hesap; tohum kelime yok, XLM yok, kurulum yok. Kumbaram ekranı kasadaki USDC'yi ve lira karşılığını gösterir. Yükleme, bildiğin havale ekranı: IBAN ve açıklama. Çekim, liraya satış kuru ve kendi IBAN'ına ödeme.
+**TR.** Dört ekran. Bir dokunuş, passkey anahtarı üretir. Lirayı her zamanki gibi IBAN'a gönderirsin. USDC olarak DeFindex kasasında durur; anahtar sende. İstediğinde kendi IBAN'ına lira olarak geri döner.
 
-**EN.** Four screens. One button, Face ID or Touch ID, an account in about ten seconds; no seed phrase, no XLM, no install. Savings shows USDC in the vault and its lira value. Deposit is the bank-transfer screen everyone knows: IBAN and a reference. Withdraw is a sell quote and a payout to your own IBAN.
+**EN.** Four screens. One tap, a passkey makes the key. You send lira to an IBAN as you always do. It sits as USDC in a DeFindex vault; you hold the key. Lira comes back to your own IBAN whenever you want.
 
 ## 3b · Try it now (hackathon variant)
 
@@ -28,35 +28,35 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): sli
 
 **EN.** Try it now: scan, tap Kumbaranı aç, Face ID or Touch ID. Your account exists. Tap Yükle, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Çek and the lira comes back to the IBAN. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
 
-## 4 · How it works
+## 4 · Why it is better
 
-**TR.** Yedi adım. Passkey ile bir OpenZeppelin akıllı hesabı açılır, ücreti relay öder. Harcama limiti zincire yazılır. Anchor IBAN verir, lira gelir, USDC'ye çevrilir ve köprü hesabına ödenir. Köprü USDC'yi kumbaraya iletir, kendini kapatır. Bir Face ID ile USDC DeFindex kasasına girer. Çekim aynı yolu tersten yürür.
+**TR.** Banka ve borsa dolarını tutar. Cüzdan anahtarı verir ama tohum kelime ve XLM ister. Kumbara anahtarı sana verir: passkey imzalar, relay ücreti öder, lisanslı anchor lirayı taşır. Kurulacak bir şey yok.
 
-**EN.** Seven steps. A passkey opens an OpenZeppelin smart account; the relay pays the fees. A spending limit is written on-chain. The anchor issues an IBAN, lira arrives, becomes USDC, and is paid to a bridge account. The bridge forwards it to the kumbara and closes itself. One Face ID puts the USDC in the DeFindex vault. Withdrawal runs backwards.
+**EN.** The bank and the exchange hold your dollars. A wallet gives you the key but demands a seed phrase and XLM. Kumbara gives you the key: a passkey signs, a relay pays the fees, a licensed anchor moves the lira. Nothing to install.
 
-## 5 · The bridge
+## 5 · How it works
 
-**TR.** Bulgumuz: anchor'lar klasik hesaplara öder, akıllı hesaplar ise sözleşme. Çözüm: sahipsiz, önceden yetkilendirilmiş köprü hesabı. Sıra artı bir aktarım, sıra artı iki temizlik; başka hiçbir işlem imzalanamaz. On denemede on tam tutar eşleşmesi, yükleme başına 900 stroop. Anchor ekibine raporladık.
+**TR.** Beş hamle: passkey ile akıllı hesap, zincirde harcama limiti, anchor'dan IBAN, köprü hesabı USDC'yi kumbaraya iletir ve kendini kapatır, bir onayla kasaya. Bulgumuz: anchor'lar klasik hesaba öder, akıllı hesap sözleşmedir; köprü hesabı bunu çözer. Onda on eşleşme.
 
-**EN.** Our finding: anchors pay classic accounts, and smart accounts are contracts. Our fix: an ownerless, pre-authorized bridge account. Forward at sequence plus one, cleanup at sequence plus two; no key can sign anything else. Ten exact amount matches in ten runs, 900 stroops per deposit. Reported to the anchor team.
+**EN.** Five moves: passkey to smart account, a spending limit on-chain, an IBAN from the anchor, a bridge account that forwards the USDC and closes itself, one approval into the vault. Our finding: anchors pay classic accounts, smart accounts are contracts; the bridge account fixes that. Ten of ten matches.
 
-## 6 · Integrations and contracts
+## 6 · Where else it works
 
-**TR.** Kumbara kendi cüzdan, kasa veya strateji kodu yazmaz: OpenZeppelin akıllı hesap ve limit, DeFindex kasası ve stratejisi, SEP tabanlı anchor, ücret sponsoru relay, Reflector kuru. Depo MIT lisanslı, sözleşmelerin hepsi denetlenmiş üst akım kod. Cüzdan açılışı düzeltmemiz smart-account-kit'e birleşti, 0.6.2 ile yayınlandı.
+**TR.** Aynı uygulama, sıradaki anchor. Yeni pazar bir anchor yapılandırması, bir çeviri, bir kur çifti; kasa, cüzdan ve köprü hesapları değişmez. Yüksek enflasyon, havale alışkanlığı, Stellar anchor'ı olan yerler: Türkiye önce, Arjantin ve Bolivya aynı listede.
 
-**EN.** Kumbara writes no wallet, vault or strategy code: OpenZeppelin smart account and limit, DeFindex vault and strategy, the SEP-based anchor, a fee-sponsoring relay, Reflector for the rate. The repo is MIT, every contract is audited upstream code. Our wallet-creation fix was merged into smart-account-kit and shipped in 0.6.2.
+**EN.** Same app, next anchor. A new market is one anchor config, one translation, one rate pair; vault, wallet and bridge accounts do not change. High inflation, a bank-transfer habit, a Stellar anchor: Türkiye first, Argentina and Bolivia on the same list.
 
-## 7 · Traction and evidence
+## 7 · Evidence
 
-**TR.** Her şey herkese açık ve tekrar çalıştırılabilir: altı gerçek tarayıcı turu CI'da, yirmi beş hata ekranı, Lighthouse 94 ve üç kez 100, kasa kurulum, yatırma ve çekme karmaları test ağında. Sırada: Sembol Cloud v0 ana ağda, Instaward üçüncü ay; anchor ortaklık görüşmeleri sürüyor; etkinlikten sonra SCF Integration Track başvurusu.
+**TR.** Altı gerçek tarayıcı turu CI'da, her gönderimde ve altı saatte bir üretime karşı. Yirmi beş hata ekranı. Lighthouse 94 ve üç kez 100. Kasa kurulum, yatırma ve çekme karmaları test ağında. Sırada: Sembol Cloud ana ağda, anchor görüşmeleri, etkinlikten sonra SCF.
 
-**EN.** Everything here is public and re-runnable: six real-browser round trips in CI, twenty-five failure screens, Lighthouse 94 and three hundreds, the vault deploy, invest and divest hashes on testnet. Next: Sembol Cloud v0 on mainnet in Instaward Month 3, anchor partnership conversations underway, and the SCF Integration Track after the event.
+**EN.** Six real-browser round trips in CI, every push and every six hours against production. Twenty-five failure screens. Lighthouse 94 and three hundreds. Vault deploy, invest and divest hashes on testnet. Next: Sembol Cloud on mainnet, anchor conversations, SCF after the event.
 
-## 8 · Regulatory positioning
+## 8 · Regulatory posture
 
-**TR.** Kumbara emanet almayan bir yazılım: lira, USDC ya da anahtar tutmaz; lisanslı anchor düzenlemeye tabi taraf. Anchor bir yapılandırma seçimi: stellar.toml, SEP rayları, anchor'dan bağımsız köprü hesapları. Türkiye uyumdan ötürü ilk pazar; birinci dilim SCF listesindeki anchor'ları sıralar. Türkiye geçemezse pilot en üstteki pazarda açılır. İkinci pazar, ölçüt tutunca sonraki ödülün işi.
+**TR.** Kumbara emanet almaz: lira, USDC ya da anahtar tutmaz. Lisanslı anchor parayı tutar, KYC yapar, kendi IBAN'ına öder. Ödeme özelliği yok. Kapı: anchor'ın yazılı görüşü, birinci dilimde. Türkiye geçemezse pilot listedeki en üst pazarda açılır.
 
-**EN.** Kumbara is non-custodial software: it never holds lira, USDC or keys; the licensed anchor is the regulated party. The anchor is a config choice: stellar.toml, SEP rails, anchor-agnostic bridge accounts. Türkiye is market one by fit; Tranche 1 ranks the anchors on the SCF list. If Türkiye fails, the pilot launches in the top-ranked market; market two is the follow-on.
+**EN.** Kumbara is non-custodial: it never holds lira, USDC or keys. The licensed anchor holds the fiat, does KYC, pays your own IBAN. No payments feature. The gate: the anchor's written position, in Tranche 1. If Türkiye fails, the pilot launches in the top-ranked market.
 
 ## 9 · Team
 
@@ -75,7 +75,6 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): sli
 **TR.** Yüz yedi bin üç yüz dolar; her dolar saat. Tam zamanlı çalışıyorum, saatte doksan beş dolar, dilim başına üç yüz kırk saat. Yüklenici kapasitesi yüz altmış saat, saatte altmış beş dolar; hiçbir kapı işe alıma bağlı değil. Ölçüt: açılıştan sonraki otuz günde ortalama iki bin beş yüz USDC NAV; yüz kullanıcı, elli USDC, yüzde elli kalış.
 
 **EN.** One hundred seven thousand three hundred dollars, every dollar hours. I work full-time at ninety-five an hour, three hundred forty hours per tranche. Hired capacity is one hundred sixty hours at sixty-five; no gate depends on a hire. Metric: average NAV of two thousand five hundred USDC over the thirty days after launch; a hundred users, fifty USDC, half retained.
-
 
 ## B · Appendix · line-by-line hours
 

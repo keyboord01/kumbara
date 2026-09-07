@@ -190,7 +190,7 @@ export default function BoothAdminPage() {
       // Tag the creation so the counter files this account under "seed", briefly.
       document.cookie = "kumbara_ref=seed; path=/; max-age=120; SameSite=Lax";
       await disconnect().catch(() => undefined);
-      const created = await createWallet({ userName: "kumbara-demo", fund: false });
+      const created = await createWallet({ userName: "kumbara-demo", fund: false, authenticatorSelection: { residentKey: "required", userVerification: "required" } });
       setSeed({ contractId: created.contractId, deposit: null, stage: "depositing" });
       const res = await fetch("/api/booth/admin/seed", auth({ method: "POST", body: JSON.stringify({ contractId: created.contractId }) }));
       const body = (await res.json()) as { deposit?: SeedDeposit; error?: { message: string } };

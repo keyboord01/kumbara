@@ -17,7 +17,7 @@ All flows are resumable: a deposit or withdrawal lives in the database, the brow
 | `vault_rejected` | Simulation or submission failure on a vault `deposit` / `withdraw` call (arrival autopilot, withdraw step 1) | The vault refused the transaction. | Try again (USDC stays put) | Vault red |
 | `strategy_failed` | Same as above with "strategy" in the diagnostic | The vault's strategy failed. | Try again | Vault red |
 | `limit_exceeded` | Library `spending_limit_exceeded`, or the withdraw form amount above the policy limit | Over your spending limit. | Change the limit (security page) | – |
-| `passkey_cancelled` | Library `user_cancelled` / WebAuthn `NotAllowedError` | Face ID was cancelled. | Try again | – |
+| `passkey_cancelled` | Library `user_cancelled` / WebAuthn `NotAllowedError` (cancelled, 60 s timeout, or no passkey provider) | No passkey approval arrived. | Try again | – |
 | `passkey_unsupported` | Library capability probe `supported === false`, `webauthn_unsupported`, `NotSupportedError` | This browser cannot use passkeys. | (instruction: open in Safari / Chrome or use the presenter's phone) | Passkey refused |
 | `passkey_lost` | `connect()` finds no wallet, `wallet_not_found`, `session_expired`, `recovery_needs_address`; the "I can't find my passkey" link | Can't find your passkey? | Recover access (`/kurtar`, library recovery flow) | Passkey refused |
 | `rate_limited_ip` | `/api/relay` 429 `RATE_LIMITED_IP` / `RATE_LIMITED_RELAY` | Too many kumbaras from this connection. | Try again later | Rate limited |

@@ -15,7 +15,7 @@ sequenceDiagram
   participant V as DeFindex vault
 
   U->>K: Tap "Kumbaranı aç"
-  K->>U: WebAuthn create (Face ID)
+  K->>U: WebAuthn create (passkey)
   K->>R: { func, auth } deploy smart account (project key, server-side)
   R->>S: fee-bumped createContractV2
   K->>R: { func, auth } add USDC spending-limit rule (2nd passkey approval)

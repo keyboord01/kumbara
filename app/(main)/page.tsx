@@ -36,13 +36,17 @@ export default function OnboardPage() {
     // tap-to-kumbara timing. A timestamp only; it expires in ten minutes.
     document.cookie = `kumbara_tap=${Date.now()}; path=/; max-age=600; SameSite=Lax`;
     try {
-      await createWallet({ userName: "kumbara", fund: false });
+      // Discoverable credential with user verification: what Firefox's passkey providers, iCloud Keychain and
+      // password managers such as 1Password create, and what the passkey-only connect path relies on.
+      await createWallet({ userName: "kumbara", fund: false, authenticatorSelection: { residentKey: "required", userVerification: "required" } });
       // The kumbara exists: show it now. The spending limit installs from the
       // Savings screen in the background (second passkey approval there).
       setStage("done");
       router.push("/kumbara?setup=limit");
     } catch (err) {
-      const classified = classifyError(err, "relay");
+      const raw = classifyError(err, "relay");
+      // Passkey failures carry the browser's WebAuthn capability snapshot in Details, so a report from Firefox or a phone says what was available.
+      const classified = raw.kind.startsWith("passkey_") ? { ...raw, detail: `${raw.detail ?? ""} · webauthn ${JSON.stringify(capabilities)}` } : raw;
       console.error("[kumbara] wallet creation failed", classified.kind, classified.detail);
       setFailure(classified);
       setStage("idle");

@@ -87,6 +87,7 @@ function Deposit() {
   const [autopilot, setAutopilot] = useState<"idle" | "signing" | "needs_tap" | "done">("idle");
   const [autopilotFailure, setAutopilotFailure] = useState<Failure | null>(null);
   const autopilotStarted = useRef(false);
+  const vaultDepositTx = useRef<string | null>(null);
   const [usdTry, setUsdTry] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
   /** True once an on-ramp has sat at the anchor for more than 90 s (set from the poll, not during render). */
@@ -174,9 +175,13 @@ function Deposit() {
     setAutopilot("signing");
     setAutopilotFailure(null);
     try {
-      const tx = await withTimeout(buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc), STEP_TIMEOUT_MS, "vault deposit simulation");
-      const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault deposit");
-      const next = await api<DepositRecord>(`/api/deposit/${record.id}/vault`, { method: "POST", body: JSON.stringify({ hash: result.hash, amountUsdc: record.paidUsdc }) });
+      if (!vaultDepositTx.current) {
+        // Sign the vault deposit at most once: a retry after a stalled record call re-sends the hash, not the USDC.
+        const tx = await withTimeout(buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc), STEP_TIMEOUT_MS, "vault deposit simulation");
+        const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault deposit");
+        vaultDepositTx.current = result.hash;
+      }
+      const next = await api<DepositRecord>(`/api/deposit/${record.id}/vault`, { method: "POST", body: JSON.stringify({ hash: vaultDepositTx.current, amountUsdc: record.paidUsdc }) });
       setRecord(next);
       setAutopilot("done");
     } catch (err) {

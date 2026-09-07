@@ -126,6 +126,7 @@ function fromApi(err: ApiError, context: FailureContext): Failure {
   if (err.code === "deployment_protected") return { kind: "deployment_protected", ...base };
   if (err.code === "offline") return { kind: "offline", ...base };
   if (err.code === "unreachable") return { kind: "offline", ...base };
+  if (err.code === "timeout") return { kind: "offline", ...base };
   if (err.status === 429) return { kind: err.errorCode === "RATE_LIMITED_REF" || REF_CAP_RE.test(err.message) ? "rate_limited_ref" : "rate_limited_ip", ...base };
   if (err.errorCode === "SPONSOR_UNDERFUNDED" || err.code === "sponsor_underfunded" || SPONSOR_RE.test(err.message)) return { kind: "onboarding_paused", ...base };
   if (err.errorCode === "RELAY_UNREACHABLE" || err.errorCode === "RELAY_NOT_CONFIGURED") return { kind: "relay_unreachable", ...base };

@@ -10,7 +10,7 @@ import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
 import { api } from "@/lib/api";
 import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
-import { classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
+import { StepTimeoutError, classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -49,6 +49,16 @@ const FINAL: WithdrawalStatus[] = ["completed", "failed"];
 const QUOTE_TTL_MS = 120_000;
 /** A client step (simulation + passkey + relay) that takes longer than this becomes a retryable failure. */
 const STEP_TIMEOUT_MS = 120_000;
+
+/** Simulations and reads are safe to repeat; one automatic retry when the first attempt stalls. Signing is never retried here. */
+async function retryOnceOnTimeout<T>(run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (err) {
+    if (err instanceof StepTimeoutError) return run();
+    throw err;
+  }
+}
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 const toStroops = (amount: string): bigint => {
   const [whole = "0", frac = ""] = amount.replace(",", ".").split(".");
@@ -92,6 +102,8 @@ function Withdraw() {
   const [client, setClient] = useState<"idle" | "vault" | "transfer" | "needs_tap" | "done">("idle");
   const [clientFailure, setClientFailure] = useState<Failure | null>(null);
   const vaultTx = useRef<string | null>(null);
+  const transferTx = useRef<string | null>(null);
+  const running = useRef(false);
   const [vaultTxHash, setVaultTxHash] = useState<string | null>(null);
   const started = useRef(false);
   /** Set when the poll itself stops getting JSON (Vercel's login page): the presenter screen, while polling continues. */
@@ -186,15 +198,17 @@ function Withdraw() {
   // The browser's part: vault withdrawal, then the transfer to the landing account.
   const runClientSteps = useCallback(async () => {
     if (!record || !kit || !info || !address) return;
+    if (running.current) return; // the poll effect re-kicks every 3 s; never overlap two runs (two transfers)
+    running.current = true;
     setClientFailure(null);
     let stepContext: "vault" | "relay" = "vault";
     try {
       const amountStroops = toStroops(record.amountUsdc);
       if (!vaultTx.current) {
         setClient("vault");
-        const totals = await withTimeout(readVaultTotals(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id), STEP_TIMEOUT_MS, "vault totals");
+        const totals = await retryOnceOnTimeout(() => withTimeout(readVaultTotals(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id), STEP_TIMEOUT_MS, "vault totals"));
         const shares = sharesForAmount(amountStroops, totals);
-        const tx = await withTimeout(
+        const tx = await retryOnceOnTimeout(() => withTimeout(
           buildContractCallTransaction(kit, {
             contractId: info.vault.id,
             method: "withdraw",
@@ -202,7 +216,7 @@ function Withdraw() {
           }),
           STEP_TIMEOUT_MS,
           "vault withdrawal simulation",
-        );
+        ));
         const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault withdrawal");
         vaultTx.current = result.hash;
         setVaultTxHash(result.hash);
@@ -212,9 +226,13 @@ function Withdraw() {
       if (!record.landing) return; // landing not ready yet; the poll effect re-triggers
       stepContext = "relay";
       setClient("transfer");
-      const transfer = await withTimeout(buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing.publicKey, amount: record.amountUsdc }), STEP_TIMEOUT_MS, "transfer simulation");
-      const sent = await withTimeout(signAndSubmit(transfer), STEP_TIMEOUT_MS, "transfer");
-      const next = await api<WithdrawalRecord>(`/api/withdraw/${record.id}/sent`, { method: "POST", body: JSON.stringify({ vaultTx: vaultTx.current, transferTx: sent.hash }) });
+      if (!transferTx.current) {
+        // Sign the transfer at most once per withdrawal: a retry after a stalled record call must not send the USDC twice.
+        const transfer = await retryOnceOnTimeout(() => withTimeout(buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing!.publicKey, amount: record.amountUsdc }), STEP_TIMEOUT_MS, "transfer simulation"));
+        const sent = await withTimeout(signAndSubmit(transfer), STEP_TIMEOUT_MS, "transfer");
+        transferTx.current = sent.hash;
+      }
+      const next = await api<WithdrawalRecord>(`/api/withdraw/${record.id}/sent`, { method: "POST", body: JSON.stringify({ vaultTx: vaultTx.current, transferTx: transferTx.current }) });
       setRecord(next);
       setClient("done");
     } catch (err) {
@@ -222,6 +240,8 @@ function Withdraw() {
       console.error("[kumbara] withdraw client step failed", classified.kind, classified.detail);
       setClientFailure(classified);
       setClient("needs_tap");
+    } finally {
+      running.current = false;
     }
   }, [record, kit, info, address, signAndSubmit]);
 

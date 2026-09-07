@@ -34,14 +34,23 @@ function parseBody<T>(text: string): ApiBody<T> {
   return text ? (JSON.parse(text) as ApiBody<T>) : null;
 }
 
+const API_TIMEOUT_MS = 45_000;
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  // Every call is bounded: a request that never answers (a stalled edge connection, a function that hangs)
+  // becomes a retryable "timeout" instead of a screen that waits forever. The scheduled E2E saw exactly that.
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
   let res: Response;
   try {
-    res = await fetch(path, { ...init, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
+    res = await fetch(path, { ...init, cache: "no-store", signal: controller.signal, headers: { "content-type": "application/json", ...(init?.headers ?? {}) } });
   } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof DOMException && err.name === "AbortError") throw new ApiError(0, "timeout", `no response within ${Math.round(API_TIMEOUT_MS / 1000)} s`);
     const offline = typeof navigator !== "undefined" && navigator.onLine === false;
     throw new ApiError(0, offline ? "offline" : "unreachable", err instanceof Error ? err.message : String(err));
   }
+  clearTimeout(timer);
   const text = await res.text();
   if (looksLikeVercelLogin(res, text)) {
     throw new ApiError(res.status, "deployment_protected", `HTTP ${res.status} with an HTML login page from ${res.url}`);

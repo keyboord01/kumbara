@@ -97,8 +97,9 @@ try {
   log("quote shown:", ((await page.locator("div.rounded-xl.bg-paper-2").textContent()) ?? "").replace(/\s+/g, " ").slice(0, 120));
   await page.getByRole("button", { name: /Devam/ }).click();
   const withdrawAt = Date.now();
-  await waitFor("withdraw-current", /Tamam\. Lira IBAN/, /Olmadı/, 120, async () => {
-    const tap = page.getByRole("button", { name: /passkey/i });
+  // Up to 10 minutes: each client step is bounded at 120 s and a stalled step surfaces a retry button, which this loop presses.
+  await waitFor("withdraw-current", /Tamam\. Lira IBAN/, /Olmadı/, 200, async () => {
+    const tap = page.getByRole("button", { name: /passkey/i }).first();
     if (await tap.isVisible().catch(() => false)) {
       log("  client step needs a tap; tapping");
       await tap.click();

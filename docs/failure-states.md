@@ -24,7 +24,7 @@ All flows are resumable: a deposit or withdrawal lives in the database, the brow
 | `rate_limited_ref` | `/api/relay` 429 `RATE_LIMITED_REF` | This booth reached its limit. | Try again (presenter raises the cap) | Rate limited |
 | `onboarding_paused` | `/api/relay` 503 `SPONSOR_UNDERFUNDED`; pipeline `sponsor_underfunded` | Opening kumbaras is paused. | Try again (presenter funds the sponsor) | Onboarding paused |
 | `wrong_network` | `?net=` on the link differs from the build's network, or `/api/anchor/info` reports a different network than the browser bundle (`components/NetworkGuard.tsx`, whole app blocked) | Wrong network for this link. | Go to the start | – |
-| `offline` | `navigator.onLine === false` or a fetch that never got an answer; a sticky banner while offline, polling continues by itself | You're offline. | Try again | – |
+| `offline` | `navigator.onLine === false` or a fetch that never got an answer; a sticky banner while offline, polling continues by itself; any app API call with no response within 45 s (`timeout`) | You're offline. | Try again | – |
 | `deployment_protected` | Any Kumbara API answer that is an HTML login page (401/403 with `text/html`, `vercel.com/sso`), detected in `lib/api.ts`; the whole app is replaced by the presenter screen | Vercel login is on. (presenter) | (instruction) | Vercel login |
 | `usdc_not_received` | Withdrawal step `usdc_sent`: the bridge account never received the amount after 60 polls | The USDC never reached the bridge account. Shows the bridge account. | Back to my kumbara | Withdrawal stuck |
 | `anchor_not_matched` | Withdrawal step `paid`: the anchor never matched the memo payment after 120 polls | The anchor has not matched the payment. | Back to my kumbara | Anchor down |

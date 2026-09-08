@@ -116,8 +116,8 @@ function sepToWithdrawError(err: unknown): never {
   }
   if (err instanceof LandingError && err.code === "sponsor_underfunded") throw new WithdrawError(503, "sponsor_underfunded", err.message);
   if (err instanceof LandingError) throw new WithdrawError(503, "bridge_failed", err.message);
-  if (err instanceof Error && /fetch failed|unreachable|timed out|ECONN|ETIMEDOUT|HTTP 50[234]/i.test(err.message)) throw new WithdrawError(503, "bridge_failed", err.message);
-  throw err;
+  if (err instanceof WithdrawError) throw err;
+  throw new WithdrawError(503, "bridge_failed", err instanceof Error ? err.message : String(err));
 }
 
 /** Indicative SEP-38 price for the amount (no authentication, no firm quote yet). */

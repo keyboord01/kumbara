@@ -171,7 +171,11 @@ function Deposit() {
 
   // Arrival autopilot: the USDC is in the smart account; put it in the vault.
   const runAutopilot = useCallback(async () => {
-    if (!record || !kit || !info || !address || !record.paidUsdc) return;
+    if (!record || !kit || !info || !address || !record.paidUsdc) {
+      // Not ready yet (the wallet address restores a beat after the kit on a reloaded page): let the effect kick again.
+      autopilotStarted.current = false;
+      return;
+    }
     setAutopilot("signing");
     setAutopilotFailure(null);
     try {
@@ -193,11 +197,11 @@ function Deposit() {
   }, [record, kit, info, address, signAndSubmit]);
 
   useEffect(() => {
-    if (recordStatus !== "in_wallet" || autopilotStarted.current || !kit || !info) return;
+    if (recordStatus !== "in_wallet" || autopilotStarted.current || !kit || !info || !address) return;
     autopilotStarted.current = true;
     const kick = setTimeout(() => void runAutopilot(), 0);
     return () => clearTimeout(kick);
-  }, [recordStatus, kit, info, runAutopilot]);
+  }, [recordStatus, kit, info, address, runAutopilot]);
 
   const start = async () => {
     if (!address) return;

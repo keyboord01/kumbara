@@ -251,7 +251,11 @@ export default function BoothAdminPage() {
   // Every step is bounded (the scheduled E2E once sat on a hung submit for four minutes); one automatic
   // retry, then the presenter's "put it in the vault" button takes over.
   const runSeedAutopilot = useCallback(async () => {
-    if (!seed?.deposit?.paidUsdc || !kit || !info || !address) return;
+    if (!seed?.deposit?.paidUsdc || !kit || !info || !address) {
+      // Not ready yet: let the effect kick again instead of leaving the seed parked on "putting it in the vault".
+      seedAutopilot.current = false;
+      return;
+    }
     setSeed((s) => (s ? { ...s, stage: "autopilot" } : s));
     const { id, paidUsdc } = seed.deposit;
     const attempt = async () => {

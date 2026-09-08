@@ -17,11 +17,12 @@ await cdp.send("WebAuthn.addVirtualAuthenticator", {
 });
 const consoleErrors = [];
 page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`));
-page.on("console", (m) => {
-  if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
-});
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
+page.on("console", (m) => {
+  if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
+  if (m.text().startsWith("[kumbara]")) log("  console:", m.text().slice(0, 300));
+});
 
 try {
   log("booth screen");

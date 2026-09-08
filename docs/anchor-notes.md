@@ -176,6 +176,17 @@ The organizer's update: the mock anchor is SEP-only (SEP-1/10/6/12/38, no SEP-24
 | SEP-38 | `sell_asset=iso4217:TRY` → USDC: `price` is the mid rate (48.46 TRY per USDC), `total_price` includes the 50 bps spread. |
 | Withdrawals | `withdraw-exchange` still returns the treasury `account_id` and a 12-digit id memo; a 400 USDC request was accepted (the USDC cap in `/info` is not enforced there), `min_amount: 1`. |
 
+Timings, SEP-6 versus the former API path (same day, same anchor):
+
+| Leg | SEP-6 (production, run 34272532196) | SEP-6 (local) | Partner API (earlier runs) |
+| --- | --- | --- | --- |
+| Deposit request (bridge built, SEP-10/12/38/6 inside the hook) → IBAN on screen | 24 s | 8 s | 3–5 s (no bridge yet) |
+| Bank played → USDC in the vault | 42.1 s | 42.1 s | 48–57 s (bridge built after the transfer) |
+| Withdrawal confirm → lira paid (two passkey approvals, reverse bridge, anchor match) | 46.4 s | 51.9–61.4 s | 53–65 s |
+| Anchor settlement alone (transfer accepted → completed) | 3–7 s | 3–7 s | 11.0 s (spike) |
+
+The request got slower because the bridge account is now built before the IBAN is shown (the anchor must know the bridge as the SEP-6 `account`); the bank-to-vault leg got faster by the same amount because nothing is built after the transfer. The withdrawal is unchanged in shape and a few seconds faster on the anchor side. A Horizon or relay hiccup while building the bridge in the request path is answered as a retryable `bridge_failed` (503) rather than a 500.
+
 What changed in the app:
 
 - **No Partner API anywhere.** `ANCHOR_BASE_URL`, `ANCHOR_API_KEY` and `ANCHOR_MODE` are gone from the code, the env files, Vercel and CI; the `/v1` client, the customer table and the spikes that needed on-ramps through it were deleted. The only anchor configuration is `ANCHOR_HOME_DOMAINS` and `ANCHOR_ASSET_CODE`; a record that predates the SEP-6 path fails with `anchor_path_gone` instead of calling an endpoint that no longer exists.

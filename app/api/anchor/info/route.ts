@@ -27,7 +27,9 @@ export async function GET(): Promise<Response> {
         offrampMode: serverEnv.offrampMode(),
         anchor: { homeDomain: anchor.homeDomain, orgName: anchor.orgName, fiatCode: anchor.fiatCode, sep6: anchor.sep6, limits: anchor.limits },
       },
-      { headers: { "cache-control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300" } },
+      // Not cached at the edge: the presenter can switch anchors at the booth and the next page load must see the new
+      // anchor's limits. Discovery itself sits in the framework data cache, and the browser keeps this for a minute.
+      { headers: { "cache-control": "no-store" } },
     );
   } catch (err) {
     return NextResponse.json({ error: err instanceof Error ? err.message : "anchor discovery failed" }, { status: 503 });

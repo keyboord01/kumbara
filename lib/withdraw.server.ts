@@ -114,6 +114,9 @@ function sepToWithdrawError(err: unknown): never {
     if (/amount|too_small|too_large|minimum|maximum/i.test(err.message)) throw new WithdrawError(422, "amount_out_of_range", err.message);
     throw new WithdrawError(502, "anchor_rejected", err.message);
   }
+  if (err instanceof LandingError && err.code === "sponsor_underfunded") throw new WithdrawError(503, "sponsor_underfunded", err.message);
+  if (err instanceof LandingError) throw new WithdrawError(503, "bridge_failed", err.message);
+  if (err instanceof Error && /fetch failed|unreachable|timed out|ECONN|ETIMEDOUT|HTTP 50[234]/i.test(err.message)) throw new WithdrawError(503, "bridge_failed", err.message);
   throw err;
 }
 

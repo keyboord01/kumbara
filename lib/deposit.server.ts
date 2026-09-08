@@ -175,6 +175,9 @@ function sepToDepositError(err: unknown): never {
     throw new DepositError(502, "anchor_rejected", err.message);
   }
   if (err instanceof LandingError && err.code === "sponsor_underfunded") throw new DepositError(503, "sponsor_underfunded", err.message);
+  // The bridge is built in the request path now; a Horizon or relay hiccup while building it is retryable, not a server fault.
+  if (err instanceof LandingError) throw new DepositError(503, "bridge_failed", err.message);
+  if (err instanceof Error && /fetch failed|unreachable|timed out|ECONN|ETIMEDOUT|HTTP 50[234]/i.test(err.message)) throw new DepositError(503, "bridge_failed", err.message);
   throw err;
 }
 

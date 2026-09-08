@@ -50,7 +50,11 @@ export interface Sep6AssetInfo {
   fundingMethods: string[];
 }
 
-const ACTIVE_KEY = "anchor.active";
+/**
+ * The presenter's choice is kept per deployment environment: preview deployments share the production database, and a
+ * CI run switching a preview to testanchor must never move the booth's production traffic with it.
+ */
+const ACTIVE_KEY = `anchor.active:${process.env.VERCEL_ENV?.trim() || "local"}`;
 
 /** Configured home domains; the first is the default. */
 export function configuredAnchors(): string[] {

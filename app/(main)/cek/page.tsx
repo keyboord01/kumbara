@@ -217,24 +217,35 @@ function Withdraw() {
           STEP_TIMEOUT_MS,
           "vault withdrawal simulation",
         ));
+        console.info(`[kumbara] withdraw ${record.id}: vault withdrawal simulated, signing`);
         const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault withdrawal");
         vaultTx.current = result.hash;
         setVaultTxHash(result.hash);
+        console.info(`[kumbara] withdraw ${record.id}: vault withdrawal ${result.hash.slice(0, 8)} confirmed`);
         // Remember it server-side so a reload never repeats the vault withdrawal.
-        await api(`/api/withdraw/${record.id}/vault`, { method: "POST", body: JSON.stringify({ vaultTx: result.hash }) }).catch(() => undefined);
+        await api(`/api/withdraw/${record.id}/vault`, { method: "POST", body: JSON.stringify({ vaultTx: result.hash }) }).catch((err: unknown) => {
+          console.warn(`[kumbara] withdraw ${record.id}: could not record the vault withdrawal yet: ${err instanceof Error ? err.message : String(err)}`);
+        });
       }
-      if (!record.landing) return; // landing not ready yet; the poll effect re-triggers
+      if (!record.landing) {
+        console.info(`[kumbara] withdraw ${record.id}: bridge not ready yet (status ${record.status}); waiting for the next poll`);
+        return; // the poll effect re-triggers once the record carries the bridge
+      }
       stepContext = "relay";
       setClient("transfer");
       if (!transferTx.current) {
         // Sign the transfer at most once per withdrawal: a retry after a stalled record call must not send the USDC twice.
+        console.info(`[kumbara] withdraw ${record.id}: simulating the transfer to the bridge`);
         const transfer = await retryOnceOnTimeout(() => withTimeout(buildTransferTransaction(kit, { tokenContract: info.usdc.contractId, to: record.landing!.publicKey, amount: record.amountUsdc }), STEP_TIMEOUT_MS, "transfer simulation"));
+        console.info(`[kumbara] withdraw ${record.id}: transfer simulated, signing`);
         const sent = await withTimeout(signAndSubmit(transfer), STEP_TIMEOUT_MS, "transfer");
         transferTx.current = sent.hash;
+        console.info(`[kumbara] withdraw ${record.id}: transfer ${sent.hash.slice(0, 8)} confirmed`);
       }
       const next = await api<WithdrawalRecord>(`/api/withdraw/${record.id}/sent`, { method: "POST", body: JSON.stringify({ vaultTx: vaultTx.current, transferTx: transferTx.current }) });
       setRecord(next);
       setClient("done");
+      console.info(`[kumbara] withdraw ${record.id}: both transactions reported; the server pays the anchor now`);
     } catch (err) {
       const classified = classifyError(err, stepContext);
       console.error("[kumbara] withdraw client step failed", classified.kind, classified.detail);

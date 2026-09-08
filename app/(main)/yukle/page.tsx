@@ -10,7 +10,7 @@ import { ResumeNotice } from "@/components/ResumeNotice";
 import { api } from "@/lib/api";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
-import { classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
+import { StepTimeoutError, classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
@@ -191,6 +191,7 @@ function Deposit() {
         console.info(`[kumbara] vault autopilot ${record.id}: ${result.hash.slice(0, 8)} confirmed`);
       }
       const next = await api<DepositRecord>(`/api/deposit/${record.id}/vault`, { method: "POST", body: JSON.stringify({ hash: vaultDepositTx.current, amountUsdc: record.paidUsdc }) });
+      if (next.status === "in_wallet") throw new StepTimeoutError("the server did not record the vault deposit yet; tap to report it again");
       setRecord(next);
       setAutopilot("done");
     } catch (err) {

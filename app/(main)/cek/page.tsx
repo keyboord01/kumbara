@@ -243,6 +243,7 @@ function Withdraw() {
         console.info(`[kumbara] withdraw ${record.id}: transfer ${sent.hash.slice(0, 8)} confirmed`);
       }
       const next = await api<WithdrawalRecord>(`/api/withdraw/${record.id}/sent`, { method: "POST", body: JSON.stringify({ vaultTx: vaultTx.current, transferTx: transferTx.current }) });
+      if (next.status === "awaiting_usdc") throw new StepTimeoutError("the server did not record the transfer yet; tap to report it again");
       setRecord(next);
       setClient("done");
       console.info(`[kumbara] withdraw ${record.id}: both transactions reported; the server pays the anchor now`);

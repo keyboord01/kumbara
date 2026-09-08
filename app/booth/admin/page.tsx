@@ -266,7 +266,9 @@ export default function BoothAdminPage() {
       const signed = await withTimeout(signAndSubmit(tx), 90_000, "vault deposit submit");
       console.info(`[kumbara] seed autopilot attempt ${n}: submitted ${signed.hash.slice(0, 8)} at ${Date.now() - started} ms`);
       const res = await withTimeout(fetch(`/api/deposit/${id}/vault`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hash: signed.hash, amountUsdc: paidUsdc }) }), 30_000, "vault deposit record");
-      return (await res.json()) as SeedDeposit;
+      const recorded = (await res.json()) as SeedDeposit;
+      if (recorded.status === "in_wallet") throw new StepTimeoutError("the server did not record the vault deposit yet");
+      return recorded;
     };
     try {
       let next: SeedDeposit;

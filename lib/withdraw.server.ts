@@ -184,6 +184,8 @@ function isTransient(err: unknown): boolean {
 }
 
 const STEP_LEASE_MS = 110_000;
+/** The browser's reports wait this long for a poll to release the record instead of being dropped. */
+const REPORT_LEASE_WAIT_MS = 20_000;
 
 async function loadWithdrawal(id: string): Promise<WithdrawalRecord> {
   const record = await withdrawalStore.get<WithdrawalRecord>(id);
@@ -342,7 +344,7 @@ export async function recordUsdcSent(id: string, input: { vaultTx: string; trans
     const next = withHistory(record, { ...record, vaultTxHash: input.vaultTx, transferTxHash: input.transferTx, status: "usdc_sent" });
     await withdrawalStore.save(next);
     return next;
-  }, () => loadWithdrawal(id));
+  }, () => loadWithdrawal(id), REPORT_LEASE_WAIT_MS);
 }
 
 /**
@@ -359,5 +361,5 @@ export async function recordVaultTx(id: string, vaultTx: string): Promise<Withdr
     const next: WithdrawalRecord = { ...record, vaultTxHash: vaultTx };
     await withdrawalStore.save(next);
     return next;
-  }, () => loadWithdrawal(id));
+  }, () => loadWithdrawal(id), REPORT_LEASE_WAIT_MS);
 }

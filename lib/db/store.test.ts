@@ -97,6 +97,22 @@ describe("libsql store", () => {
     expect(result).toBe("busy");
   });
 
+  it("waits for a held lease when asked to, instead of falling back", async () => {
+    let released = false;
+    const holder = store.withLease("deposit:z", 5000, async () => {
+      await new Promise((r) => setTimeout(r, 400));
+      released = true;
+      return "holder";
+    }, async () => "holder-busy");
+    await new Promise((r) => setTimeout(r, 50));
+    const dropped = await store.withLease("deposit:z", 5000, async () => "ran", async () => "busy");
+    expect(dropped).toBe("busy"); // a poll does not wait
+    const waited = await store.withLease("deposit:z", 5000, async () => "ran", async () => "busy", 3000);
+    expect(released).toBe(true);
+    expect(waited).toBe("ran"); // a report waits for the poll to finish
+    expect(await holder).toBe("holder");
+  });
+
   it("rate-limit windows count per bucket and forget old hits", async () => {
     const bucket = "abc123";
     expect((await store.rateLimitHit(bucket, 2, 200)).allowed).toBe(true);

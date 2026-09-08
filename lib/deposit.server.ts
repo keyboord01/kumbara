@@ -355,6 +355,8 @@ function errorCode(err: unknown): string {
 
 /** Lease TTL for one pipeline step; a crashed invocation frees the record after this. */
 const STEP_LEASE_MS = 110_000;
+/** The browser's reports wait this long for a poll to release the record instead of being dropped. */
+const REPORT_LEASE_WAIT_MS = 20_000;
 
 async function loadDeposit(id: string): Promise<DepositRecord> {
   const record = await depositStore.get<DepositRecord>(id);
@@ -446,7 +448,7 @@ export async function cancelDeposit(id: string): Promise<DepositRecord> {
       return depositStore.save(withHistory(record, { ...record, status: "abandoned", abandonedAt: new Date().toISOString(), abandonedFrom: record.status }));
     }
     throw new DepositError(409, "cannot_cancel", `a deposit that is ${record.status} cannot be abandoned; let it finish`);
-  }, () => loadDeposit(id));
+  }, () => loadDeposit(id), REPORT_LEASE_WAIT_MS);
 }
 
 /**
@@ -472,7 +474,7 @@ export async function resumeDeposit(id: string): Promise<DepositRecord> {
       return depositStore.save(resumed);
     }
     throw new DepositError(409, "cannot_resume", `deposit is ${record.status}; only abandoned transactions and amount-mismatch failures can be resumed`);
-  }, () => loadDeposit(id));
+  }, () => loadDeposit(id), REPORT_LEASE_WAIT_MS);
 }
 
 /** Deposits that need a presenter: waiting on the anchor for more than two minutes, abandoned, or parked by an amount mismatch. */
@@ -508,5 +510,5 @@ export async function recordVaultDeposit(id: string, input: { hash: string; amou
       usdc: input.amountUsdc,
     });
     return next;
-  }, () => loadDeposit(id));
+  }, () => loadDeposit(id), REPORT_LEASE_WAIT_MS);
 }

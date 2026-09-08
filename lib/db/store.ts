@@ -273,8 +273,19 @@ export async function releaseLease(key: string, token: string): Promise<void> {
 }
 
 /** Run `fn` under the lease, or `busy()` when another invocation holds it. */
-export async function withLease<T>(key: string, ttlMs: number, fn: () => Promise<T>, busy: () => Promise<T>): Promise<T> {
-  const token = await acquireLease(key, ttlMs);
+/**
+ * Run `fn` under the record's lease. When the lease is held (a poll is stepping the record), wait up to `waitMs` for it,
+ * then fall back to `busy`. Polls pass no wait (returning the current record is fine); the browser's reports (a signed
+ * hash the server must remember) wait, because a dropped report leaves the record parked with the client believing it
+ * is done: that was the silent "putting it in the vault" stall on busy runners.
+ */
+export async function withLease<T>(key: string, ttlMs: number, fn: () => Promise<T>, busy: () => Promise<T>, waitMs = 0): Promise<T> {
+  const deadline = Date.now() + waitMs;
+  let token = await acquireLease(key, ttlMs);
+  while (!token && Date.now() < deadline) {
+    await new Promise((r) => setTimeout(r, 200 + Math.floor(Math.random() * 150)));
+    token = await acquireLease(key, ttlMs);
+  }
   if (!token) return busy();
   try {
     return await fn();

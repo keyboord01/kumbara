@@ -102,4 +102,6 @@ Red "Last CI run failed at step X" banner on `/booth/admin`: the 6-hourly produc
 
 ## Anchor switch
 
+The choice is stored per deployment environment (production, preview, local): a CI run switching a preview deployment to testanchor.stellar.org never touches the booth's production anchor.
+
 `/booth/admin` lists the configured anchors (from `ANCHOR_HOME_DOMAINS`) with what their `stellar.toml` says. New deposits and withdrawals use the selected one; anything in flight stays on the anchor it started on. Only the TR Mock Anchor has a sandbox bank-transfer hook, so "play the bank" works there; on testanchor.stellar.org a deposit stops at the bank instructions and must be cancelled (the abort envelope returns the sponsor's reserves).

@@ -258,22 +258,28 @@ export default function BoothAdminPage() {
     }
     setSeed((s) => (s ? { ...s, stage: "autopilot" } : s));
     const { id, paidUsdc } = seed.deposit;
-    const attempt = async () => {
+    const attempt = async (n: number) => {
+      const started = Date.now();
+      console.info(`[kumbara] seed autopilot attempt ${n}: vault deposit ${paidUsdc} USDC for ${id}`);
       const tx = await withTimeout(buildVaultDeposit(kit, info.vault.id, address, paidUsdc), 30_000, "vault deposit build");
+      console.info(`[kumbara] seed autopilot attempt ${n}: built in ${Date.now() - started} ms, signing and submitting`);
       const signed = await withTimeout(signAndSubmit(tx), 90_000, "vault deposit submit");
+      console.info(`[kumbara] seed autopilot attempt ${n}: submitted ${signed.hash.slice(0, 8)} at ${Date.now() - started} ms`);
       const res = await withTimeout(fetch(`/api/deposit/${id}/vault`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ hash: signed.hash, amountUsdc: paidUsdc }) }), 30_000, "vault deposit record");
       return (await res.json()) as SeedDeposit;
     };
     try {
       let next: SeedDeposit;
       try {
-        next = await attempt();
+        next = await attempt(1);
       } catch (first) {
         if (!(first instanceof StepTimeoutError)) throw first;
-        next = await attempt();
+        console.warn(`[kumbara] seed autopilot: ${first.message}; retrying once`);
+        next = await attempt(2);
       }
       setSeed((s) => (s ? { ...s, deposit: next, stage: next.status === "in_vault" ? "done" : s.stage } : s));
     } catch (err) {
+      console.error("[kumbara] seed autopilot failed", err instanceof Error ? err.message : String(err));
       setSeed((s) => (s ? { ...s, stage: "needs_tap", message: toSembolError(err).userMessage } : s));
     }
   }, [seed?.deposit, kit, info, address, signAndSubmit]);

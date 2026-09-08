@@ -88,6 +88,7 @@ function Deposit() {
   const [autopilotFailure, setAutopilotFailure] = useState<Failure | null>(null);
   const autopilotStarted = useRef(false);
   const vaultDepositTx = useRef<string | null>(null);
+  const autopilotSince = useRef(0);
   const [usdTry, setUsdTry] = useState<number | null>(null);
   const [cancelling, setCancelling] = useState(false);
   /** True once an on-ramp has sat at the anchor for more than 90 s (set from the poll, not during render). */
@@ -177,13 +178,17 @@ function Deposit() {
       return;
     }
     setAutopilot("signing");
+    autopilotSince.current = Date.now();
     setAutopilotFailure(null);
     try {
       if (!vaultDepositTx.current) {
         // Sign the vault deposit at most once: a retry after a stalled record call re-sends the hash, not the USDC.
+        console.info(`[kumbara] vault autopilot ${record.id}: simulating the deposit of ${record.paidUsdc} USDC`);
         const tx = await withTimeout(buildVaultDeposit(kit, info.vault.id, address, record.paidUsdc), STEP_TIMEOUT_MS, "vault deposit simulation");
+        console.info(`[kumbara] vault autopilot ${record.id}: simulated, signing`);
         const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault deposit");
         vaultDepositTx.current = result.hash;
+        console.info(`[kumbara] vault autopilot ${record.id}: ${result.hash.slice(0, 8)} confirmed`);
       }
       const next = await api<DepositRecord>(`/api/deposit/${record.id}/vault`, { method: "POST", body: JSON.stringify({ hash: vaultDepositTx.current, amountUsdc: record.paidUsdc }) });
       setRecord(next);
@@ -202,6 +207,24 @@ function Deposit() {
     const kick = setTimeout(() => void runAutopilot(), 0);
     return () => clearTimeout(kick);
   }, [recordStatus, kit, info, address, runAutopilot]);
+
+  // Watchdog: the USDC is in the kumbara but the autopilot has not concluded. Never started (a kick that found the wallet
+  // half-restored) → kick again; running far longer than its own bounds → hand the user the tap button.
+  useEffect(() => {
+    if (recordStatus !== "in_wallet" || autopilot === "done") return;
+    const id = setInterval(() => {
+      if (autopilot === "idle" && !autopilotStarted.current && kit && info && address) {
+        console.warn("[kumbara] vault autopilot: not running while the USDC is in the wallet; kicking it");
+        autopilotStarted.current = true;
+        void runAutopilot();
+      } else if (autopilot === "signing" && Date.now() - autopilotSince.current > STEP_TIMEOUT_MS * 2 + 30_000) {
+        console.warn("[kumbara] vault autopilot: no result well past its own timeouts; asking for a tap");
+        autopilotStarted.current = false;
+        setAutopilot("needs_tap");
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [recordStatus, autopilot, kit, info, address, runAutopilot]);
 
   const start = async () => {
     if (!address) return;

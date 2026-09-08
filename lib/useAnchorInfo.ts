@@ -12,11 +12,16 @@ export interface AnchorInfo {
   vault: { id: string };
   treasury: string | null;
   treasuryUsdc: string | null;
+  /** Which anchor the server uses for new requests, with the limits it publishes (SEP-6 /info in the asset; lira limits when the anchor states them). */
+  anchor?: { homeDomain: string; orgName: string | null; fiatCode: string | null; limits?: { deposit: { min: number | null; max: number | null }; withdraw: { min: number | null; max: number | null }; fiat: { min: number | null; max: number | null; source: "anchor" | "derived" } | null } };
   onrampMode: "landing" | "direct";
   offrampMode: "landing" | "direct";
 }
 
 let cached: AnchorInfo | null = null;
+let cachedAt = 0;
+/** The presenter can switch anchors at the booth; a screen opened after that must see the new anchor's limits within a minute. */
+const CACHE_MS = 60_000;
 
 /**
  * Discovery data from /api/anchor/info (USDC issuer from the anchor's toml,
@@ -24,15 +29,16 @@ let cached: AnchorInfo | null = null;
  * so screens can show the matching state; `retry` fetches again.
  */
 export function useAnchorInfo(): { info: AnchorInfo | null; error: string | null; failure: Failure | null; retry: () => void } {
-  const [info, setInfo] = useState<AnchorInfo | null>(cached);
+  const [info, setInfo] = useState<AnchorInfo | null>(() => (Date.now() - cachedAt < CACHE_MS ? cached : null));
   const [failure, setFailure] = useState<Failure | null>(null);
   const [epoch, setEpoch] = useState(0);
   useEffect(() => {
-    if (cached) return;
+    if (cached && Date.now() - cachedAt < CACHE_MS) return;
     let alive = true;
     api<AnchorInfo>("/api/anchor/info")
       .then((body) => {
         cached = body;
+        cachedAt = Date.now();
         if (alive) setInfo(body);
       })
       .catch((err: unknown) => {

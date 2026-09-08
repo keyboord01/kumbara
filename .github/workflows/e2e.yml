@@ -1,7 +1,8 @@
 name: E2E
 
 # Real-browser round trips (Chromium + virtual passkey) against live Stellar
-# testnet and the sandbox anchor:
+# testnet and the sandbox anchor over SEP-6 (the bank is played through the
+# presenter API, which calls the anchor's sandbox hook):
 #   - every push / PR: against a fresh Vercel preview deployment
 #   - every 6 hours: against production, opening an issue and flagging
 #     /booth/admin when it fails; skipped when the sponsor is low.
@@ -50,9 +51,9 @@ jobs:
         id: gate
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
         run: |
-          if [ -n "$VERCEL_TOKEN" ] && [ -n "$ANCHOR_API_KEY" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::notice::E2E secrets are not configured; preview round trip skipped"; fi
+          if [ -n "$VERCEL_TOKEN" ] && [ -n "$BOOTH_ADMIN_TOKEN" ]; then echo "ok=true" >> "$GITHUB_OUTPUT"; else echo "ok=false" >> "$GITHUB_OUTPUT"; echo "::notice::E2E secrets are not configured; preview round trip skipped"; fi
       - name: Deploy a preview
         if: steps.gate.outputs.ok == 'true'
         id: deploy
@@ -71,8 +72,6 @@ jobs:
         if: steps.gate.outputs.ok == 'true'
         env:
           APP_URL: ${{ steps.deploy.outputs.url }}
-          ANCHOR_BASE_URL: ${{ secrets.ANCHOR_BASE_URL }}
-          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
         run: |
           mkdir -p .data && touch .env
@@ -82,6 +81,15 @@ jobs:
           node scripts/e2e-booth.mjs
           node scripts/e2e-stats.mjs
           node scripts/e2e-failures.mjs
+      - name: Deposit round trip on the second anchor (testanchor.stellar.org funds itself, no sandbox hook)
+        if: steps.gate.outputs.ok == 'true'
+        env:
+          APP_URL: ${{ steps.deploy.outputs.url }}
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+          E2E_ANCHOR: testanchor.stellar.org
+          E2E_EXPECT: autofund
+          E2E_DEPOSIT_AMOUNT: "5"
+        run: node scripts/e2e-deposit.mjs
       - name: Upload screenshots
         if: failure()
         uses: actions/upload-artifact@v7
@@ -124,16 +132,12 @@ jobs:
         id: deposit
         if: steps.preflight.outputs.skip != 'true'
         env:
-          ANCHOR_BASE_URL: ${{ secrets.ANCHOR_BASE_URL }}
-          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
         run: node scripts/e2e-deposit.mjs
       - name: Withdraw
         id: withdraw
         if: steps.preflight.outputs.skip != 'true'
         env:
-          ANCHOR_BASE_URL: ${{ secrets.ANCHOR_BASE_URL }}
-          ANCHOR_API_KEY: ${{ secrets.ANCHOR_API_KEY }}
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
         run: node scripts/e2e-withdraw.mjs
       - name: Booth

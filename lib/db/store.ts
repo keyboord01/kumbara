@@ -33,11 +33,6 @@ function connect(): Client {
 }
 
 const SCHEMA = [
-  `CREATE TABLE IF NOT EXISTS customers (
-     contract_id TEXT PRIMARY KEY,
-     customer_id TEXT NOT NULL,
-     created_at TEXT NOT NULL
-   )`,
   `CREATE TABLE IF NOT EXISTS records (
      kind TEXT NOT NULL,
      id TEXT PRIMARY KEY,
@@ -173,19 +168,6 @@ function makeStore(kind: RecordKind) {
 
 export const depositStore = makeStore("deposit");
 export const withdrawalStore = makeStore("withdrawal");
-
-export async function getCustomerId(contractId: string): Promise<string | null> {
-  const res = await (await db()).execute({ sql: "SELECT customer_id FROM customers WHERE contract_id = ?", args: [contractId] });
-  const row = res.rows[0];
-  return row ? String(row.customer_id) : null;
-}
-
-export async function setCustomerId(contractId: string, customerId: string): Promise<void> {
-  await (await db()).execute({
-    sql: "INSERT INTO customers (contract_id, customer_id, created_at) VALUES (?, ?, ?) ON CONFLICT(contract_id) DO UPDATE SET customer_id = excluded.customer_id",
-    args: [contractId, customerId, new Date().toISOString()],
-  });
-}
 
 export interface EventRow {
   type: string;

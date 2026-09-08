@@ -230,7 +230,12 @@ function Deposit() {
   const treasuryUsdc = info?.treasuryUsdc ? Number(info.treasuryUsdc) : null;
   const estimatedUsdc = usdTry ? amountNumber / (usdTry * 1.005) : null;
   const overTreasury = treasuryUsdc !== null && estimatedUsdc !== null && estimatedUsdc > treasuryUsdc * 0.9;
-  const amountValid = Number.isFinite(amountNumber) && amountNumber >= 50 && amountNumber <= 250_000 && !overTreasury;
+  // Limits come from the anchor, in its fiat: published when it states them, else its SEP-6 asset limits at its own price (server-side).
+  const limits = info?.anchor?.limits;
+  const minAmount = limits?.fiat?.min ?? 1;
+  const maxAmount = limits?.fiat?.max ?? null;
+  const numberLocale = locale === "tr" ? "tr-TR" : "en-US";
+  const amountValid = Number.isFinite(amountNumber) && amountNumber >= minAmount && (maxAmount === null || amountNumber <= maxAmount) && !overTreasury;
 
   if (view === "loading") {
     return (
@@ -262,9 +267,9 @@ function Deposit() {
             <input
               type="number"
               inputMode="decimal"
-              min={50}
-              max={250000}
-              step="1"
+              min={minAmount}
+              max={maxAmount ?? undefined}
+              step="any"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
               className="tnum rounded-xl border border-line bg-paper px-4 py-3 text-2xl font-semibold outline-none focus:border-teal"
@@ -279,7 +284,7 @@ function Deposit() {
             ))}
           </div>
           <p id="deposit-limits" className="text-xs text-muted">
-            {t.deposit.limits}
+            {(maxAmount === null ? t.deposit.limitsMin : t.deposit.limits).replace("{min}", minAmount.toLocaleString(numberLocale)).replace("{max}", (maxAmount ?? 0).toLocaleString(numberLocale))}
           </p>
           {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) ? <p className="text-sm text-amber">{t.deposit.limitWarning}</p> : null}
           {overTreasury && treasuryUsdc !== null ? (
@@ -363,6 +368,7 @@ function Deposit() {
             <div className="flex items-start justify-between gap-3">
               <dt className="text-muted">{t.deposit.bank}</dt>
               <dd className="text-right font-medium">{record.instructions.bankName}</dd>
+              {!record.instructions.iban ? <dd className="col-span-2 text-sm text-muted" role="status">{t.deposit.instructionsPending}</dd> : null}
             </div>
             <div className="flex items-start justify-between gap-3">
               <dt className="text-muted">{t.deposit.iban}</dt>

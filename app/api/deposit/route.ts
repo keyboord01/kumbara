@@ -1,8 +1,8 @@
 /** Deposits: create (POST) and list/resume (GET ?contractId=). */
 import { NextResponse } from "next/server";
 import { boothRef } from "@/lib/cookies.server";
-import { AnchorHttpError } from "@/lib/anchor.server";
-import { DEPOSIT_MAX_TRY, DEPOSIT_MIN_TRY, DepositError, FINAL_STATUSES, createDeposit, listDeposits } from "@/lib/deposit.server";
+import { discoverAnchor } from "@/lib/anchor.server";
+import { DepositError, FINAL_STATUSES, createDeposit, depositLimits, listDeposits } from "@/lib/deposit.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,6 @@ export const maxDuration = 60;
 
 export function depositErrorResponse(err: unknown): Response {
   if (err instanceof DepositError) return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status });
-  if (err instanceof AnchorHttpError) return NextResponse.json({ error: { code: err.code, message: err.message, source: "anchor" } }, { status: err.status >= 500 ? 502 : err.status });
   const message = err instanceof Error ? err.message : String(err);
   const status = /SPONSOR_SECRET|environment variable/.test(message) ? 503 : 500;
   return NextResponse.json({ error: { code: "internal", message } }, { status });
@@ -37,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const all = await listDeposits(contractId);
     const active = all.find((d) => !FINAL_STATUSES.includes(d.status)) ?? null;
-    return NextResponse.json({ active, recent: all.slice(0, 5), limits: { minTry: DEPOSIT_MIN_TRY, maxTry: DEPOSIT_MAX_TRY } }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ active, recent: all.slice(0, 5), limits: depositLimits(await discoverAnchor()) }, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     return depositErrorResponse(err);
   }

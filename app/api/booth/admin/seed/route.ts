@@ -9,7 +9,6 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin.server";
 import { PlayBankError, playBank } from "@/lib/demo-bank";
 import { createDeposit, DepositError } from "@/lib/deposit.server";
-import { serverEnv } from "@/lib/env.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +26,7 @@ export async function POST(request: Request): Promise<Response> {
   const amountTry = body.amountTry ?? process.env.SEED_DEPOSIT_TRY?.trim() ?? "250";
   try {
     const deposit = await createDeposit({ contractId: String(body.contractId ?? ""), amountTry, ref: "seed" });
-    const bank = await playBank({ anchorBaseUrl: serverEnv.anchorBaseUrl(), anchorApiKey: serverEnv.anchorApiKey(), depositId: deposit.id });
+    const bank = await playBank({ depositId: deposit.id });
     return NextResponse.json({ deposit, bank }, { status: 201, headers: { "cache-control": "no-store" } });
   } catch (err) {
     if (err instanceof DepositError) return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status });

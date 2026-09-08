@@ -4,6 +4,7 @@
  */
 import "server-only";
 import { Account, Address, BASE_FEE, Operation, TransactionBuilder, rpc, xdr } from "@stellar/stellar-sdk";
+import { activeAnchorHomeDomain, discoverAnchor } from "./anchor.server";
 import { networkPassphrase, serverEnv } from "./env.server";
 
 export interface DependencyStatus {
@@ -34,11 +35,14 @@ async function timed(fn: () => Promise<string>): Promise<DependencyStatus> {
 }
 
 async function checkAnchor(): Promise<string> {
-  const res = await fetch(`${serverEnv.anchorBaseUrl()}/health`, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const body = (await res.json()) as { ok?: boolean; stellar_mode?: string; treasury?: { usdc_balance?: string; low_balance?: boolean } };
-  if (!body.ok) throw new Error("anchor reports not ok");
-  return `${body.stellar_mode ?? "?"}, treasury ${body.treasury?.usdc_balance ?? "?"} USDC${body.treasury?.low_balance ? " (low)" : ""}`;
+  // Reachability is measured live on the signboard itself; the parsed discovery may come from the data cache.
+  const domain = await activeAnchorHomeDomain();
+  const res = await fetch(`https://${domain}/.well-known/stellar.toml`, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
+  if (!res.ok) throw new Error(`stellar.toml HTTP ${res.status}`);
+  const anchor = await discoverAnchor(domain);
+  const parts = [anchor.orgName ?? domain, `SEP-6 deposit ${anchor.sep6?.deposit?.enabled ? "on" : "off"}`];
+  if (anchor.treasury) parts.push(`treasury ${anchor.treasury.balance ?? "?"} ${anchor.usdc.code}${anchor.treasury.low ? " (low)" : ""}`);
+  return parts.join(", ");
 }
 
 async function checkRelay(): Promise<string> {

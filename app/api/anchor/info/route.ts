@@ -1,6 +1,7 @@
 /**
  * Public, cacheable discovery for the browser: network, the anchor's USDC
- * (issuer from stellar.toml, contract id derived) and the vault id. No keys.
+ * (issuer from stellar.toml, contract id derived), its published limits and
+ * the vault id. No keys.
  */
 import { NextResponse } from "next/server";
 import { discoverAnchor } from "@/lib/anchor.server";
@@ -20,10 +21,11 @@ export async function GET(): Promise<Response> {
         explorerBase: `https://stellar.expert/explorer/${network === "testnet" ? "testnet" : "public"}`,
         usdc: anchor.usdc,
         vault: { id: serverEnv.defindexVaultId() },
-        treasury: anchor.treasury,
-        treasuryUsdc: anchor.treasuryUsdc,
+        treasury: anchor.treasury?.address ?? null,
+        treasuryUsdc: anchor.treasury?.balance ?? null,
         onrampMode: serverEnv.onrampMode(),
         offrampMode: serverEnv.offrampMode(),
+        anchor: { homeDomain: anchor.homeDomain, orgName: anchor.orgName, fiatCode: anchor.fiatCode, sep6: anchor.sep6, limits: anchor.limits },
       },
       { headers: { "cache-control": "public, max-age=60, s-maxage=60, stale-while-revalidate=300" } },
     );

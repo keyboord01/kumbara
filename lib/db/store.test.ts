@@ -106,11 +106,4 @@ describe("libsql store", () => {
     expect((await store.rateLimitHit(bucket, 2, 200)).allowed).toBe(true);
     expect((await store.rateLimitHit("other", 0, 200)).allowed).toBe(true); // 0 = unlimited
   });
-
-  it("maps contracts to anchor customers", async () => {
-    expect(await store.getCustomerId("CDDD")).toBeNull();
-    await store.setCustomerId("CDDD", "cus_1");
-    await store.setCustomerId("CDDD", "cus_2");
-    expect(await store.getCustomerId("CDDD")).toBe("cus_2");
-  });
 });

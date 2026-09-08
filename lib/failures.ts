@@ -13,6 +13,8 @@ export type FailureKind =
   | "relay_budget"
   | "anchor_unreachable"
   | "anchor_rejected"
+  | "anchor_auth_failed"
+  | "pending_trust"
   | "quote_expired"
   | "transfer_timeout"
   | "amount_mismatch"
@@ -64,6 +66,8 @@ export const RUNBOOK_SECTION: Partial<Record<FailureKind, string>> = {
   passkey_lost: "Passkey refused",
   usdc_not_received: "Withdrawal stuck",
   transfer_timeout: "Transfer never arrives",
+  anchor_auth_failed: "Anchor down",
+  pending_trust: "Anchor down",
 };
 
 /** Where the failure happened, for messages that need context to classify. */
@@ -124,6 +128,8 @@ function fromApi(err: ApiError, context: FailureContext): Failure {
   const detail = `${err.status} ${err.code}: ${err.message}`;
   const base = { detail, code: err.code };
   if (err.code === "deployment_protected") return { kind: "deployment_protected", ...base };
+  if (err.code === "anchor_auth_failed") return { kind: "anchor_auth_failed", ...base };
+  if (err.code === "pending_trust") return { kind: "pending_trust", ...base };
   if (err.code === "offline") return { kind: "offline", ...base };
   if (err.code === "unreachable") return { kind: "offline", ...base };
   if (err.code === "timeout") return { kind: "offline", ...base };
@@ -177,6 +183,14 @@ function recordFailure(error: { code: string; message: string }, extra: { expect
     case "onramp_failed":
     case "offramp_cancelled":
       return { ...base, kind: "anchor_rejected" };
+    case "pending_trust":
+      return { ...base, kind: "pending_trust" };
+    case "anchor_auth_expired":
+    case "sep10_auth_failed":
+    case "sep10_challenge_failed":
+    case "sep10_bad_challenge":
+    case "sep10_unreachable":
+      return { ...base, kind: "anchor_auth_failed" };
     case "quote_expired":
       return { ...base, kind: "quote_expired" };
     case "sponsor_underfunded":

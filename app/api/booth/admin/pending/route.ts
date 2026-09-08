@@ -22,7 +22,7 @@ export async function GET(request: Request): Promise<Response> {
         amountTry: d.receivedTry ?? d.amountTry,
         usdc: d.firmQuote?.usdcOut ?? null,
         paidUsdc: d.paidUsdc ?? null,
-        onrampId: d.onrampId ?? null,
+        anchorTxId: d.sep6?.id ?? null,
         updatedAt: d.updatedAt,
         abandonedAt: d.abandonedAt ?? null,
         errorCode: d.error?.code ?? null,

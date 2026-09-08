@@ -1,14 +1,12 @@
 // Gate 3 end-to-end: onboard → deposit 100 TRY (admin page plays the bank) →
 // withdraw 1 USDC → reverse landing account → anchor payout. Live testnet,
 // Chrome virtual authenticator.
-//   pnpm e2e:withdraw   (APP_URL defaults to http://localhost:3100; needs ANCHOR_* and BOOTH_ADMIN_TOKEN in .env)
+//   pnpm e2e:withdraw   (APP_URL defaults to http://localhost:3100; needs BOOTH_ADMIN_TOKEN in .env)
 import { chromium } from "playwright";
 
 const APP = process.env.APP_URL ?? "http://localhost:3100";
-const ANCHOR = (process.env.ANCHOR_BASE_URL ?? "").replace(/\/+$/, "");
-const KEY = process.env.ANCHOR_API_KEY ?? "";
 const ADMIN = process.env.BOOTH_ADMIN_TOKEN?.trim();
-if (!ANCHOR || !KEY) throw new Error("ANCHOR_BASE_URL and ANCHOR_API_KEY are required (pnpm e2e:withdraw loads .env)");
+if (!ADMIN) throw new Error("BOOTH_ADMIN_TOKEN is required (pnpm e2e:withdraw loads .env)");
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
@@ -27,23 +25,15 @@ page.on("console", (m) => {
 const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 
+// The presenter page plays the bank through the anchor's SEP-6 sandbox hook, exactly as at the booth.
 async function playBank(reference) {
-  if (ADMIN) {
-    const admin = await context.newPage();
-    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
-    await admin.getByText(reference).first().waitFor({ timeout: 20000 });
-    await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
-    await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
-    await admin.close();
-    return "admin page";
-  }
-  const res = await fetch(`${ANCHOR}/v1/sandbox/bank-transfers`, {
-    method: "POST",
-    headers: { "content-type": "application/json", "X-API-Key": KEY },
-    body: JSON.stringify({ reference, amount_try: "100.00", sender_name: "E2E" }),
-  });
-  if (!res.ok) throw new Error(`sandbox transfer failed: ${await res.text()}`);
-  return "direct";
+  const admin = await context.newPage();
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+  await admin.getByText(reference).first().waitFor({ timeout: 20000 });
+  await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
+  await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
+  await admin.close();
+  return "admin page";
 }
 
 async function waitFor(testId, doneRe, failRe, maxPolls, onTick) {
@@ -101,7 +91,12 @@ try {
   await input.fill("1");
   await page.getByText(/Alacağın lira/).waitFor({ timeout: 20000 });
   await page.locator("div.rounded-xl.bg-paper-2 p.tnum").first().waitFor({ timeout: 20000 });
-  log("quote shown:", ((await page.locator("div.rounded-xl.bg-paper-2").textContent()) ?? "").replace(/\s+/g, " ").slice(0, 120));
+  const quoteText = ((await page.locator("div.rounded-xl.bg-paper-2").textContent()) ?? "").replace(/\s+/g, " ");
+  log("quote shown:", quoteText.slice(0, 120));
+  // The rate is lira per USDC (SEP-38 states the sell price the other way round); an inverted display would read 0.02.
+  const rateText = quoteText.match(/([\d.,]+) ₺\/USDC/)?.[1] ?? "";
+  const rate = Number(rateText.replace(/\./g, "").replace(",", "."));
+  if (!(rate > 1)) throw new Error(`the withdrawal rate must be lira per USDC (saw "${rateText || "none"}")`);
   await page.getByRole("button", { name: /Devam/ }).click();
   const withdrawAt = Date.now();
   // Up to 10 minutes: each client step is bounded at 120 s and a stalled step surfaces a retry button, which this loop presses.
@@ -115,7 +110,8 @@ try {
   const tryOut = ((await page.getByTestId("withdraw-try").textContent()) ?? "").trim();
   const payout = ((await page.getByTestId("withdraw-payout").textContent()) ?? "").trim();
   log(`✓ withdrawal complete ${((Date.now() - withdrawAt) / 1000).toFixed(1)}s after confirm: ${tryOut}, payout ${payout}`);
-  if (!/^po_/.test(payout)) throw new Error(`no payout reference (${payout})`);
+  // The anchor's external transaction id for the payout (FAST-… on the sandbox); any non-empty identifier counts.
+  if (!/^[A-Za-z0-9][A-Za-z0-9._:-]{2,}$/.test(payout)) throw new Error(`no payout reference (${payout})`);
   const links = await page.locator("a[href*='stellar.expert']").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   log("tx links:", links.join(" "));
   if (links.length < 3 || links.some((l) => !l.includes("/testnet/"))) throw new Error("expected three testnet-labeled links");

@@ -1,0 +1,266 @@
+{
+  "recordedAt": "2026-09-08T14:25:56.958Z",
+  "discovery": {
+    "homeDomain": "tr-mock-anchor.fly.dev",
+    "webAuth": "https://tr-mock-anchor.fly.dev/auth",
+    "transfer": "https://tr-mock-anchor.fly.dev/sep6",
+    "quotes": "https://tr-mock-anchor.fly.dev/sep38",
+    "kyc": "https://tr-mock-anchor.fly.dev/sep12",
+    "signingKey": "GDXYO6FJCNXZEWGXD54GT76FGFYLOLSOGSOJLNQ6WGHCGEQPO7NTE73M",
+    "usdcIssuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+  },
+  "sep6Deposit": {
+    "createMs": 9053,
+    "sep10Ms": 578,
+    "jwtLifetimeS": 86400,
+    "sep12": {
+      "status": "ACCEPTED",
+      "ms": 224
+    },
+    "quote": {
+      "id": "qt_6g988v60doa6tc3jtm4o",
+      "sell": "100.00",
+      "buy": "2.0533494",
+      "price": "48.458623",
+      "expires": "2026-09-08T14:41:08.696Z",
+      "ms": 141
+    },
+    "depositRequest": {
+      "status": 200,
+      "ms": 133,
+      "keys": [
+        "id",
+        "how",
+        "instructions",
+        "eta",
+        "min_amount",
+        "max_amount",
+        "fee_percent",
+        "extra_info"
+      ],
+      "instructions": {
+        "bank_name": {
+          "value": "TR Mock Bank A.Ş.",
+          "description": "Bank holding the anchor account"
+        },
+        "bank_account_number": {
+          "value": "TR050009900000000000000001",
+          "description": "IBAN to send TRY to (account holder: TR Mock Anchor Teknoloji A.Ş.)"
+        },
+        "external_transfer_memo": {
+          "value": "TRMA-TH3L-QLM2",
+          "description": "Write this reference in the transfer description (açıklama). It routes the money to your account."
+        }
+      },
+      "id": "sep_0hamxcohsaj4vxt57g1b",
+      "eta": 5
+    },
+    "initialTx": {
+      "status": "pending_user_transfer_start",
+      "amount_in": "100.00",
+      "amount_out": null,
+      "amount_fee": null,
+      "quote_id": "qt_6g988v60doa6tc3jtm4o"
+    },
+    "lockTx": "4af5badc62cf8f96961eb671f0cc82d5eef2b313dca82c3ca13a4c9a5423cb6d",
+    "lockMs": 3084,
+    "sep10AfterLock": "rejected: SEP-10 400: challenge verification failed: signers with weight 1 do not meet threshold 2\"",
+    "simulate": {
+      "status": 200,
+      "body": "{\"ok\":true,\"transaction\":{\"id\":\"sep_0hamxcohsaj4vxt57g1b\",\"kind\":\"deposit\",\"status\":\"pending_anchor\",\"status_eta\":5,\"more_info_url\":\"https://tr-mock-anchor.fly.dev/sep6/tx/sep_0hamxcohsaj4vxt57g1b\",\"m"
+    },
+    "statuses": [
+      {
+        "status": "pending_anchor",
+        "at": "16.2s"
+      },
+      {
+        "status": "completed",
+        "at": "20.5s"
+      }
+    ],
+    "settleMs": 4572,
+    "finalTx": {
+      "status": "completed",
+      "amount_out": "2.0533494",
+      "stellar_transaction_id": "3d157f8660261b2b96d5da865b4c2f81dcc65e7245459bb947fddf811fed54e5",
+      "completed_at": "2026-09-08T14:26:17.387Z"
+    },
+    "bridgeBalanceAfterAnchor": "2.0533494",
+    "exactMatch": true,
+    "anchorPaymentOps": {
+      "hash": "3d157f8660261b2b96d5da865b4c2f81dcc65e7245459bb947fddf811fed54e5",
+      "envelopeType": "envelopeTypeTx",
+      "sourceAccount": "GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6",
+      "feeCharged": "100",
+      "operationTypes": [
+        "payment"
+      ]
+    },
+    "forwardTx": "81c570681033f1232def1d5fdfb621c4096979e5732a349d0cf892e9262162f4",
+    "forwardMs": 5022,
+    "cleanupTx": "9d0ed54ee2251b76660f9c4f0eeede8e226ccbfa833d6fc16cadfa542fc3467f",
+    "cleanupMs": 5713,
+    "totalMs": 30482,
+    "ok": true
+  },
+  "sep6Withdraw": {
+    "sep10Ms": 1215,
+    "quote": {
+      "id": "qt_wpg03saz2luu047buykf",
+      "sell": "1.0000000",
+      "buy": "48.21",
+      "price": "0.0206361302"
+    },
+    "withdrawRequest": {
+      "status": 200,
+      "ms": 137,
+      "body": {
+        "account_id": "GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6",
+        "memo_type": "id",
+        "memo": "594735624446",
+        "id": "sep_t3vw44axviao0lzt2vpj",
+        "eta": 10,
+        "min_amount": 1,
+        "fee_percent": 0.5,
+        "extra_info": {
+          "message": "Send 1.0000000 USDC to GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6 with memo (type id) 594735624446. Rate 48.216404 TRY/USDC locked until 2026-09-08T14:56:44.874Z. TRY is paid (simulated) to TR060009908763901133931004.",
+          "payment_uri": "web+stellar:pay?destination=GCLCZEQZ2THTEDAOFI66LACNPLY4OBKN7VKLEZFMBIHYKYQOW2W7T3Z6&amount=1.0000000&asset_code=USDC&asset_issuer=GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5&memo=594735624446&memo_type=MEMO_ID&msg=TR+Mock+Anchor+withdrawal"
+        }
+      }
+    },
+    "lockTx": "076b18dc77483ddb5b9c3a026acf69ff080a72fcdf89aae6553d498796f325be",
+    "userPaymentTx": "5da743ba43a88ff12880e82e99cb70638d90de4dea181db9c00e6aabf6331445",
+    "forwardTx": "3af69cd4d351133e8bc0dededcc3c07aed40a627ff2a2940b2c01dce038a419f",
+    "forwardMs": 5774,
+    "statuses": [
+      {
+        "status": "pending_user_transfer_start",
+        "at": "61.4s"
+      },
+      {
+        "status": "completed",
+        "at": "66.3s"
+      }
+    ],
+    "finalTx": {
+      "status": "completed",
+      "amount_in": "1.0000000",
+      "amount_out": "48.21",
+      "external_transaction_id": "FAST-4RR2INU77H",
+      "completed_at": "2026-09-08T14:27:02.065Z"
+    },
+    "anchorSettleMs": 5166,
+    "cleanupTx": "38019d09d66d8f17480a75d8f270830ea99e705c10058ad7a47394f3dd3cab47",
+    "totalMs": 338684,
+    "ok": true
+  },
+  "partnerApi": {
+    "onrampToCompletedMs": 11036,
+    "totalMs": 11847,
+    "status": "completed",
+    "amountUsdc": "2.0533472",
+    "ok": true
+  },
+  "testanchor": {
+    "discovery": {
+      "homeDomain": "testanchor.stellar.org",
+      "webAuth": "https://testanchor.stellar.org/auth",
+      "transfer": "https://testanchor.stellar.org/sep6",
+      "quotes": "https://testanchor.stellar.org/sep38",
+      "kyc": "https://testanchor.stellar.org/sep12",
+      "signingKey": "GCHLHDBOKG2JWMJQBTLSL5XG6NO7ESXI2TAQKZXCXWXB5WI2X6W233PR",
+      "usdcIssuer": "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5"
+    },
+    "sep10Ms": 1131,
+    "sep12": {
+      "status": "ACCEPTED",
+      "ms": 1877
+    },
+    "depositRequest": {
+      "status": 200,
+      "body": {
+        "how": "Check the transaction for more information about how to deposit.",
+        "id": "4c425333-84ac-47ff-84fe-9a4062ea4e6d"
+      }
+    },
+    "kycNeeded": {
+      "status": "NEEDS_INFO",
+      "fields": {
+        "additional_name": "optional",
+        "address_country_code": "optional",
+        "state_or_province": "optional",
+        "city": "optional",
+        "postal_code": "optional",
+        "address": "required",
+        "mobile_number": "optional",
+        "birth_date": "required",
+        "birth_place": "optional",
+        "birth_country_code": "optional",
+        "bank_name": "optional",
+        "bank_account_number": "optional",
+        "bank_account_type": "optional",
+        "bank_number": "optional",
+        "bank_phone_number": "optional",
+        "bank_branch_number": "optional",
+        "external_transfer_memo": "optional",
+        "clabe_number": "optional",
+        "cbu_number": "optional",
+        "cbu_alias": "optional",
+        "mobile_money_number": "optional",
+        "mobile_money_provider": "optional",
+        "crypto_address": "optional",
+        "crypto_memo": "optional",
+        "tax_id": "optional",
+        "tax_id_name": "optional",
+        "occupation": "optional",
+        "employer_name": "optional",
+        "employer_address": "optional",
+        "language_code": "optional",
+        "id_type": "required",
+        "id_country_code": "required",
+        "id_issue_date": "required",
+        "id_expiration_date": "required",
+        "id_number": "required",
+        "photo_id_front": "optional",
+        "photo_id_back": "optional",
+        "notary_approval_of_photo_id": "optional",
+        "ip_address": "optional",
+        "photo_proof_residence": "optional",
+        "sex": "optional",
+        "photo_proof_of_income": "optional",
+        "proof_of_liveness": "optional",
+        "referral_id": "optional"
+      }
+    },
+    "sep12Second": {
+      "status": "ACCEPTED",
+      "ms": 1495
+    },
+    "statuses": [
+      {
+        "status": "pending_customer_info_update",
+        "at": "401.8s"
+      },
+      {
+        "status": "pending_user_transfer_start",
+        "at": "404.0s"
+      }
+    ],
+    "final": {
+      "status": "pending_user_transfer_start",
+      "instructions": {
+        "organization.bank_number": {
+          "value": "121122676",
+          "description": "US Bank routing number"
+        },
+        "organization.bank_account_number": {
+          "value": "13719713158835300",
+          "description": "US Bank account number"
+        }
+      },
+      "more_info_url": "https://anchor-ref-ui-testanchor.stellar.org/txn?transaction_id=4c425333-84ac-47ff-84fe-9a4062ea4e6d&token=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI0YzQyNTMzMy04NGFjLTQ3ZmYtODRmZS05YTQwNjJlYTRlNmQiLCJleHAiOjE3ODg4Nzg1NjAsInN1YiI6IkdBMlQ0NVNMTVA2RFVBWVE3N1hKNVY2V1lQWjZPNU9ONVZaSFVBSFpZVkZOUUJQSDJRNVE0Q01QIiwiYXVkIjpbInNlcDZfbW9yZV9pbmZvIl0sImRhdGEiOnsibGFuZyI6ImVuLVVTIn19.9eZzPgH0uZ14naHtJumdktgzMaPEnXukWRGO4JMhCCU"
+    },
+    "ok": true
+  }
+}

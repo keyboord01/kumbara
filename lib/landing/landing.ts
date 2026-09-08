@@ -24,9 +24,14 @@
  *   D. the landing secret is wiped in place and dropped. In total it signs
  *      four envelopes: the two sponsor transactions of steps A and C (as the
  *      source of its own operations) and the two pre-authorized envelopes of
- *      step B. Only the public key and those envelopes leave this function.
- *      Nothing here logs, stores or returns the secret; `assertNoSecret`
- *      guards the plan.
+ *      step B, plus, when the caller passes `beforeLock`, one SEP-10 challenge
+ *      between A and B that is never submitted to the network (the anchor
+ *      refuses it after the lock: master weight 1 against thresholds 2). The
+ *      hook is how the SEP-6 path learns the exact amount and, for
+ *      withdrawals, the anchor's account and memo before the pre-authorized
+ *      envelopes are built. Only the public key and the envelopes leave this
+ *      function. Nothing here logs, stores or returns the secret;
+ *      `assertNoSecret` guards the plan.
  *
  * Later, forward and cleanup are submitted through the relay, which fee-bumps
  * them. They carry no time bound (a relay outage delays, never invalidates)
@@ -71,12 +76,30 @@ export type LandingKind =
   | { type: "onramp"; destinationContract: string; amountStroops: bigint }
   | { type: "offramp"; treasury: string; memoId: string; amountStroops: bigint };
 
+/** What `beforeLock` gets: the account exists with its trustline, and it can still sign (only the SEP-10 challenge is expected). */
+export interface BridgeBeforeLock {
+  publicKey: string;
+  /** Signs a challenge transaction with the landing key. Counts every call; the plan reports it. */
+  sign: (tx: Transaction) => void;
+}
+
 export interface LandingInput {
   usdc: Asset;
   usdcContract: string;
-  kind: LandingKind;
+  /** Known up front, or returned by `beforeLock` once the anchor has named the destination and amount. */
+  kind?: LandingKind;
+  /** Runs after creation and before the lock; must return the kind the pre-authorized envelopes are built for. */
+  beforeLock?: (bridge: BridgeBeforeLock) => Promise<LandingKind>;
   /** XLM parked on the account (default "0": the relay pays every later fee). */
   feeBufferXlm?: string;
+  /**
+   * Also pre-authorize an abort envelope at seq+1 (drop the trustline, merge into
+   * the sponsor). It competes with the forward for the same sequence number: once
+   * the anchor has paid and the forward ran, the abort is dead; if the user never
+   * transfers, the abort returns the sponsor's reserves. SEP-6 deposits need it
+   * because the bridge exists before any lira moves.
+   */
+  abortable?: boolean;
 }
 
 /** Everything a caller needs later. Contains no secret material. */
@@ -91,6 +114,11 @@ export interface LandingPlan {
   cleanupTxXdr: string;
   cleanupTxHash: string;
   sponsorFeesStroops: string;
+  /** Challenge transactions signed through `beforeLock` (1 for SEP-10; 0 when there is no hook). */
+  challengesSigned: number;
+  /** Present when `abortable`: the seq+1 envelope that merges the bridge back before any funds arrive. */
+  abortTxXdr?: string;
+  abortTxHash?: string;
 }
 
 export class LandingError extends Error {
@@ -207,7 +235,7 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
   const sponsorPub = deps.sponsor.publicKey();
   let landing: Keypair | null = deps.makeKeypair ? deps.makeKeypair() : Keypair.random();
   const landingPub = landing.publicKey();
-  log(`landing account ${landingPub} (${input.kind.type})`);
+  log(`landing account ${landingPub} (${input.kind?.type ?? "kind set by the anchor before the lock"})`);
 
   try {
     // A: sponsored creation + trustline.
@@ -222,15 +250,50 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
     createTx.sign(deps.sponsor, landing);
     const created = await submit(deps, createTx);
 
+    // A½: the anchor conversation that needs the master key (SEP-10) and fixes
+    // the amount, before anything is locked. The key signs challenges only.
+    let challengesSigned = 0;
+    let kind: LandingKind | undefined = input.kind;
+    if (input.beforeLock) {
+      const key = landing;
+      try {
+        kind = await input.beforeLock({
+          publicKey: landingPub,
+          sign: (tx) => {
+            if (tx.sequence !== "0") throw new LandingError("submit_failed", "the landing key only signs SEP-10 challenges (sequence 0)");
+            challengesSigned += 1;
+            tx.sign(key);
+          },
+        });
+      } catch (err) {
+        // The anchor refused before anything was locked: merge the account back so the sponsor's reserves return.
+        try {
+          const sponsorNow = await deps.server.getAccount(sponsorPub);
+          const undo = new TransactionBuilder(sponsorNow, { fee: "1000", networkPassphrase: passphrase })
+            .addOperation(Operation.changeTrust({ asset: input.usdc, limit: "0", source: landingPub }))
+            .addOperation(Operation.accountMerge({ destination: sponsorPub, source: landingPub }))
+            .setTimeout(300)
+            .build();
+          undo.sign(deps.sponsor, key);
+          await submit(deps, undo);
+          log(`landing account ${landingPub} merged back after the anchor refused`);
+        } catch (undoErr) {
+          log(`landing account ${landingPub} could not be merged back: ${undoErr instanceof Error ? undoErr.message : String(undoErr)}`);
+        }
+        throw err;
+      }
+    }
+    if (!kind) throw new LandingError("submit_failed", "landing kind missing: pass `kind` or a `beforeLock` that returns it");
+
     const landingAccount = await deps.server.getAccount(landingPub);
     const seq = BigInt(landingAccount.sequenceNumber());
 
     // B: pre-authorized transactions at seq+1 and seq+2 (an Account at `seq`
     // yields the seq+1 transaction), co-signed now.
     const forwardTx =
-      input.kind.type === "onramp"
-        ? await buildSorobanForward(deps, landingPub, seq, input, input.kind.destinationContract, input.kind.amountStroops)
-        : buildClassicForward(deps, landingPub, seq, input, input.kind.treasury, input.kind.memoId, input.kind.amountStroops);
+      kind.type === "onramp"
+        ? await buildSorobanForward(deps, landingPub, seq, input, kind.destinationContract, kind.amountStroops)
+        : buildClassicForward(deps, landingPub, seq, input, kind.treasury, kind.memoId, kind.amountStroops);
     const cleanupTx = new TransactionBuilder(new Account(landingPub, (seq + 1n).toString()), { fee: "1000", networkPassphrase: passphrase })
       .addOperation(Operation.changeTrust({ asset: input.usdc, limit: "0" }))
       .addOperation(Operation.accountMerge({ destination: sponsorPub }))
@@ -238,13 +301,24 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
       .build();
     forwardTx.sign(landing);
     cleanupTx.sign(landing);
+    let abortTx: Transaction | null = null;
+    if (input.abortable) {
+      abortTx = new TransactionBuilder(new Account(landingPub, seq.toString()), { fee: "1000", networkPassphrase: passphrase })
+        .addOperation(Operation.changeTrust({ asset: input.usdc, limit: "0" }))
+        .addOperation(Operation.accountMerge({ destination: sponsorPub }))
+        .setTimeout(TimeoutInfinite)
+        .build();
+      abortTx.sign(landing);
+    }
 
     // C: lock.
     const sponsorAccount2 = await deps.server.getAccount(sponsorPub);
-    const lockTx = new TransactionBuilder(sponsorAccount2, { fee: "1000", networkPassphrase: passphrase })
+    const lockBuilder = new TransactionBuilder(sponsorAccount2, { fee: "1000", networkPassphrase: passphrase })
       .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: landingPub }))
       .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: forwardTx.hash(), weight: 1 } }))
-      .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: cleanupTx.hash(), weight: 1 } }))
+      .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: cleanupTx.hash(), weight: 1 } }));
+    if (abortTx) lockBuilder.addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: abortTx.hash(), weight: 1 } }));
+    const lockTx = lockBuilder
       .addOperation(Operation.setOptions({ source: landingPub, masterWeight: 1, lowThreshold: 2, medThreshold: 2, highThreshold: 2 }))
       .addOperation(Operation.endSponsoringFutureReserves({ source: landingPub }))
       .setTimeout(300)
@@ -258,8 +332,8 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
     const locked = await submit(deps, lockTx);
     const plan: LandingPlan = {
       publicKey: landingPub,
-      kind: input.kind.type,
-      amountStroops: input.kind.amountStroops.toString(),
+      kind: kind.type,
+      amountStroops: kind.amountStroops.toString(),
       createTxHash: created.hash,
       lockTxHash: locked.hash,
       forwardTxXdr: forwardTx.toXDR(),
@@ -267,7 +341,12 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
       cleanupTxXdr: cleanupTx.toXDR(),
       cleanupTxHash: cleanupTx.hash().toString("hex"),
       sponsorFeesStroops: (BigInt(createTx.fee) + BigInt(lockTx.fee)).toString(),
+      challengesSigned,
     };
+    if (abortTx) {
+      plan.abortTxXdr = abortTx.toXDR();
+      plan.abortTxHash = abortTx.hash().toString("hex");
+    }
     assertNoSecret(plan, "landing plan");
     return plan;
   } finally {

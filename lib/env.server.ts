@@ -24,8 +24,6 @@ export function stellarNetwork(): StellarNetwork {
 }
 
 export const serverEnv = {
-  anchorBaseUrl: () => required("ANCHOR_BASE_URL").replace(/\/+$/, ""),
-  anchorApiKey: () => required("ANCHOR_API_KEY"),
   sembolCloudUrl: () => required("SEMBOL_CLOUD_URL").replace(/\/+$/, ""),
   sembolProjectId: () => required("SEMBOL_PROJECT_ID"),
   sembolProjectKey: () => required("SEMBOL_PROJECT_KEY"),
@@ -35,6 +33,12 @@ export const serverEnv = {
   soroswapEnabled: () => optional("SOROSWAP_ENABLED") === "true",
   boothStartTs: () => Number(optional("BOOTH_START_TS") ?? "0"),
   mainnetDemoEnabled: () => optional("MAINNET_DEMO_ENABLED") === "true",
+  /** Home domains the presenter can switch between; the first is the default. Everything else is read from each stellar.toml. */
+  anchorHomeDomains: (): string[] => {
+    const listed = (optional("ANCHOR_HOME_DOMAINS") ?? "").split(",").map((d) => d.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "")).filter(Boolean);
+    return [...new Set(listed)];
+  },
+  anchorAssetCode: () => (optional("ANCHOR_ASSET_CODE") ?? "USDC").trim() || "USDC",
   onrampMode: () => (optional("ONRAMP_MODE") ?? "landing") as "landing" | "direct",
   offrampMode: () => (optional("OFFRAMP_MODE") ?? "landing") as "landing" | "direct",
   reflectorRpcUrl: () => optional("REFLECTOR_RPC_URL") ?? "https://mainnet.sorobanrpc.com",

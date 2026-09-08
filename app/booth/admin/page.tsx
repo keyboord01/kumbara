@@ -24,7 +24,7 @@ interface Stuck {
   amountTry: string;
   usdc: string | null;
   paidUsdc: string | null;
-  onrampId: string | null;
+  anchorTxId: string | null;
   updatedAt: string;
   abandonedAt: string | null;
   errorCode: string | null;
@@ -42,6 +42,11 @@ interface Dep {
   ms: number;
   detail: string;
 }
+interface AnchorsInfo {
+  active: string;
+  anchors: Array<{ homeDomain: string; ok: boolean; orgName?: string | null; fiatCode?: string | null; asset?: { code: string; issuer: string } | null; limits?: { fiat: { min: number | null; max: number | null } | null } | null; treasury?: { address: string; balance: string | null; low: boolean } | null; error?: string }>;
+}
+
 interface Health {
   ok: boolean;
   dependencies: { anchor: Dep; relay: Dep; rpc: Dep; vault: Dep; checkedAt: string } | { error: string };
@@ -85,7 +90,9 @@ export default function BoothAdminPage() {
   const [sponsor, setSponsor] = useState<Sponsor | null>(null);
   const [ci, setCi] = useState<CiStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"" | "play" | "fund" | "seed">("");
+  const [busy, setBusy] = useState<"" | "play" | "fund" | "seed" | "anchor">("");
+  const [anchors, setAnchors] = useState<AnchorsInfo | null>(null);
+  const [anchorNote, setAnchorNote] = useState<string | null>(null);
   const [result, setResult] = useState<PlayResult | null>(null);
   const [seed, setSeed] = useState<{ contractId: string; deposit: SeedDeposit | null; stage: "creating" | "depositing" | "autopilot" | "needs_tap" | "done" | "error"; message?: string | undefined } | null>(null);
   const seedAutopilot = useRef(false);
@@ -105,17 +112,19 @@ export default function BoothAdminPage() {
   const load = useCallback(async () => {
     if (!token) return;
     try {
-      const [p, h, s, c] = await Promise.all([
+      const [p, h, s, c, a] = await Promise.all([
         fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; error?: { message: string } } })),
         fetch("/api/health").then((r) => r.json() as Promise<Health>),
         fetch("/api/booth/admin/sponsor", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as Sponsor & { error?: { message: string } } })),
         fetch("/api/ci/status").then((r) => (r.ok ? (r.json() as Promise<CiStatus>) : null)).catch(() => null),
+        fetch("/api/booth/admin/anchor", auth()).then((r) => (r.ok ? (r.json() as Promise<AnchorsInfo>) : null)).catch(() => null),
       ]);
       if (!p.ok) throw new Error(p.body.error?.message ?? "unauthorized");
       setPending(p.body.pending ?? []);
       setStuck(p.body.stuck ?? []);
       setHealth(h);
       setCi(c);
+      setAnchors(a);
       setSponsor(s.ok ? s.body : null);
       setError(s.ok ? null : (s.body.error?.message ?? null));
     } catch (err) {
@@ -130,6 +139,22 @@ export default function BoothAdminPage() {
     const id = setInterval(() => void load(), 10_000);
     return () => clearInterval(id);
   }, [token, load]);
+
+  const switchAnchor = async (homeDomain: string) => {
+    setBusy("anchor");
+    setAnchorNote(null);
+    try {
+      const res = await fetch("/api/booth/admin/anchor", auth({ method: "POST", body: JSON.stringify({ homeDomain }) }));
+      const body = (await res.json()) as { active?: string; error?: { message: string } };
+      if (!res.ok || !body.active) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      setAnchorNote(`${t.admin.anchorSwitched}: ${body.active}`);
+      await load();
+    } catch (err) {
+      setAnchorNote(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy("");
+    }
+  };
 
   const play = async () => {
     setBusy("play");
@@ -325,6 +350,35 @@ export default function BoothAdminPage() {
             </ul>
           </section>
 
+          <section className="card p-5" aria-label={t.admin.anchor}>
+            <p className="microlabel">{t.admin.anchor}</p>
+            <p className="mt-1 text-xs text-muted">{t.admin.anchorHint}</p>
+            {anchors ? (
+              <ul className="mt-3 flex flex-col gap-2" data-testid="anchor-list">
+                {anchors.anchors.map((a) => (
+                  <li key={a.homeDomain} className="rounded-xl border border-line p-3">
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input type="radio" name="anchor" className="mt-1" checked={a.homeDomain === anchors.active} disabled={busy !== "" || !a.ok} onChange={() => void switchAnchor(a.homeDomain)} aria-label={`${t.admin.anchorSwitch}: ${a.homeDomain}`} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-semibold">
+                          {a.orgName ?? a.homeDomain}
+                          {a.homeDomain === anchors.active ? <span className="ml-2 rounded-full bg-paper-2 px-2 py-0.5 text-xs font-medium text-teal">{t.admin.anchorActive}</span> : null}
+                        </span>
+                        <span className="block break-all font-mono text-xs text-muted">{a.homeDomain}</span>
+                        <span className="block text-xs text-muted">
+                          {a.ok ? `${a.asset?.code ?? ""}${a.fiatCode ? ` ⇄ ${a.fiatCode}` : ""}${a.limits?.fiat ? ` · ${a.limits.fiat.min ?? "?"}–${a.limits.fiat.max ?? "?"} ${a.fiatCode ?? ""}` : ""} · ${a.treasury ? t.admin.anchorHook : t.admin.anchorNoHook}` : `${t.admin.anchorUnavailable}: ${a.error ?? ""}`}
+                        </span>
+                      </span>
+                    </label>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-sm text-muted">{t.savings.loading}</p>
+            )}
+            {anchorNote ? <p className="mt-2 text-sm" role="status">{anchorNote}</p> : null}
+          </section>
+
           <section className="card p-5" aria-label={t.admin.sponsor}>
             <p className="microlabel">{t.admin.sponsor}</p>
             {sponsor ? (
@@ -396,7 +450,7 @@ export default function BoothAdminPage() {
                         ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : d.status === "failed" ? t.failures.kinds.amount_mismatch.title : t.deposit.steps.onramp_pending}
                       </p>
                       <p className="font-mono text-xs text-muted">
-                        {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.onrampId ?? ""}
+                        {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.anchorTxId ?? ""}
                       </p>
                       {d.landing ? (
                         <p className="mt-1 text-xs text-ink-2">

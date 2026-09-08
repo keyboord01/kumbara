@@ -71,7 +71,6 @@ Verify a deploy before running the E2Es: `curl -s "https://kumbara.sembol.xyz/ap
 | --- | --- | --- |
 | `TURSO_DATABASE_URL` | secret | `libsql://kumbara-keyboord01.aws-eu-west-1.turso.io` |
 | `TURSO_AUTH_TOKEN` | secret | database token from Turso |
-| `ANCHOR_API_KEY` | secret | TR Mock Anchor Partner API key (`trma_test_…`) |
 | `SEMBOL_PROJECT_KEY` | secret | relay key (Sembol Cloud project key; today an OpenZeppelin Channels testnet key) |
 | `SPONSOR_SECRET` | secret | the sponsor keypair above |
 | `BOOTH_ADMIN_TOKEN` | secret | presenter token for `/booth/admin` (12+ characters) |
@@ -79,7 +78,8 @@ Verify a deploy before running the E2Es: `curl -s "https://kumbara.sembol.xyz/ap
 | `NEXT_PUBLIC_SITE_URL` | config | `https://kumbara.sembol.xyz` (booth QR target, page metadata, stats footer; unset on previews) |
 | `NEXT_PUBLIC_WEBAUTHN_RP_ID` | config | `kumbara.sembol.xyz` (production only; see Domain) |
 | `STELLAR_RPC_URL` | config | `https://soroban-testnet.stellar.org` |
-| `ANCHOR_BASE_URL` | config | `https://tr-mock-anchor.fly.dev` |
+| `ANCHOR_HOME_DOMAINS` | config | `tr-mock-anchor.fly.dev,testanchor.stellar.org`: anchors the presenter can switch between; endpoints, issuer and limits come from each stellar.toml and SEP-6 info (no API key) |
+| `ANCHOR_ASSET_CODE` | config | `USDC` |
 | `SEMBOL_CLOUD_URL`, `SEMBOL_PROJECT_ID` | config | `https://channels.openzeppelin.com/testnet`, `kumbara` |
 | `DEFINDEX_VAULT_ID` | config | `CAT76PQMLGFABA37ETPJDKTYONMY463Z6SINVUMAM7556YKQRPYMKSKL` |
 | `SOROSWAP_ENABLED`, `ONRAMP_MODE`, `OFFRAMP_MODE` | config | `false`, `landing`, `landing` |
@@ -120,7 +120,7 @@ Measured on 5 September 2026 from Istanbul: first request after deploy (cold) `/
 
 1. Set the counter start: `vercel env rm BOOTH_START_TS production` then `printf '%s' $(date -d '2026-09-19 08:00:00 +03:00' +%s) | vercel env add BOOTH_START_TS production`, and redeploy (`vercel deploy --prod`).
 2. Check the sponsor balance on `/booth/admin` (keep it around 20–50 XLM).
-3. Check the four dots on `/booth/admin`; the anchor dot shows the treasury USDC.
+3. Check the four dots on `/booth/admin`; the anchor dot names the anchor and, for the TR Mock Anchor, its treasury USDC.
 4. Run the three E2E flows against the production URL once.
 5. Open `https://kumbara.sembol.xyz/booth?n=1` on the booth screen.
 
@@ -133,4 +133,4 @@ Measured on 5 September 2026 from Istanbul: first request after deploy (cold) `/
 
 ## Alternative: Fly.io (one machine, local libsql file)
 
-`Dockerfile` and `fly.toml` still work: one machine in `fra` with a volume at `/data`, `TURSO_DATABASE_URL=file:/data/kumbara.db`, secrets via `fly secrets set ANCHOR_API_KEY=… SEMBOL_PROJECT_KEY=… SPONSOR_SECRET=… BOOTH_ADMIN_TOKEN=…`, then `fly deploy`. The same code runs there; leases and rate-limit rows simply live in the local file.
+`Dockerfile` and `fly.toml` still work: one machine in `fra` with a volume at `/data`, `TURSO_DATABASE_URL=file:/data/kumbara.db`, secrets via `fly secrets set SEMBOL_PROJECT_KEY=… SPONSOR_SECRET=… BOOTH_ADMIN_TOKEN=…`, then `fly deploy`. The same code runs there; leases and rate-limit rows simply live in the local file.

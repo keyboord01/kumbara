@@ -14,6 +14,8 @@ export const SAMPLE_FAILURES: Record<FailureKind, Failure> = {
   relay_budget: { kind: "relay_budget", code: "submission_failed", detail: "relay HTTP 402: project budget exhausted (preview)" },
   anchor_unreachable: { kind: "anchor_unreachable", code: "http_error", detail: "anchor HTTP 503 (preview)" },
   anchor_rejected: { kind: "anchor_rejected", code: "validation_error", detail: "anchor HTTP 422: amount exceeds the per-order maximum (preview)" },
+  anchor_auth_failed: { kind: "anchor_auth_failed", code: "anchor_auth_failed", detail: "SEP-10 token: challenge verification failed (preview)" },
+  pending_trust: { kind: "pending_trust", code: "pending_trust", detail: "SEP-6 status pending_trust on a bridge account that holds the trustline (preview)" },
   quote_expired: { kind: "quote_expired", code: "quote_expired", detail: "quote expired while the landing account was being prepared (preview)" },
   transfer_timeout: { kind: "transfer_timeout", values: { minutes: "31" }, detail: "reference TRMA-XXXX-XXXX; deadline passed (preview)" },
   amount_mismatch: { kind: "amount_mismatch", code: "amount_mismatch", values: { expected: "2.0544777", actual: "2.0500000" }, landingAddress: ZERO_ACCOUNT, detail: "anchor paid 2.0500000 USDC but the pre-authorized forward is for 2.0544777 (preview)" },

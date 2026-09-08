@@ -138,3 +138,48 @@ For the record, and matching the threat model in `architecture.md`, the landing 
 | 4 | lock (`setOptions` ×3 under sponsorship) | sponsor | the signer and threshold changes have the landing account as their source |
 
 Nothing else is ever signed with it, and the unit test asserts that the key's signature hint appears on exactly these four envelopes.
+
+## 7. SEP-6 as the primary path (spike of 8 September 2026)
+
+The organizer's message: the Partner API is unreliable and will likely be removed. The spike (`spikes/sep6.ts`, raw findings in [`spike-findings/sep6.json`](spike-findings/sep6.json)) checked the one ordering question the bridge account raises: SEP-10 needs the account's master key, and after the lock (master weight 1 against thresholds 2) that key authorizes nothing. So the anchor conversation has to sit between creation and lock.
+
+Sequence, as run against the TR Mock Anchor with a throwaway bridge (friendbot standing in for the sponsor):
+
+| step | result | time |
+| --- | --- | --- |
+| create + USDC trustline | account exists with the trustline before any anchor call | (sponsor tx) |
+| SEP-10 as the bridge, master key still held | token issued; lifetime 86,400 s | 578 ms |
+| SEP-12 `PUT /customer` (all fields optional on the sandbox) | `ACCEPTED` | 224 ms |
+| SEP-38 firm quote, sell 100 TRY | `2.0533494` USDC at 48.458623 | 141 ms |
+| SEP-6 `deposit-exchange` with the quote, `account` = bridge | id, bank name, IBAN, reference, `more_info_url` | 133 ms |
+| lock (sponsor-sourced, bridge-sourced ops; the bridge's sequence untouched) | pre-authorized forward at seq+1, cleanup at seq+2 | 3.1 s |
+| SEP-10 again, after the lock | refused: "signers with weight 1 do not meet threshold 2" | |
+| sandbox: `POST /sep6/tx/{id}/simulate-bank-transfer` with the bridge token | `pending_anchor` → `completed` | 4.6 s |
+| anchor payment | classic `payment` from the treasury, **2.0533494 USDC, exact match**; never `pending_trust`, no claimable balance | |
+| pre-authorized forward, then cleanup | both accepted | 5.0 s, 5.7 s |
+
+Withdrawal mirror with a reverse bridge: SEP-10, SEP-12, SEP-38 quote (sell 1 USDC → 48.21 TRY), SEP-6 `withdraw-exchange` (`dest` = the sandbox IBAN) returned the treasury `account_id` and an id memo; the pre-authorized payment carried the memo, the anchor completed in 5.2 s with a `FAST-…` payout id, and the cleanup merged the bridge. Partner API on the same day, for comparison: on-ramp created → completed in 11.0 s (bank credited first).
+
+**testanchor.stellar.org** (SEP-1/10/12/38/6 all present): USDC deposits take `SEPA`/`SWIFT`, 1–10 USDC; SEP-12 demands `address`, `birth_date` and id fields before the deposit leaves `pending_customer_info_update`; the instructions are a US routing and account number, and there is no sandbox hook to simulate the wire. It therefore validates the request path (discovery, auth, KYC, quote, instructions) but cannot settle.
+
+What this changed in the app (`ANCHOR_MODE=sep6`, the default): the bridge is created at request time, authenticates and quotes inside `createLandingAccount`'s `beforeLock` hook, and the SEP-6 request names it as `account`; the lock now also pre-authorizes an **abort** envelope at seq+1 (drop the trustline, merge into the sponsor) so a deposit cancelled before any lira moves returns the sponsor's reserves. Anchors are configured by home domain (`ANCHOR_HOME_DOMAINS`), everything else is read from each `stellar.toml`, and the presenter switches the active anchor from `/booth/admin`. (The Partner API mode that shipped alongside was removed the next day; see §8.)
+
+## 8. SEP-only anchor (8 Sep 2026): the Partner API is gone
+
+The organizer's update: the mock anchor is SEP-only (SEP-1/10/6/12/38, no SEP-24), the API key, signup and dashboard are removed, identity is the wallet key via SEP-10, and a deposit is capped at 3,000 TRY. Read from the anchor itself (`/sep`, `/explorer`, the reference wallet at kaankacar.github.io/tr-mock-wallet, `/sep6/info`, `/health`):
+
+| Question | Answer |
+| --- | --- |
+| Play the bank | `POST {TRANSFER_SERVER}/tx/{id}/simulate-bank-transfer` with `{"amount": "200.00"}`, **no authentication** (the reference wallet and the explorer send only a content type). Returns the transaction, now `pending_anchor`; the anchor pays real testnet USDC and walks to `completed`. A bogus id is a 404. |
+| Limits as enforced | `deposit-exchange` refuses 40 TRY with `amount below minimum (50.00 TRY)` and 3,001 TRY with `amount above maximum (3000 TRY)`; 2,999 TRY is accepted. The limits are in lira. |
+| Limits as published | SEP-6 `/info` states `min_amount 0.5`, `max_amount 300` in USDC for every endpoint (300 USDC is about 14,500 TRY, so the lira cap always binds first); the anchor's status page `/health` states `limits.min_onramp_try 50.00`, `max_onramp_try 3000`, `min_offramp_usdc 1.0000000`, plus the treasury address and balance. |
+| SEP-38 | `sell_asset=iso4217:TRY` → USDC: `price` is the mid rate (48.46 TRY per USDC), `total_price` includes the 50 bps spread. |
+| Withdrawals | `withdraw-exchange` still returns the treasury `account_id` and a 12-digit id memo; a 400 USDC request was accepted (the USDC cap in `/info` is not enforced there), `min_amount: 1`. |
+
+What changed in the app:
+
+- **No Partner API anywhere.** `ANCHOR_BASE_URL`, `ANCHOR_API_KEY` and `ANCHOR_MODE` are gone from the code, the env files, Vercel and CI; the `/v1` client, the customer table and the spikes that needed on-ramps through it were deleted. The only anchor configuration is `ANCHOR_HOME_DOMAINS` and `ANCHOR_ASSET_CODE`; a record that predates the SEP-6 path fails with `anchor_path_gone` instead of calling an endpoint that no longer exists.
+- **Play the bank** (`/booth/admin` and `pnpm demo:deposit`) calls the transaction's `simulate-bank-transfer` hook with the deposit's amount and no bearer, exactly like the reference wallet. Verified: a 100 TRY deposit created through the API in 8 s reached `onramp_paid` 7 s after the button.
+- **Limits follow the anchor.** Discovery keeps the SEP-6 asset limits and, when the anchor has a status page that also lists its SEP endpoints, its lira limits. The deposit form shows and enforces those (50–3,000 TRY on the mock; other anchors get their USDC limits converted at today's rate), the server checks the fiat limits before touching the anchor and the quote against the asset limits, and the anchor's own refusal text is shown verbatim as `amount_out_of_range`. Nothing is hardcoded.
+- **Withdrawal rate.** SEP-38 states a sell price in USDC per lira; the app inverts it once, at the source, so both the indicative price and the firm quote read in lira per USDC (48.2, not 0.02). The withdraw E2E now asserts the displayed rate is above 1 and accepts any non-empty payout id (the mock's `FAST-…`).
+- **testanchor.stellar.org** (timeboxed): its reference server answers per-transaction KYC only if the base customer is registered first and the full field set arrives in **one** `PUT /customer` carrying `transaction_id` right after the `deposit-exchange`; answering the fixture before the request parks the transaction in `pending_customer_info_update` for good. With that order a fresh account goes `pending_customer_info_update` → `pending_user_transfer_start` with SEPA/SWIFT instructions (+2 s) → `pending_anchor` "Funds received from user" (+5 s): the reference anchor simulates the wire itself, so a full round trip is possible without a sandbox hook. It stays a second config that must at least reach the instructions step; the mock is the deliverable.

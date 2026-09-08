@@ -3,6 +3,8 @@
  * simulation. The oracle quotes each asset in its base (USD) with 14
  * decimals, so USD/TRY = 1 / price(TRY).
  */
+import { discoverAnchor } from "./anchor.server";
+import { fiatAsset, sep38Price, stellarAsset } from "./sep.server";
 import "server-only";
 import { Account, Address, BASE_FEE, Operation, TransactionBuilder, rpc, scValToNative, xdr } from "@stellar/stellar-sdk";
 import { serverEnv } from "./env.server";
@@ -56,14 +58,13 @@ export async function usdTryRate(): Promise<Rate> {
     cached = { rate, at: Date.now() };
     return rate;
   } catch {
-    // Fallback: the anchor's mid rate, itself sourced from Reflector.
-    const res = await fetch(`${serverEnv.anchorBaseUrl()}/v1/rates`, {
-      headers: { "X-API-Key": serverEnv.anchorApiKey() },
-      cache: "no-store",
-    });
-    if (!res.ok) throw new Error("no rate source available");
-    const body = (await res.json()) as { mid_rate: string };
-    const rate: Rate = { usdTry: Number(body.mid_rate), source: "anchor", oracle: null, observedAt: new Date().toISOString() };
+    // Fallback: the anchor's SEP-38 price for the fiat, without its fee (the mock sources it from Reflector too).
+    const anchor = await discoverAnchor();
+    if (!anchor.fiatCode) throw new Error("no rate source available");
+    const method = anchor.sep38?.sellDeliveryMethods[0] ?? "bank_account";
+    const price = await sep38Price(anchor, { sellAsset: fiatAsset(anchor.fiatCode), buyAsset: stellarAsset(anchor.usdc.code, anchor.usdc.issuer), sellAmount: "100", deliveryMethod: method, side: "buy" }).catch(() => null);
+    if (!price) throw new Error("no rate source available");
+    const rate: Rate = { usdTry: Number(price.price), source: "anchor", oracle: null, observedAt: new Date().toISOString() };
     cached = { rate, at: Date.now() };
     return rate;
   }

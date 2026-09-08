@@ -40,7 +40,7 @@ Every failure has its own screen in the app (TR/EN, plain language, one action, 
 
 ### Anchor down
 
-Red Anchor dot, "The anchor is not answering", deposits stuck on "Waiting for your transfer" after playing the bank, or "The anchor has not matched the payment" on a withdrawal. Deposits and withdrawals cannot progress; onboarding and the Savings screen still work. Say so and demo onboarding plus the security page (backup passkey, spending limit). Already-started deposits resume by themselves when the anchor returns (the pipeline retries every poll, six attempts per step). The anchor's own status page: `https://tr-mock-anchor.fly.dev/health`. If the treasury USDC is low, on-ramps wait with `pending_reason: treasury_low`; ask the anchor team to refill. An unmatched withdrawal payment shows up in the anchor's `/v1/sandbox/unmatched-deposits`; the visitor's USDC is at the anchor, their lira has not been sent; the anchor team matches it by memo.
+Red Anchor dot, "The anchor is not answering", deposits stuck on "Waiting for your transfer" after playing the bank, or "The anchor has not matched the payment" on a withdrawal. Deposits and withdrawals cannot progress; onboarding and the Savings screen still work. Say so and demo onboarding plus the security page (backup passkey, spending limit). Already-started deposits resume by themselves when the anchor returns (the pipeline retries every poll, six attempts per step). The anchor's own status page: `https://tr-mock-anchor.fly.dev/health`. If the treasury USDC is low, on-ramps wait with `pending_reason: treasury_low`; ask the anchor team to refill. An unmatched withdrawal payment leaves the SEP-6 transaction short of `completed` (the record keeps its id; the anchor's `more_info_url` shows it); the visitor's USDC is at the anchor, their lira has not been sent; the anchor team matches it by memo.
 
 ### Relay down
 
@@ -60,7 +60,7 @@ Red Relay dot; "The relay is not answering", "The relay refused the request" or 
 
 ### Deposit stuck at the anchor (treasury low)
 
-"The anchor is sending USDC" for more than 90 seconds (order `pending`, reason `treasury_low`). The amount was larger than the anchor's shared testnet USDC treasury (the anchor dot shows the balance; the deposit form refuses amounts above about 90% of it). The anchor keeps the order and pays when its treasury is refilled; the app cannot cancel it on the anchor's side. The Deposit screen offers "Abandon and start over": the visitor makes a smaller deposit, and the abandoned one appears under "Waiting at the anchor / abandoned" on the admin page with a Resume button for after the refill. Keep booth deposits between 100 and 2,000 TRY.
+"The anchor is sending USDC" for more than 90 seconds (the SEP-6 transaction stays `pending_anchor` or `pending_stellar`). The amount was larger than the anchor's shared testnet USDC treasury (the anchor dot shows the balance; the deposit form refuses amounts above about 90% of it). The anchor keeps the order and pays when its treasury is refilled; the app cannot cancel it on the anchor's side. The Deposit screen offers "Abandon and start over": the visitor makes a smaller deposit, and the abandoned one appears under "Waiting at the anchor / abandoned" on the admin page with a Resume button for after the refill. The TR Mock Anchor caps a deposit at 3,000 TRY (the form enforces the limits it publishes); keep booth deposits between 100 and 2,000 TRY.
 
 ### Transfer never arrives
 
@@ -72,7 +72,7 @@ Red Relay dot; "The relay is not answering", "The relay refused the request" or 
 
 1. Open the bridge account on stellar.expert (link on the screen, or from "Waiting at the anchor / abandoned" on the admin page, which shows paid / expected) and read its USDC balance.
 2. **Paid more than expected**: tap **Resume** on the admin page. The pre-authorized forward moves exactly the expected amount into the kumbara; the surplus stays on the bridge account (nobody can move it; on testnet that is the end of it, on mainnet the anchor reconciles it with the visitor).
-3. **Paid less than expected**: the bridge account needs topping up to the expected amount before the forward can fire. On testnet, send the difference in USDC to the bridge address from a funded test account (the spike funder: `pnpm spike:anchor` shows its address, or any wallet holding the anchor's USDC), then tap **Resume**. On mainnet the anchor, as the paying party, sends the difference.
+3. **Paid less than expected**: the bridge account needs topping up to the expected amount before the forward can fire. On testnet, send the difference in USDC to the bridge address from a funded test account (any testnet wallet holding the anchor's USDC, for example one funded through the anchor's own `/explorer`), then tap **Resume**. On mainnet the anchor, as the paying party, sends the difference.
 4. Tell the visitor: the USDC is theirs on-chain the moment the forward fires; nothing was lost and nobody else holds it. Retry the deposit with the same amount only after the record shows "Done. USDC is in the vault."
 
 ### Vault red
@@ -99,3 +99,7 @@ Red "Last CI run failed at step X" banner on `/booth/admin`: the 6-hourly produc
 
 - The phone recording of the round trip made at the booth is the backup demo.
 - `docs/demo/round-trip.mp4` (+ `round-trip.captions.md`, `round-trip.vtt`) is the fallback to that fallback: the same round trip recorded against production by `pnpm demo:record` (Playwright, virtual passkey), under five minutes, with a caption per step.
+
+## Anchor switch
+
+`/booth/admin` lists the configured anchors (from `ANCHOR_HOME_DOMAINS`) with what their `stellar.toml` says. New deposits and withdrawals use the selected one; anything in flight stays on the anchor it started on. Only the TR Mock Anchor has a sandbox bank-transfer hook, so "play the bank" works there; on testanchor.stellar.org a deposit stops at the bank instructions and must be cancelled (the abort envelope returns the sponsor's reserves).

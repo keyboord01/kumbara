@@ -1,7 +1,11 @@
 /**
  * "Play the bank": tell the sandbox anchor that the TRY transfer for a pending
- * deposit arrived. Shared by `pnpm demo:deposit` and the presenter-only
- * /booth/admin button so both do exactly the same thing.
+ * deposit arrived. The TR Mock Anchor exposes this next to its SEP-6
+ * transactions (`POST {TRANSFER_SERVER}/tx/{id}/simulate-bank-transfer`, no
+ * authentication, the amount in the body), exactly as the organizer's
+ * reference wallet and explorer do it. Shared by `pnpm demo:deposit` and the
+ * presenter-only /booth/admin button so both do exactly the same thing. A
+ * production anchor has no such hook: the real bank transfer plays this part.
  */
 import { depositStore } from "./db/store";
 
@@ -21,6 +25,8 @@ interface DepositRow {
   createdAt: string;
   updatedAt: string;
   instructions: { reference: string };
+  anchor?: { homeDomain: string };
+  sep6?: { id: string; transferServer: string };
 }
 
 export async function listPendingDeposits(limit = 10): Promise<PendingDeposit[]> {
@@ -29,9 +35,9 @@ export async function listPendingDeposits(limit = 10): Promise<PendingDeposit[]>
 }
 
 export interface PlayBankInput {
-  anchorBaseUrl: string;
-  anchorApiKey: string;
+  /** A specific deposit; default: the newest one awaiting a transfer. */
   depositId?: string;
+  /** Override the simulated amount (TRY); default: the deposit's own amount. */
   amountTry?: string;
 }
 
@@ -45,7 +51,7 @@ export interface PlayBankResult {
 
 export class PlayBankError extends Error {
   constructor(
-    readonly code: "no_pending_deposit" | "not_found" | "anchor_rejected",
+    readonly code: "no_pending_deposit" | "not_found" | "anchor_rejected" | "no_sandbox_hook" | "not_sep6",
     message: string,
   ) {
     super(message);
@@ -53,20 +59,23 @@ export class PlayBankError extends Error {
   }
 }
 
-export async function playBank(input: PlayBankInput): Promise<PlayBankResult> {
+export async function playBank(input: PlayBankInput = {}): Promise<PlayBankResult> {
   const target = input.depositId
     ? await depositStore.get<DepositRow>(input.depositId)
     : (await depositStore.listByStatus<DepositRow>("awaiting_transfer", 1))[0] ?? null;
   if (!target) {
     throw new PlayBankError(input.depositId ? "not_found" : "no_pending_deposit", input.depositId ? `deposit ${input.depositId} not found` : "no deposit is awaiting a transfer");
   }
+  if (!target.sep6) throw new PlayBankError("not_sep6", `deposit ${target.id} predates the SEP-6 path and has no anchor transaction to fund`);
   const amount = Number(input.amountTry ?? target.amountTry).toFixed(2);
-  const res = await fetch(`${input.anchorBaseUrl.replace(/\/+$/, "")}/v1/sandbox/bank-transfers`, {
+  const res = await fetch(`${target.sep6.transferServer}/tx/${encodeURIComponent(target.sep6.id)}/simulate-bank-transfer`, {
     method: "POST",
-    headers: { "content-type": "application/json", "X-API-Key": input.anchorApiKey },
-    body: JSON.stringify({ reference: target.instructions.reference, amount_try: amount, sender_name: "Kumbara demo" }),
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ amount }),
+    cache: "no-store",
   });
-  const body = (await res.json()) as { id?: string; status?: string; error?: { message?: string } };
-  if (!res.ok || !body.id) throw new PlayBankError("anchor_rejected", body.error?.message ?? `anchor HTTP ${res.status}`);
-  return { depositId: target.id, reference: target.instructions.reference, amountTry: amount, transferId: body.id, transferStatus: body.status ?? "unknown" };
+  const body = (await res.json().catch(() => ({}))) as { transaction?: { status?: string }; error?: string | { message?: string } };
+  if (res.status === 404 || res.status === 405) throw new PlayBankError("no_sandbox_hook", `${new URL(target.sep6.transferServer).host} has no sandbox bank-transfer hook; the lira has to arrive for real`);
+  if (!res.ok) throw new PlayBankError("anchor_rejected", typeof body.error === "string" ? body.error : (body.error?.message ?? `anchor HTTP ${res.status}`));
+  return { depositId: target.id, reference: target.instructions.reference, amountTry: amount, transferId: target.sep6.id, transferStatus: body.transaction?.status ?? "pending_anchor" };
 }

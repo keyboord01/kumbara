@@ -58,12 +58,11 @@ export function explorerBase(): string {
   return `https://stellar.expert/explorer/${network() === "testnet" ? "testnet" : "public"}`;
 }
 
-export const anchorBaseUrl = () => requireEnv("ANCHOR_BASE_URL").replace(/\/+$/, "");
-
-export const anchorEnv = () => ({
-  baseUrl: requireEnv("ANCHOR_BASE_URL").replace(/\/+$/, ""),
-  apiKey: requireEnv("ANCHOR_API_KEY"),
-});
+/** The default anchor's base URL: the first home domain in ANCHOR_HOME_DOMAINS (the app reads everything else from its stellar.toml). */
+export const anchorBaseUrl = () => {
+  const first = requireEnv("ANCHOR_HOME_DOMAINS").split(",")[0]!.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  return `https://${first}`;
+};
 
 export const sembolEnv = () => ({
   url: requireEnv("SEMBOL_CLOUD_URL"),

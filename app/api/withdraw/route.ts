@@ -1,8 +1,8 @@
 /** Withdrawals: create (POST) and list/resume (GET ?contractId=). */
 import { NextResponse } from "next/server";
 import { boothRef } from "@/lib/cookies.server";
-import { AnchorHttpError } from "@/lib/anchor.server";
-import { FINAL_WITHDRAWAL_STATUSES, WITHDRAW_MIN_USDC, WithdrawError, createWithdrawal, listWithdrawals } from "@/lib/withdraw.server";
+import { discoverAnchor } from "@/lib/anchor.server";
+import { FINAL_WITHDRAWAL_STATUSES, WithdrawError, createWithdrawal, listWithdrawals, withdrawMinimum } from "@/lib/withdraw.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,7 +10,6 @@ export const maxDuration = 60;
 
 export function withdrawErrorResponse(err: unknown): Response {
   if (err instanceof WithdrawError) return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status });
-  if (err instanceof AnchorHttpError) return NextResponse.json({ error: { code: err.code, message: err.message, source: "anchor" } }, { status: err.status >= 500 ? 502 : err.status });
   const message = err instanceof Error ? err.message : String(err);
   const status = /SPONSOR_SECRET|environment variable/.test(message) ? 503 : 500;
   return NextResponse.json({ error: { code: "internal", message } }, { status });
@@ -37,7 +36,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const all = await listWithdrawals(contractId);
     const active = all.find((w) => !FINAL_WITHDRAWAL_STATUSES.includes(w.status)) ?? null;
-    return NextResponse.json({ active, recent: all.slice(0, 5), limits: { minUsdc: WITHDRAW_MIN_USDC } }, { headers: { "cache-control": "no-store" } });
+    return NextResponse.json({ active, recent: all.slice(0, 5), limits: { minUsdc: withdrawMinimum(await discoverAnchor()) } }, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     return withdrawErrorResponse(err);
   }

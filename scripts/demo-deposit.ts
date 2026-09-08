@@ -1,7 +1,8 @@
 /**
- * Plays the bank for the newest pending deposit: tells the sandbox anchor
- * that the TRY transfer with the deposit's reference arrived. Deterministic
- * rehearsal of the deposit flow; the /booth/admin button does the same.
+ * Plays the bank for the newest pending deposit: tells the sandbox anchor,
+ * through its SEP-6 sandbox hook, that the TRY transfer for that transaction
+ * arrived. Deterministic rehearsal of the deposit flow; the /booth/admin
+ * button does the same. Needs the database (run with node --env-file=.env).
  *
  *   pnpm demo:deposit                 # newest deposit awaiting a transfer
  *   pnpm demo:deposit --id dep_xxx    # a specific deposit
@@ -15,15 +16,8 @@ const flag = (name: string): string | undefined => {
   return i >= 0 ? args[i + 1] : undefined;
 };
 
-const anchorBaseUrl = process.env.ANCHOR_BASE_URL ?? "";
-const anchorApiKey = process.env.ANCHOR_API_KEY ?? "";
-if (!anchorBaseUrl || !anchorApiKey) {
-  console.error("ANCHOR_BASE_URL and ANCHOR_API_KEY are required (run with node --env-file=.env)");
-  process.exit(1);
-}
-
 try {
-  const input: Parameters<typeof playBank>[0] = { anchorBaseUrl, anchorApiKey };
+  const input: Parameters<typeof playBank>[0] = {};
   const id = flag("--id");
   const amount = flag("--amount");
   if (id) input.depositId = id;

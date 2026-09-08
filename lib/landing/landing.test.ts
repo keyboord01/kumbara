@@ -3,7 +3,7 @@
  * RPC so the test runs offline. Run with `pnpm test` (node --expose-gc, so the
  * "not retained" assertion can force a garbage collection).
  */
-import { Account, Asset, Keypair, SorobanDataBuilder, TransactionBuilder, xdr, type Transaction } from "@stellar/stellar-sdk";
+import { Account, Asset, Keypair, Operation, SorobanDataBuilder, TransactionBuilder, xdr, type Transaction } from "@stellar/stellar-sdk";
 import { describe, expect, it } from "vitest";
 import { assertNoSecret, containsSecret, findSecrets } from "./secret-guard";
 import { createLandingAccount, submitPreauthorized, wipeKeypair, type LandingDeps } from "./landing";
@@ -128,6 +128,71 @@ describe("landing account secret hygiene", () => {
     wipeKeypair(kp);
     expect(kp.secret()).not.toBe(before);
     expect([...kp.rawSecretKey()].every((b) => b === 0)).toBe(true);
+  });
+});
+
+describe("landing account pre-lock hook (SEP-6 path)", () => {
+  it("lets the anchor conversation sign one challenge before the lock, builds the envelopes for the kind it returns, and pre-authorizes an abort at seq+1", async () => {
+    const landing = Keypair.random();
+    const fake = fakeDeps(() => landing);
+    const sequences: string[] = [];
+    let seen = "";
+    const plan = await createLandingAccount(fake.deps, {
+      usdc: USDC,
+      usdcContract: USDC_SAC,
+      abortable: true,
+      beforeLock: async (bridge) => {
+        seen = bridge.publicKey;
+        // A SEP-10 challenge: sequence 0, signed by the anchor, naming the bridge in a manage-data op.
+        const anchor = Keypair.random();
+        const challenge = new TransactionBuilder(new Account(anchor.publicKey(), "-1"), { fee: "100", networkPassphrase: PASSPHRASE })
+          .addOperation(Operation.manageData({ name: "example.com auth", value: Buffer.alloc(48, 1), source: bridge.publicKey }))
+          .setTimeout(300)
+          .build();
+        bridge.sign(challenge);
+        sequences.push(challenge.sequence);
+        expect(challenge.signatures.length).toBe(1);
+        // Anything with a real sequence number must be refused.
+        const notAChallenge = new TransactionBuilder(new Account(bridge.publicKey, "5"), { fee: "100", networkPassphrase: PASSPHRASE }).addOperation(Operation.manageData({ name: "x", value: null })).setTimeout(300).build();
+        expect(() => bridge.sign(notAChallenge)).toThrow(/sequence 0/);
+        return { type: "onramp", destinationContract: SMART_ACCOUNT, amountStroops: 20_533_494n };
+      },
+    });
+    expect(seen).toBe(landing.publicKey());
+    expect(sequences).toEqual(["0"]);
+    expect(plan.challengesSigned).toBe(1);
+    expect(plan.amountStroops).toBe("20533494");
+    expect(plan.kind).toBe("onramp");
+    expect(plan.abortTxXdr).toBeDefined();
+    const forward = TransactionBuilder.fromXDR(plan.forwardTxXdr, PASSPHRASE) as Transaction;
+    const abort = TransactionBuilder.fromXDR(plan.abortTxXdr!, PASSPHRASE) as Transaction;
+    const cleanup = TransactionBuilder.fromXDR(plan.cleanupTxXdr, PASSPHRASE) as Transaction;
+    expect(abort.sequence).toBe(forward.sequence);
+    expect(BigInt(cleanup.sequence)).toBe(BigInt(forward.sequence) + 1n);
+    expect(abort.operations.map((o) => o.type)).toEqual(["changeTrust", "accountMerge"]);
+    const lockTx = fake.submitted.find((t) => t.operations.some((o) => o.type === "setOptions"))!;
+    const preauth = lockTx.operations.filter((o) => o.type === "setOptions" && "signer" in o && o.signer && "preAuthTx" in o.signer) as Array<{ signer: { preAuthTx: Buffer; weight: number } }>;
+    expect(preauth.map((o) => Buffer.from(o.signer.preAuthTx).toString("hex")).sort()).toEqual([forward.hash(), cleanup.hash(), abort.hash()].map((h) => h.toString("hex")).sort());
+    expect(containsSecret(plan)).toBe(false);
+    expect([...landing.rawSecretKey()].every((b) => b === 0)).toBe(true);
+  });
+
+  it("merges the bridge back when the anchor refuses before the lock", async () => {
+    const landing = Keypair.random();
+    const fake = fakeDeps(() => landing);
+    await expect(
+      createLandingAccount(fake.deps, {
+        usdc: USDC,
+        usdcContract: USDC_SAC,
+        beforeLock: async () => {
+          throw new Error("SEP-10 token: challenge verification failed");
+        },
+      }),
+    ).rejects.toThrow(/SEP-10/);
+    const undo = fake.submitted.at(-1)!;
+    expect(undo.operations.map((o) => o.type)).toEqual(["changeTrust", "accountMerge"]);
+    expect(fake.submitted.some((t) => t.operations.some((o) => o.type === "setOptions"))).toBe(false);
+    expect([...landing.rawSecretKey()].every((b) => b === 0)).toBe(true);
   });
 });
 

@@ -24,7 +24,18 @@ page.on("console", (m) => {
   if (m.text().startsWith("[kumbara]")) log("  console:", m.text().slice(0, 300));
 });
 
+const adminHeaders = { authorization: `Bearer ${ADMIN}`, "content-type": "application/json" };
+// The seed deposits on the active anchor; make sure it is the default one (a cancelled run may have left another active).
+async function ensureDefaultAnchor() {
+  const state = await (await fetch(`${APP}/api/booth/admin/anchor`, { headers: adminHeaders })).json();
+  const first = state.anchors?.[0]?.homeDomain;
+  if (!first || state.active === first) return;
+  const res = await fetch(`${APP}/api/booth/admin/anchor`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ homeDomain: first }) });
+  log(`anchor reset ${state.active} → ${first} (${res.status})`);
+}
+
 try {
+  await ensureDefaultAnchor();
   log("booth screen");
   await page.goto(`${APP}/booth?n=7`, { waitUntil: "networkidle" });
   await page.locator("svg").first().waitFor({ timeout: 20000 });

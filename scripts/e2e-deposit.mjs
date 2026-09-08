@@ -25,6 +25,15 @@ async function switchAnchor(homeDomain) {
   if (!res.ok) throw new Error(`anchor switch failed: ${JSON.stringify(body)}`);
   console.log(`anchor switched ${previousAnchor} → ${body.active}`);
 }
+// Without an override, make sure the default anchor is active: a run cancelled mid-way through the testanchor step
+// cannot restore it, and the next run would otherwise inherit testanchor's limits.
+async function ensureDefaultAnchor() {
+  const state = await (await fetch(`${APP}/api/booth/admin/anchor`, { headers: adminHeaders })).json();
+  const first = state.anchors?.[0]?.homeDomain;
+  if (!first || state.active === first) return;
+  const res = await fetch(`${APP}/api/booth/admin/anchor`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ homeDomain: first }) });
+  console.log(`anchor reset ${state.active} → ${first} (${res.status})`);
+}
 async function restoreAnchor() {
   if (!previousAnchor) return;
   await fetch(`${APP}/api/booth/admin/anchor`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ homeDomain: previousAnchor }) }).catch(() => undefined);
@@ -54,6 +63,7 @@ const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`,
 try {
   // The presenter switches the anchor before the visitor opens the app; the browser then learns that anchor's limits.
   if (E2E_ANCHOR) await switchAnchor(E2E_ANCHOR);
+  else await ensureDefaultAnchor();
   log("onboard");
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: /Kumbaranı aç/ }).click();

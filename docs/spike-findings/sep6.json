@@ -259,7 +259,7 @@
           "description": "US Bank account number"
         }
       },
-      "more_info_url": "https://anchor-ref-ui-testanchor.stellar.org/txn?transaction_id=4c425333-84ac-47ff-84fe-9a4062ea4e6d&token=eyJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI0YzQyNTMzMy04NGFjLTQ3ZmYtODRmZS05YTQwNjJlYTRlNmQiLCJleHAiOjE3ODg4Nzg1NjAsInN1YiI6IkdBMlQ0NVNMTVA2RFVBWVE3N1hKNVY2V1lQWjZPNU9ONVZaSFVBSFpZVkZOUUJQSDJRNVE0Q01QIiwiYXVkIjpbInNlcDZfbW9yZV9pbmZvIl0sImRhdGEiOnsibGFuZyI6ImVuLVVTIn19.9eZzPgH0uZ14naHtJumdktgzMaPEnXukWRGO4JMhCCU"
+      "more_info_url": "https://anchor-ref-ui-testanchor.stellar.org/txn?transaction_id=4c425333-84ac-47ff-84fe-9a4062ea4e6d&token=<redacted: expired SEP-10 token of a merged throwaway bridge account>"
     },
     "ok": true
   }

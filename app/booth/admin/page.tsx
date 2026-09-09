@@ -54,6 +54,8 @@ interface Health {
 interface Sponsor {
   publicKey: string;
   balanceXlm: number;
+  availableXlm: number;
+  sponsoring: number;
   minXlm: number;
   maxXlm: number;
   ok: boolean;
@@ -70,6 +72,36 @@ interface CiStatus {
   step: string | null;
   runUrl: string | null;
   at: string | null;
+}
+interface TickItem {
+  id: string;
+  from: string;
+  to: string;
+  steps: number;
+  note?: string;
+}
+interface TickResult {
+  at: string;
+  elapsedMs: number;
+  skipped?: "tick_in_progress";
+  deposits: TickItem[];
+  withdrawals: TickItem[];
+}
+interface ApiErrorBody {
+  error?: { code?: string; message?: string } | string;
+}
+
+/** Every admin action shows the server's own reason: status, code and message, never just "HTTP 409". */
+function reason(res: Response, body: ApiErrorBody | null): string {
+  const err = body?.error;
+  if (typeof err === "string") return `${res.status} ${err}`;
+  const code = err?.code ?? "error";
+  const message = err?.message ?? "";
+  return `${res.status} ${code}${message ? ` — ${message}` : ""}`;
+}
+
+function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError || (typeof navigator !== "undefined" && navigator.onLine === false);
 }
 
 /**
@@ -90,12 +122,19 @@ export default function BoothAdminPage() {
   const [sponsor, setSponsor] = useState<Sponsor | null>(null);
   const [ci, setCi] = useState<CiStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState<"" | "play" | "fund" | "seed" | "anchor">("");
+  const [busy, setBusy] = useState<"" | "play" | "fund" | "seed" | "anchor" | "sweep">("");
+  const [sweepNote, setSweepNote] = useState<string | null>(null);
   const [anchors, setAnchors] = useState<AnchorsInfo | null>(null);
   const [anchorNote, setAnchorNote] = useState<string | null>(null);
   const [result, setResult] = useState<PlayResult | null>(null);
   const [seed, setSeed] = useState<{ contractId: string; deposit: SeedDeposit | null; stage: "creating" | "depositing" | "autopilot" | "needs_tap" | "done" | "error"; message?: string | undefined } | null>(null);
   const seedAutopilot = useRef(false);
+  /** The driver: a tick every 5 s while this page is open; the GitHub cron is the backstop. */
+  const [driver, setDriver] = useState<{ on: boolean; lastAt: number; last: TickResult | null; error: string | null }>({ on: false, lastAt: 0, last: null, error: null });
+  const tickInFlight = useRef(false);
+  const [offline, setOffline] = useState(false);
+  const [reconnected, setReconnected] = useState(false);
+  const [clock, setClock] = useState(0);
 
   useEffect(() => {
     const url = new URL(window.location.href);
@@ -127,11 +166,78 @@ export default function BoothAdminPage() {
       setAnchors(a);
       setSponsor(s.ok ? s.body : null);
       setError(s.ok ? null : (s.body.error?.message ?? null));
+      setOffline((was) => {
+        if (was) setReconnected(true);
+        return false;
+      });
     } catch (err) {
+      if (isNetworkError(err)) {
+        setOffline(true);
+        return;
+      }
       setPending(null);
       setError(err instanceof Error ? err.message : String(err));
     }
   }, [token, auth]);
+
+  // The driver: advance every pending deposit and withdrawal server-side, whether or not the visitor's page is open.
+  const tick = useCallback(async () => {
+    if (!token || tickInFlight.current) return;
+    tickInFlight.current = true;
+    try {
+      const res = await fetch("/api/pipeline/tick", auth({ method: "POST", body: "{}" }));
+      const body = (await res.json()) as TickResult & ApiErrorBody;
+      if (!res.ok) throw new Error(reason(res, body));
+      setDriver({ on: true, lastAt: Date.now(), last: body, error: null });
+      setOffline((was) => {
+        if (was) setReconnected(true);
+        return false;
+      });
+    } catch (err) {
+      if (isNetworkError(err)) setOffline(true);
+      setDriver((d) => ({ ...d, on: false, error: err instanceof Error ? err.message : String(err) }));
+    } finally {
+      tickInFlight.current = false;
+    }
+  }, [token, auth]);
+
+  useEffect(() => {
+    if (!token) return;
+    void tick();
+    const id = setInterval(() => void tick(), 5_000);
+    const clockId = setInterval(() => setClock(Date.now()), 1_000);
+    return () => {
+      clearInterval(id);
+      clearInterval(clockId);
+    };
+  }, [token, tick]);
+
+  // Network suspension (laptop lid, Wi-Fi drop, tab throttled): resume at once when the browser is back, and say so.
+  useEffect(() => {
+    if (!token) return;
+    const resume = () => {
+      void load();
+      void tick();
+    };
+    const onOffline = () => setOffline(true);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") resume();
+    };
+    window.addEventListener("online", resume);
+    window.addEventListener("offline", onOffline);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("online", resume);
+      window.removeEventListener("offline", onOffline);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [token, load, tick]);
+
+  useEffect(() => {
+    if (!reconnected) return;
+    const id = setTimeout(() => setReconnected(false), 8_000);
+    return () => clearTimeout(id);
+  }, [reconnected]);
 
   useEffect(() => {
     if (!token) return;
@@ -145,8 +251,8 @@ export default function BoothAdminPage() {
     setAnchorNote(null);
     try {
       const res = await fetch("/api/booth/admin/anchor", auth({ method: "POST", body: JSON.stringify({ homeDomain }) }));
-      const body = (await res.json()) as { active?: string; error?: { message: string } };
-      if (!res.ok || !body.active) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      const body = (await res.json()) as { active?: string } & ApiErrorBody;
+      if (!res.ok || !body.active) throw new Error(reason(res, body));
       setAnchorNote(`${t.admin.anchorSwitched}: ${body.active}`);
       await load();
     } catch (err) {
@@ -162,8 +268,8 @@ export default function BoothAdminPage() {
     setResult(null);
     try {
       const res = await fetch("/api/booth/admin/play-bank", auth({ method: "POST", body: "{}" }));
-      const body = (await res.json()) as PlayResult & { error?: { message: string } };
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      const body = (await res.json()) as PlayResult & ApiErrorBody;
+      if (!res.ok) throw new Error(reason(res, body));
       setResult(body);
       await load();
     } catch (err) {
@@ -179,8 +285,8 @@ export default function BoothAdminPage() {
     setResumed(null);
     try {
       const res = await fetch("/api/booth/admin/resume", auth({ method: "POST", body: JSON.stringify({ depositId }) }));
-      const body = (await res.json()) as { error?: { message: string } };
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      const body = (await res.json()) as ApiErrorBody;
+      if (!res.ok) throw new Error(reason(res, body));
       setResumed(depositId);
       await load();
     } catch (err) {
@@ -195,11 +301,28 @@ export default function BoothAdminPage() {
     setError(null);
     try {
       const res = await fetch("/api/booth/admin/fund-sponsor", auth({ method: "POST", body: "{}" }));
-      const body = (await res.json()) as Sponsor & { hash?: string; error?: { message: string } };
-      if (!res.ok) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      const body = (await res.json()) as Sponsor & { hash?: string } & ApiErrorBody;
+      if (!res.ok) throw new Error(reason(res, body));
       setSponsor(body);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setBusy("");
+    }
+  };
+
+  // Sweep: merge back the bridge accounts of finished deposits and withdrawals so their reserves return to the sponsor.
+  const sweep = async () => {
+    setBusy("sweep");
+    setSweepNote(null);
+    try {
+      const res = await fetch("/api/booth/admin/sweep", auth({ method: "POST", body: "{}" }));
+      const body = (await res.json()) as { merged?: number; skipped?: number; examined?: number; items?: Array<{ id: string; action: string; note?: string }> } & ApiErrorBody;
+      if (!res.ok) throw new Error(reason(res, body));
+      setSweepNote(`${t.admin.sweepDone}: ${body.merged ?? 0} ${t.admin.sweepMerged}, ${body.skipped ?? 0} ${t.admin.sweepSkipped} (${body.examined ?? 0} ${t.admin.sweepExamined})`);
+      await load();
+    } catch (err) {
+      setSweepNote(`${t.admin.reasonLabel}: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBusy("");
     }
@@ -218,8 +341,8 @@ export default function BoothAdminPage() {
       const created = await createWallet({ userName: "kumbara-demo", fund: false, authenticatorSelection: { residentKey: "required", userVerification: "required" } });
       setSeed({ contractId: created.contractId, deposit: null, stage: "depositing" });
       const res = await fetch("/api/booth/admin/seed", auth({ method: "POST", body: JSON.stringify({ contractId: created.contractId }) }));
-      const body = (await res.json()) as { deposit?: SeedDeposit; error?: { message: string } };
-      if (!res.ok || !body.deposit) throw new Error(body.error?.message ?? `HTTP ${res.status}`);
+      const body = (await res.json()) as { deposit?: SeedDeposit } & ApiErrorBody;
+      if (!res.ok || !body.deposit) throw new Error(reason(res, body));
       setSeed({ contractId: created.contractId, deposit: body.deposit, stage: "depositing" });
     } catch (err) {
       const sembolError = toSembolError(err);
@@ -346,6 +469,35 @@ export default function BoothAdminPage() {
               {ci.at ? ` · ${new Date(ci.at).toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}` : ""}
             </p>
           ) : null}
+          {offline ? (
+            <div role="alert" data-testid="reconnect-banner" className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-sm text-ink">
+              {t.admin.reconnecting}
+            </div>
+          ) : reconnected ? (
+            <p role="status" data-testid="reconnected" className="rounded-xl bg-mint/10 p-3 text-sm text-mint">
+              {t.admin.reconnected}
+            </p>
+          ) : null}
+          <section className="card p-5" aria-label={t.admin.driver}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="microlabel">{t.admin.driver}</p>
+              <span data-testid="driver" data-on={driver.on && !offline ? "true" : "false"} className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${driver.on && !offline ? "bg-mint/15 text-mint" : "bg-danger/10 text-danger"}`}>
+                {driver.on && !offline ? t.admin.driverOn : t.admin.driverOff}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-muted">{t.admin.driverHint}</p>
+            <p className="tnum mt-2 text-xs text-ink-2" data-testid="driver-last">
+              {driver.last
+                ? `${t.admin.driverLast}: ${Math.max(0, Math.round((clock - driver.lastAt) / 1000))} s · ${driver.last.skipped ? t.admin.driverSkipped : (() => {
+                    const moved = [...driver.last.deposits, ...driver.last.withdrawals].filter((i) => i.to !== i.from);
+                    return moved.length ? `${moved.length} ${t.admin.driverAdvanced} (${moved.map((i) => `${i.id.slice(0, 8)}: ${i.from} → ${i.to}`).join(", ")})` : t.admin.driverIdle;
+                  })()} · ${driver.last.elapsedMs} ms`
+                : driver.error
+                  ? `${t.admin.reasonLabel}: ${driver.error}`
+                  : "…"}
+            </p>
+          </section>
+
           <section className="card p-5" aria-label={t.admin.health}>
             <p className="microlabel">{t.admin.health}</p>
             <ul className="mt-3 grid grid-cols-2 gap-2 text-sm" data-testid="health-dots">
@@ -396,10 +548,15 @@ export default function BoothAdminPage() {
             {sponsor ? (
               <div className="mt-2 text-sm">
                 <p className={`tnum text-2xl font-bold ${sponsor.ok ? "text-mint" : "text-danger"}`} data-testid="sponsor-balance">
-                  {sponsor.balanceXlm.toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 2 })} XLM
+                  {sponsor.availableXlm.toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 2 })} XLM
                 </p>
                 <p className={sponsor.ok ? "text-mint" : "text-danger"}>
                   {sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow} · min {sponsor.minXlm} · max {sponsor.maxXlm}
+                </p>
+                <p className="tnum text-xs text-muted" data-testid="sponsor-reserves">
+                  {t.admin.sponsorHeld
+                    .replace("{held}", sponsor.balanceXlm.toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 2 }))
+                    .replace("{count}", String(sponsor.sponsoring))}
                 </p>
                 <p className="mt-1 break-all font-mono text-xs text-muted">{sponsor.publicKey}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
@@ -413,7 +570,11 @@ export default function BoothAdminPage() {
                   ) : (
                     <span className="text-xs text-muted">{t.admin.sponsorFundHint}</span>
                   )}
+                  <button type="button" onClick={() => void sweep()} disabled={busy !== ""} className="btn-secondary min-h-9 px-3 text-xs" data-testid="sweep">
+                    {busy === "sweep" ? t.savings.loading : t.admin.sweep}
+                  </button>
                 </div>
+                {sweepNote ? <p className="mt-2 text-xs" role="status" data-testid="sweep-note">{sweepNote}</p> : null}
               </div>
             ) : (
               <p className="mt-2 text-sm text-muted">{t.savings.loading}</p>
@@ -513,8 +674,8 @@ export default function BoothAdminPage() {
           </section>
 
           {error && (
-            <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert">
-              {error}
+            <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert" data-testid="admin-error">
+              {t.admin.reasonLabel}: {error}
             </p>
           )}
           <div className="flex items-center justify-between text-xs">

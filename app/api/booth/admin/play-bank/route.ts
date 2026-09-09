@@ -24,7 +24,8 @@ export async function POST(request: Request): Promise<Response> {
     return NextResponse.json(result, { headers: { "cache-control": "no-store" } });
   } catch (err) {
     if (err instanceof PlayBankError) {
-      return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.code === "no_pending_deposit" || err.code === "not_found" ? 404 : err.code === "no_sandbox_hook" || err.code === "not_sep6" ? 409 : 502 });
+      const status = err.code === "no_pending_deposit" || err.code === "not_found" ? 404 : err.code === "no_sandbox_hook" || err.code === "not_sep6" || err.code === "already_paid" ? 409 : 502;
+      return NextResponse.json({ error: { code: err.code, message: err.message } }, { status });
     }
     return NextResponse.json({ error: { code: "internal", message: err instanceof Error ? err.message : String(err) } }, { status: 500 });
   }

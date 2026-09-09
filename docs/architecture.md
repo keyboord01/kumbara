@@ -128,6 +128,10 @@ Goal: deposits should follow DeFindex's real invest path (vault → strategy) in
 
 **Spending limit as a per-transaction cap.** The OpenZeppelin spending-limit policy caps the USDC moved within a rolling window and has no destination allowlist, so the vault and the landing accounts cannot be exempted. Kumbara installs it on a USDC-scoped rule with a one-ledger window, which acts as a 1,000 USDC per-transaction cap. It applies to vault deposits too (verified on testnet: the policy's spent counter rose for a vault deposit). Users can raise or lower it on the security page.
 
+### The driver
+
+A record only moves when something calls its poll route. Until September 2026 that was the user's open page; at the booth the visitor closes the tab after the IBAN step, so two drivers call `POST /api/pipeline/tick` (presenter token): the console at `/booth/admin` every 5 s while it is open, and a GitHub Actions cron every 5 minutes as the backstop. A tick lists every deposit in `awaiting_transfer`, `transfer_received`, `onramp_pending`, `onramp_paid` or `forwarded` and every withdrawal in `created`, `usdc_sent` or `paid`, and advances each through the same `advanceDeposit` / `advanceWithdrawal` a poll would use, as far as it can within a 40 s budget (a paid deposit goes forward → cleanup → `in_wallet` in one tick). `in_wallet` and `awaiting_usdc` need the user's passkey and are left alone; the user's screen says which steps are ours ("Kapatabilirsin, biz devam ediyoruz") and which are theirs, and on return shows "USDC geldi — kumbarana koymak için dokun". Ticks are serialised by a global lease and respect the per-record leases, attempt counters and the 10 s backoff after a failed step, so they are idempotent and safe to overlap with a user's own polls.
+
 ## Threat model
 
 ### What the relay can and cannot do

@@ -1,0 +1,46 @@
+name: Pipeline tick
+
+# Backstop driver for the booth: every 5 minutes, advance every pending
+# deposit and withdrawal through the server-side steps (bridge forward,
+# cleanup, anchor status, anchor payout) so nothing depends on a visitor's
+# page or the presenter's laptop being awake. The presenter console does the
+# same every 5 s while it is open; both are idempotent and share the record
+# leases. GitHub schedules are best effort (often a few minutes late).
+# The second step merges finished bridge accounts back into the sponsor so
+# their reserves (0.5 XLM each, three or four per bridge) come back.
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    name: Advance pending deposits and withdrawals
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ vars.PRODUCTION_URL || 'https://kumbara.sembol.xyz' }}
+      BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+    steps:
+      - name: Tick
+        run: |
+          if [ -z "$BOOTH_ADMIN_TOKEN" ]; then echo "::notice::BOOTH_ADMIN_TOKEN is not configured; nothing to do"; exit 0; fi
+          OUT=$(curl -sS --max-time 70 -X POST "$APP_URL/api/pipeline/tick" -H "authorization: Bearer $BOOTH_ADMIN_TOKEN" -H "content-type: application/json" -d '{}' -w '\n%{http_code}')
+          CODE=$(echo "$OUT" | tail -1); BODY=$(echo "$OUT" | sed '$d')
+          echo "HTTP $CODE"; echo "$BODY" | head -c 2000; echo
+          [ "$CODE" = "200" ]
+      - name: Sweep finished bridges (returns their reserves to the sponsor)
+        run: |
+          if [ -z "$BOOTH_ADMIN_TOKEN" ]; then exit 0; fi
+          OUT=$(curl -sS --max-time 130 -X POST "$APP_URL/api/booth/admin/sweep" -H "authorization: Bearer $BOOTH_ADMIN_TOKEN" -H "content-type: application/json" -d '{}' -w '\n%{http_code}')
+          CODE=$(echo "$OUT" | tail -1); BODY=$(echo "$OUT" | sed '$d')
+          echo "HTTP $CODE"; echo "$BODY" | head -c 1500; echo
+          [ "$CODE" = "200" ]

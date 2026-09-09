@@ -51,7 +51,7 @@ export interface PlayBankResult {
 
 export class PlayBankError extends Error {
   constructor(
-    readonly code: "no_pending_deposit" | "not_found" | "anchor_rejected" | "no_sandbox_hook" | "not_sep6",
+    readonly code: "no_pending_deposit" | "not_found" | "anchor_rejected" | "no_sandbox_hook" | "not_sep6" | "already_paid",
     message: string,
   ) {
     super(message);
@@ -67,6 +67,7 @@ export async function playBank(input: PlayBankInput = {}): Promise<PlayBankResul
     throw new PlayBankError(input.depositId ? "not_found" : "no_pending_deposit", input.depositId ? `deposit ${input.depositId} not found` : "no deposit is awaiting a transfer");
   }
   if (!target.sep6) throw new PlayBankError("not_sep6", `deposit ${target.id} predates the SEP-6 path and has no anchor transaction to fund`);
+  if (target.status !== "awaiting_transfer") throw new PlayBankError("already_paid", `deposit ${target.id} is ${target.status}: the bank already played for reference ${target.instructions.reference}`);
   const amount = Number(input.amountTry ?? target.amountTry).toFixed(2);
   const res = await fetch(`${target.sep6.transferServer}/tx/${encodeURIComponent(target.sep6.id)}/simulate-bank-transfer`, {
     method: "POST",
@@ -76,6 +77,11 @@ export async function playBank(input: PlayBankInput = {}): Promise<PlayBankResul
   });
   const body = (await res.json().catch(() => ({}))) as { transaction?: { status?: string }; error?: string | { message?: string } };
   if (res.status === 404 || res.status === 405) throw new PlayBankError("no_sandbox_hook", `${new URL(target.sep6.transferServer).host} has no sandbox bank-transfer hook; the lira has to arrive for real`);
-  if (!res.ok) throw new PlayBankError("anchor_rejected", typeof body.error === "string" ? body.error : (body.error?.message ?? `anchor HTTP ${res.status}`));
+  if (!res.ok) {
+    const message = typeof body.error === "string" ? body.error : (body.error?.message ?? `anchor HTTP ${res.status}`);
+    // The anchor's own "already received its bank transfer": the record simply has not been polled since.
+    if (/already/i.test(message)) throw new PlayBankError("already_paid", `deposit ${target.id}: ${message}`);
+    throw new PlayBankError("anchor_rejected", message);
+  }
   return { depositId: target.id, reference: target.instructions.reference, amountTry: amount, transferId: target.sep6.id, transferStatus: body.transaction?.status ?? "pending_anchor" };
 }

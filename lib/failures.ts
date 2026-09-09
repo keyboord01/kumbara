@@ -140,6 +140,8 @@ function fromApi(err: ApiError, context: FailureContext): Failure {
   if (err.code === "insufficient_vault_balance") return { kind: "insufficient_balance", ...base };
   // The bridge account could not be built (Horizon or relay hiccup): retryable, and not the anchor's fault.
   if (err.code === "bridge_failed") return { kind: "unknown", ...base };
+  // A poll holds the record right now; the same action a few seconds later goes through.
+  if (err.code === "lease_held") return { kind: "unknown", ...base };
   if (err.code === "amount_out_of_range" || err.code === "amount_too_small" || err.code === "invalid_amount") return { kind: "invalid_amount", ...base };
   if (err.code === "amount_mismatch") return { kind: "amount_mismatch", ...base };
   if (err.source === "anchor" || context === "anchor") {

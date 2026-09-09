@@ -168,6 +168,7 @@ function mapSep6Instructions(dep: Sep6DepositResponse, anchor: AnchorDiscovery):
 
 /** SEP errors at request time become API errors the Deposit screen can classify. */
 function sepToDepositError(err: unknown): never {
+  console.warn(`[kumbara] deposit request failed: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
   if (err instanceof SepError) {
     if (err.transient) throw new DepositError(503, "anchor_unreachable", err.message);
     if (err.sep === "sep10") throw new DepositError(502, "anchor_auth_failed", err.message);
@@ -358,6 +359,10 @@ function errorCode(err: unknown): string {
 const STEP_LEASE_MS = 110_000;
 /** The browser's reports wait this long for a poll to release the record instead of being dropped. */
 const REPORT_LEASE_WAIT_MS = 20_000;
+/** An action that still finds the lease held after waiting says so instead of pretending nothing happened. */
+async function leaseHeld(id: string): Promise<never> {
+  throw new DepositError(409, "lease_held", `another step is running on deposit ${id} right now; try again in a few seconds`);
+}
 
 async function loadDeposit(id: string): Promise<DepositRecord> {
   const record = await depositStore.get<DepositRecord>(id);
@@ -449,7 +454,7 @@ export async function cancelDeposit(id: string): Promise<DepositRecord> {
       return depositStore.save(withHistory(record, { ...record, status: "abandoned", abandonedAt: new Date().toISOString(), abandonedFrom: record.status }));
     }
     throw new DepositError(409, "cannot_cancel", `a deposit that is ${record.status} cannot be abandoned; let it finish`);
-  }, () => loadDeposit(id), REPORT_LEASE_WAIT_MS);
+  }, () => leaseHeld(id), REPORT_LEASE_WAIT_MS);
 }
 
 /**
@@ -475,7 +480,7 @@ export async function resumeDeposit(id: string): Promise<DepositRecord> {
       return depositStore.save(resumed);
     }
     throw new DepositError(409, "cannot_resume", `deposit is ${record.status}; only abandoned transactions and amount-mismatch failures can be resumed`);
-  }, () => loadDeposit(id), REPORT_LEASE_WAIT_MS);
+  }, () => leaseHeld(id), REPORT_LEASE_WAIT_MS);
 }
 
 /** Deposits that need a presenter: waiting on the anchor for more than two minutes, abandoned, or parked by an amount mismatch. */

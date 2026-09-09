@@ -91,6 +91,23 @@ The vault dot is red while the others are green: "The vault refused the transact
 
 Red "Last CI run failed at step X" banner on `/booth/admin`: the 6-hourly production round trip failed. Open the run (link on the banner) and the issue it opened (label `e2e-failure`, with the screenshot artifact). The failing step tells you where to look: onboard → relay or sponsor, deposit → anchor or landing account, withdraw → anchor payout, booth → admin token or sponsor, stats → metrics. The banner clears on the next green run (Actions → E2E → Run workflow to trigger one by hand), which also closes the issue.
 
+## Presenter laptop and the driver
+
+The visitor's page is not what moves a deposit any more. The presenter console (`/booth/admin`) runs the **driver**: every 5 seconds it calls `POST /api/pipeline/tick`, which advances every pending deposit and withdrawal through the steps the server can take alone (anchor status, bridge forward, cleanup, anchor payout). The chip at the top of the console reads **driver: on** with the last tick's result. A visitor can therefore scan, get the IBAN, close the tab, and come back later to a screen that says "USDC arrived — tap to put it in your kumbara": only the vault step needs their passkey. The timeline tells them so under every step: "Kapatabilirsin, biz devam ediyoruz" during our steps, "Bu adım passkey'ini istiyor" on theirs.
+
+Before doors:
+
+1. In a terminal on the presenter laptop: `caffeinate -d` (leave it running; it keeps the display, and so the tab, awake).
+2. System Settings → Lock Screen: never turn the display off, never require a password after sleep, for the day.
+3. Open `/booth/admin?token=…` in its own window, confirm **driver: on**, and never close that tab. If it shows **driver: off** with a reason, read the reason (it is the server's own message) and fix that first.
+4. Wi-Fi drops: the console shows "Bağlantı koptu; yeniden bağlanıyor…" and resumes by itself when the network is back (it re-ticks on `online` and when the tab becomes visible). Nothing to do.
+
+Backstop: a GitHub Actions cron (`.github/workflows/pipeline-tick.yml`) calls the same tick every 5 minutes with the admin token, so a closed laptop delays a visitor's deposit by at most a few minutes instead of stalling it. Both are idempotent and share the record leases.
+
+Sponsor reserves: every bridge account locks three or four base reserves (0.5 XLM each) **on the sponsor** until the bridge is merged back, so the console's sponsor figure is the *spendable* balance (held minus locked reserves; the line under it says how many reserves are locked). On 9 September 97 unmerged bridges had locked 48.5 of 49.98 XLM and every new deposit failed at bridge creation while the raw balance still looked fine. Press **Köprüleri kapat / Merge finished bridges** whenever the locked count grows (the cron does it every 5 minutes too); a bridge that still holds USDC (amount mismatch) is skipped on purpose. Below 3 XLM spendable, onboarding and deposits refuse with `sponsor_underfunded`; top up with the Friendbot button (testnet).
+
+Every admin action renders the server's reason under it (status, code, message): "no deposit is awaiting a transfer", "already paid", "no sandbox hook on this anchor", "another step is running on this deposit; try again in a few seconds". Read it before pressing again.
+
 ## After the event
 
 `https://kumbara.sembol.xyz/stats` and `https://kumbara.sembol.xyz/api/metrics?since=<BOOTH_START_TS>` are the traction evidence: accounts (deploy confirmed) with hashes, by booth ref, deposits, vault deposits and withdrawals with transaction links, TRY in/out, the live vault total and the timings. Both are public; the seeded demo account and the automated E2E runs are excluded unless `?include=seed,e2e`.

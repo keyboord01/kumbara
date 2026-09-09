@@ -135,6 +135,11 @@ function Withdraw() {
           setRecord(res.active);
           setResumed(true);
           setView("progress");
+          if (res.active.status === "created" || res.active.status === "awaiting_usdc") {
+            // Back on a passkey step: the prompt waits for a tap, not for the page load.
+            started.current = true;
+            setClient("needs_tap");
+          }
         } else {
           setView("form");
         }
@@ -420,6 +425,15 @@ function Withdraw() {
         <p className="mt-2 text-base font-semibold" role="status" aria-live="polite" data-testid="withdraw-current">
           {t.withdraw.steps[record.status]}
         </p>
+        {record.status === "usdc_sent" || record.status === "paid" ? (
+          <p className="mt-1 text-sm text-teal" data-testid="close-hint">
+            {t.withdraw.closeHint}
+          </p>
+        ) : record.status === "created" || record.status === "awaiting_usdc" ? (
+          <p className="mt-1 text-sm text-amber" data-testid="needs-you">
+            {t.withdraw.needsYou}
+          </p>
+        ) : null}
         {clientLabel && record.status !== "completed" ? (
           <p className="mt-1 text-sm text-ink-2" role="status">
             {clientLabel}
@@ -435,8 +449,9 @@ function Withdraw() {
               secondary={clientFailure.kind === "limit_exceeded" ? { label: retryLabel, onClick: () => void runClientSteps() } : null}
             />
           ) : (
-            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
-              <p className="text-sm text-ink-2">{t.withdraw.needsTap}</p>
+            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3" data-testid="returned">
+              {resumed ? <p className="text-base font-semibold text-ink">{t.withdraw.returnedTitle}</p> : null}
+              <p className="mt-1 text-sm text-ink-2">{t.withdraw.needsTap}</p>
               <button type="button" onClick={() => void runClientSteps()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
                 {retryLabel}
               </button>

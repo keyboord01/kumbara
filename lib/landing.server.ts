@@ -32,16 +32,48 @@ export function rpcServer(): rpc.Server {
   return new rpc.Server(serverEnv.stellarRpcUrl());
 }
 
-export async function sponsorBalanceXlm(): Promise<number> {
+const BASE_RESERVE_XLM = 0.5;
+
+export interface SponsorBalance {
+  balanceXlm: number;
+  /** Ledger entries this account sponsors (each bridge account locks 3–4 of them until it is merged back). */
+  sponsoring: number;
+  subentries: number;
+  /** What the sponsor can actually spend: balance minus its own reserve, which grows with every bridge it sponsors. */
+  availableXlm: number;
+}
+
+/**
+ * The sponsor's spendable balance. A sponsored bridge account locks reserves on the sponsor, not on the bridge, so the
+ * raw balance overstates what is left: 97 unmerged bridges once held 48.5 of 49.98 XLM and every new bridge failed.
+ */
+export async function sponsorBalance(): Promise<SponsorBalance> {
   const key = xdr.LedgerKey.account(new xdr.LedgerKeyAccount({ accountId: Keypair.fromPublicKey(sponsorKeypair().publicKey()).xdrAccountId() }));
   const res = await rpcServer().getLedgerEntries(key);
   const entry = res.entries[0];
-  return entry ? Number(entry.val.account().balance().toBigInt()) / 1e7 : 0;
+  if (!entry) return { balanceXlm: 0, sponsoring: 0, subentries: 0, availableXlm: 0 };
+  const account = entry.val.account();
+  const balanceXlm = Number(account.balance().toBigInt()) / 1e7;
+  const subentries = account.numSubEntries();
+  let sponsoring = 0;
+  try {
+    sponsoring = account.ext().v1().ext().v2().numSponsoring();
+  } catch {
+    sponsoring = 0;
+  }
+  const reserve = BASE_RESERVE_XLM * (2 + subentries + sponsoring);
+  return { balanceXlm, sponsoring, subentries, availableXlm: Math.max(0, balanceXlm - reserve) };
+}
+
+export async function sponsorBalanceXlm(): Promise<number> {
+  return (await sponsorBalance()).availableXlm;
 }
 
 export interface SponsorStatus {
   publicKey: string;
   balanceXlm: number;
+  availableXlm: number;
+  sponsoring: number;
   minXlm: number;
   maxXlm: number;
   ok: boolean;
@@ -49,23 +81,23 @@ export interface SponsorStatus {
 }
 
 export async function sponsorStatus(): Promise<SponsorStatus> {
-  const balance = await sponsorBalanceXlm();
+  const b = await sponsorBalance();
   const min = sponsorMinXlm();
-  return { publicKey: sponsorKeypair().publicKey(), balanceXlm: balance, minXlm: min, maxXlm: sponsorMaxXlm(), ok: balance >= min, network: serverEnv.stellarNetwork() };
+  return { publicKey: sponsorKeypair().publicKey(), balanceXlm: b.balanceXlm, availableXlm: b.availableXlm, sponsoring: b.sponsoring, minXlm: min, maxXlm: sponsorMaxXlm(), ok: b.availableXlm >= min, network: serverEnv.stellarNetwork() };
 }
 
-/** Refuse below the minimum, warn above the maximum. */
+/** Refuse when the spendable balance is below the minimum, warn when the raw balance is above the maximum. */
 export async function assertSponsorReady(): Promise<number> {
-  const balance = await sponsorBalanceXlm();
+  const b = await sponsorBalance();
   const min = sponsorMinXlm();
   const max = sponsorMaxXlm();
-  if (balance < min) {
-    throw new LandingError("sponsor_underfunded", `sponsor ${sponsorKeypair().publicKey()} holds ${balance.toFixed(2)} XLM, below the ${min} XLM needed to sponsor a landing account`);
+  if (b.availableXlm < min) {
+    throw new LandingError("sponsor_underfunded", `sponsor ${sponsorKeypair().publicKey()} has ${b.availableXlm.toFixed(2)} XLM to spend (${b.balanceXlm.toFixed(2)} held, ${b.sponsoring} sponsored reserves locked), below the ${min} XLM needed to sponsor a landing account`);
   }
-  if (balance > max) {
-    console.warn(`[landing] sponsor ${sponsorKeypair().publicKey()} holds ${balance.toFixed(1)} XLM, above the ${max} XLM bound; keep this account small`);
+  if (b.balanceXlm > max) {
+    console.warn(`[landing] sponsor ${sponsorKeypair().publicKey()} holds ${b.balanceXlm.toFixed(1)} XLM, above the ${max} XLM bound; keep this account small`);
   }
-  return balance;
+  return b.availableXlm;
 }
 
 export function landingDeps(): LandingDeps {

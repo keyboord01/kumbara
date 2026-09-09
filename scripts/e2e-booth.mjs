@@ -65,6 +65,19 @@ try {
   }
   await page.getByTestId("sponsor-balance").waitFor({ timeout: 20000 });
   log("sponsor:", ((await page.getByTestId("sponsor-balance").textContent()) ?? "").trim());
+  await page.getByTestId("driver").waitFor({ timeout: 20000 });
+  for (let i = 0; i < 10; i += 1) {
+    if ((await page.getByTestId("driver").getAttribute("data-on")) === "true") break;
+    if (i === 9) throw new Error(`driver never came on: ${await page.getByTestId("driver").textContent()}`);
+    await page.waitForTimeout(2000);
+  }
+  log("driver:", ((await page.getByTestId("driver").textContent()) ?? "").trim(), "·", ((await page.getByTestId("driver-last").textContent()) ?? "").trim().slice(0, 120));
+  // A refused action shows the server's reason, not a bare status: play the bank with nothing pending.
+  if (!(await page.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).isEnabled())) {
+    const refused = await (await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: "{}" })).json();
+    log("play-bank with nothing pending →", JSON.stringify(refused.error));
+    if (!refused.error?.code || !refused.error?.message) throw new Error("play-bank refusal carries no code/message");
+  }
 
   log("seed a demo account (presenter passkey, fixed deposit, autopilot)");
   const seedAt = Date.now();

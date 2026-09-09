@@ -46,6 +46,8 @@ const WAIT_EXTENSION_MS = 30 * 60_000;
 const STEP_TIMEOUT_MS = 120_000;
 /** Form failures where "try again" would only repeat the same amount. */
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
+/** Steps the server (and the booth driver) takes on its own; the page can be closed during these. */
+const SERVER_STEPS = new Set(["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded"]);
 
 function CopyButton({ value, label, copiedLabel }: { value: string; label: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
@@ -130,6 +132,11 @@ function Deposit() {
           setRecord(res.active);
           setResumed(true);
           setView("waiting");
+          if (res.active.status === "in_wallet") {
+            // The USDC arrived while the page was closed: the passkey prompt waits for a tap, not for a page load.
+            autopilotStarted.current = true;
+            setAutopilot("needs_tap");
+          }
         } else {
           setView("form");
         }
@@ -435,10 +442,12 @@ function Deposit() {
             const idx = STEP_ORDER.indexOf(s);
             const state = record.status === "failed" ? "idle" : idx < currentIndex ? "done" : idx === currentIndex || (s === "in_wallet" && record.status === "in_wallet") ? "current" : "idle";
             const active = record.status === s || (s === "transfer_received" && ["onramp_pending"].includes(record.status)) || (s === "onramp_paid" && record.status === "forwarded");
+            const yours = s === "in_wallet";
             return (
               <li key={s} className={`flex items-center gap-3 text-sm ${state === "done" ? "text-mint" : active || state === "current" ? "font-semibold text-ink" : "text-muted"}`}>
                 <span className={`h-2.5 w-2.5 rounded-full ${state === "done" ? "bg-mint" : active || state === "current" ? "bg-coral" : "bg-line"}`} aria-hidden />
-                {t.deposit.steps[s]}
+                <span className="flex-1">{t.deposit.steps[s]}</span>
+                {s !== "in_vault" ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${yours ? "bg-amber/15 text-amber" : "bg-paper-2 text-muted"}`}>{yours ? t.deposit.stepTagYou : t.deposit.stepTagUs}</span> : null}
               </li>
             );
           })}
@@ -446,6 +455,15 @@ function Deposit() {
         <p className="mt-3 text-base font-semibold" role="status" aria-live="polite" data-testid="deposit-current">
           {t.deposit.steps[record.status]}
         </p>
+        {SERVER_STEPS.has(record.status) ? (
+          <p className="mt-1 text-sm text-teal" data-testid="close-hint">
+            {t.deposit.closeHint}
+          </p>
+        ) : record.status === "in_wallet" ? (
+          <p className="mt-1 text-sm text-amber" data-testid="needs-you">
+            {t.deposit.needsYou}
+          </p>
+        ) : null}
         {quoteRefreshing ? (
           <p className="mt-1 text-sm text-amber" role="status">
             {t.failures.quoteRefreshing}
@@ -466,8 +484,9 @@ function Deposit() {
               secondary={autopilotFailure.kind === "limit_exceeded" ? { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() } : null}
             />
           ) : (
-            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3">
-              <p className="text-sm text-ink-2">{t.deposit.autopilotNeedsTap}</p>
+            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3" data-testid="arrived">
+              <p className="text-base font-semibold text-ink">{t.deposit.arrivedTitle}</p>
+              <p className="mt-1 text-sm text-ink-2">{t.deposit.autopilotNeedsTap}</p>
               <button type="button" onClick={() => void runAutopilot()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
                 {t.deposit.autopilotButton}
               </button>

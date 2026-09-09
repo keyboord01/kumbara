@@ -108,6 +108,7 @@ export function withdrawMinimum(anchor: AnchorDiscovery): number {
 }
 
 function sepToWithdrawError(err: unknown): never {
+  console.warn(`[kumbara] withdrawal request failed: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
   if (err instanceof SepError) {
     if (err.transient) throw new WithdrawError(503, "anchor_unreachable", err.message);
     if (err.sep === "sep10") throw new WithdrawError(502, "anchor_auth_failed", err.message);

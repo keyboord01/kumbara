@@ -25,10 +25,11 @@ if (!sponsor) {
   skip = true;
   reason = "sponsor balance unavailable";
 } else {
-  console.log(`sponsor ${sponsor.balanceXlm} XLM (min ${sponsor.minXlm}, run needs ≥ ${sponsor.minXlm + MARGIN_XLM})`);
-  if (sponsor.balanceXlm < sponsor.minXlm + MARGIN_XLM) {
+  const spendable = sponsor.availableXlm ?? sponsor.balanceXlm;
+  console.log(`sponsor ${sponsor.balanceXlm} XLM held, ${spendable} XLM spendable (${sponsor.sponsoring ?? "?"} sponsored reserves; min ${sponsor.minXlm}, run needs ≥ ${sponsor.minXlm + MARGIN_XLM})`);
+  if (spendable < sponsor.minXlm + MARGIN_XLM) {
     skip = true;
-    reason = `sponsor ${sponsor.balanceXlm} XLM is below SPONSOR_MIN_XLM + ${MARGIN_XLM}`;
+    reason = `sponsor has ${spendable} XLM to spend, below SPONSOR_MIN_XLM + ${MARGIN_XLM}`;
   }
 }
 if (skip) console.log(`SKIP: ${reason}`);

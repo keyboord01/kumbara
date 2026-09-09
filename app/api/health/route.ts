@@ -39,10 +39,10 @@ export async function GET(): Promise<Response> {
   const database = { ok: dbOk, ms: dbMs, detail: dbDetail || (databaseUrl().startsWith("file:") ? "local file" : "turso") };
   // The sponsor's balance against its threshold, never its address: /stats and the
   // scheduled E2E preflight read it.
-  let sponsor: { ok: boolean; balanceXlm: number; minXlm: number } | null = null;
+  let sponsor: { ok: boolean; balanceXlm: number; availableXlm: number; sponsoring: number; minXlm: number } | null = null;
   try {
     const s = await sponsorStatus();
-    sponsor = { ok: s.ok, balanceXlm: Number(s.balanceXlm.toFixed(2)), minXlm: s.minXlm };
+    sponsor = { ok: s.ok, balanceXlm: Number(s.balanceXlm.toFixed(2)), availableXlm: Number(s.availableXlm.toFixed(2)), sponsoring: s.sponsoring, minXlm: s.minXlm };
   } catch {
     sponsor = null;
   }

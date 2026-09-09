@@ -14,6 +14,9 @@ if (!ADMIN_TOKEN) throw new Error("BOOTH_ADMIN_TOKEN is required (pnpm e2e:depos
 const E2E_ANCHOR = process.env.E2E_ANCHOR?.trim() ?? "";
 const EXPECT_INSTRUCTIONS = process.env.E2E_EXPECT === "instructions";
 const AUTOFUND = process.env.E2E_EXPECT === "autofund";
+// E2E_LEAVE_AFTER_IBAN=1: the booth flow. The visitor leaves the page after the IBAN step, the presenter console
+// (its driver ticks every 5 s) carries the deposit to the wallet on its own, the visitor comes back and taps once.
+const LEAVE_AFTER_IBAN = process.env.E2E_LEAVE_AFTER_IBAN === "1";
 const AMOUNT = process.env.E2E_DEPOSIT_AMOUNT?.trim() || "100";
 const adminHeaders = { authorization: `Bearer ${ADMIN_TOKEN}`, "content-type": "application/json" };
 let previousAnchor = null;
@@ -38,6 +41,78 @@ async function restoreAnchor() {
   if (!previousAnchor) return;
   await fetch(`${APP}/api/booth/admin/anchor`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ homeDomain: previousAnchor }) }).catch(() => undefined);
   console.log(`anchor restored → ${previousAnchor}`);
+}
+
+async function runBoothFlow(reference) {
+  const closeHint = ((await page.getByTestId("close-hint").textContent().catch(() => "")) ?? "").trim();
+  log("timeline says:", closeHint);
+  if (!/Kapatabilirsin|You can close/.test(closeHint)) throw new Error(`no close hint under the current step (saw "${closeHint}")`);
+  const pendingList = await (await fetch(`${APP}/api/booth/admin/pending`, { headers: adminHeaders })).json();
+  const mine = (pendingList.pending ?? []).find((d) => d.reference === reference);
+  if (!mine) throw new Error("deposit not listed for the presenter");
+  log("visitor leaves the page (about:blank): no more polls from the user");
+  await page.goto("about:blank");
+  const leftAt = Date.now();
+
+  log("presenter console opens; its driver ticks every 5 s");
+  const admin = await context.newPage();
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN_TOKEN)}`, { waitUntil: "networkidle" });
+  await admin.getByTestId("driver").waitFor({ timeout: 20000 });
+  for (let i = 0; i < 10; i += 1) {
+    if ((await admin.getByTestId("driver").getAttribute("data-on")) === "true") break;
+    if (i === 9) throw new Error(`driver never came on: ${await admin.getByTestId("driver").textContent()}`);
+    await admin.waitForTimeout(2000);
+  }
+  log("  driver chip:", ((await admin.getByTestId("driver").textContent()) ?? "").trim());
+  await admin.getByText(reference).first().waitFor({ timeout: 20000 });
+  await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
+  await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
+  const bankAt = Date.now();
+  log("  bank played:", ((await admin.locator("[role=status]").first().textContent()) ?? "").trim());
+  // The second press must be refused with the server's reason (already paid), rendered in the console.
+  await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click().catch(() => undefined);
+  const refused = await admin.getByTestId("admin-error").textContent({ timeout: 15000 }).catch(() => "");
+  log("  second press:", (refused ?? "").trim().slice(0, 160));
+  if (!refused || !/already_paid|no_pending_deposit|anchor_rejected|\b(404|409|502)\b/.test(refused)) throw new Error(`second press did not show a server reason: ${refused}`);
+
+  // Nobody polls for the visitor: only the console's ticks move the record. Watch it through the read-only admin route.
+  let status = "";
+  for (let i = 0; i < 100; i += 1) {
+    const rec = await (await fetch(`${APP}/api/booth/admin/record?deposit=${mine.id}`, { headers: adminHeaders })).json();
+    if (rec.status !== status) {
+      status = rec.status;
+      log(`  server status: ${status}${rec.forwardTxHash ? ` (forward ${rec.forwardTxHash.slice(0, 8)})` : ""}`);
+    }
+    if (status === "in_wallet") break;
+    if (status === "failed" || status === "cancelled") throw new Error(`deposit ${status}: ${JSON.stringify(rec.error)}`);
+    await admin.waitForTimeout(3000);
+  }
+  if (status !== "in_wallet") throw new Error(`driver did not carry the deposit to the wallet; last status ${status}`);
+  log(`✓ driver carried the deposit to the wallet ${((Date.now() - bankAt) / 1000).toFixed(1)}s after the bank, with the visitor away for ${((Date.now() - leftAt) / 1000).toFixed(1)}s`);
+  log("  last driver line:", ((await admin.getByTestId("driver-last").textContent()) ?? "").trim().slice(0, 200));
+
+  log("visitor returns");
+  await page.goto(`${APP}/yukle`, { waitUntil: "networkidle" });
+  await page.getByTestId("resume-notice").waitFor({ timeout: 30000 });
+  const arrived = ((await page.getByTestId("arrived").textContent({ timeout: 30000 })) ?? "").replace(/\s+/g, " ").trim();
+  log("  arrived banner:", arrived.slice(0, 120));
+  if (!/USDC geldi|USDC arrived/.test(arrived)) throw new Error(`no arrived banner on return (saw "${arrived}")`);
+  const returnedAt = Date.now();
+  await page.getByRole("button", { name: /Kasaya koy|Put it in the vault/ }).click();
+  let last = "";
+  for (let i = 0; i < 60; i += 1) {
+    const current = ((await page.getByTestId("deposit-current").textContent()) ?? "").trim();
+    if (current !== last) {
+      log("  status:", current);
+      last = current;
+    }
+    if (/Tamam\. USDC kasada\./.test(current)) break;
+    if (/Olmadı/.test(current)) throw new Error(`deposit failed after the tap: ${(await page.locator("[role=alert]").allTextContents()).join(" | ")}`);
+    await page.waitForTimeout(3000);
+  }
+  if (!/Tamam\. USDC kasada\./.test(last)) throw new Error(`vault step did not finish after the tap; last status: ${last}`);
+  log(`✓ one tap on return: USDC in the vault ${((Date.now() - returnedAt) / 1000).toFixed(1)}s after the tap`);
+  await admin.close();
 }
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
@@ -114,6 +189,15 @@ try {
     log(`✓ instructions rendered from ${E2E_ANCHOR || "the active anchor"}; deposit ${mine.id} cancelled${cancelled.abortTxHash ? `, bridge merged back (${cancelled.abortTxHash.slice(0, 8)}…)` : ""}`);
     await restoreAnchor();
     console.log("\nE2E DEPOSIT OK (instructions only). console errors:", consoleErrors.length ? consoleErrors : "none");
+    await browser.close();
+    process.exit(0);
+  }
+
+  if (LEAVE_AFTER_IBAN) {
+    await runBoothFlow(reference);
+    await restoreAnchor();
+    console.log("\nE2E DEPOSIT OK (visitor left after the IBAN step; driver carried it). console errors:", consoleErrors.length ? consoleErrors : "none");
+    console.log("CONTRACT=" + contract);
     await browser.close();
     process.exit(0);
   }

@@ -76,6 +76,8 @@ try {
   await depositInput.waitFor({ timeout: 20000 });
   await depositInput.fill("100");
   await page.getByRole("button", { name: /Devam/ }).click();
+  // The request builds and locks the bridge account (SEP-10/12/38/6 inside) before the IBAN shows: up to 90 s on production.
+  await page.getByTestId("deposit-reference").waitFor({ timeout: 90000 });
   const reference = ((await page.getByTestId("deposit-reference").textContent()) ?? "").trim();
   log("reference:", reference, "→ bank via", await playBank(reference));
   await waitFor("deposit-current", /Tamam\. USDC kasada\./, /Olmadı/, 100, async () => {

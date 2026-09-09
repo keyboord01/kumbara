@@ -8,8 +8,12 @@
  * USDC (an amount mismatch) cannot be merged and is left for the runbook.
  */
 import "server-only";
+import { TransactionBuilder } from "@stellar/stellar-sdk";
+import { discoverAnchor } from "./anchor.server";
+import { networkPassphrase, serverEnv } from "./env.server";
 import { landingDeps, rpcServer } from "./landing.server";
 import { submitPreauthorized } from "./landing/landing";
+import { readTokenBalance } from "./vault";
 import type { DepositRecord } from "./deposit.server";
 import type { WithdrawalRecord } from "./withdraw.server";
 import { depositStore, withdrawalStore } from "./store.server";
@@ -36,13 +40,20 @@ const MAX_SUBMITS = 12;
 /** A deposit that has waited this long for lira, or for the anchor, belongs to a visitor who left; its untouched bridge can go back. */
 const STALE_MS = 6 * 60 * 60 * 1000;
 
-async function bridgeExists(publicKey: string): Promise<boolean> {
+/** The bridge as it is on chain: its last used sequence, or null when it was merged already. */
+async function bridgeSequence(publicKey: string): Promise<bigint | null> {
   try {
-    await rpcServer().getAccount(publicKey);
-    return true;
+    const account = await rpcServer().getAccount(publicKey);
+    return BigInt(account.sequenceNumber());
   } catch {
-    return false;
+    return null;
   }
+}
+
+function envelopeSequence(envelopeXdr: string): bigint {
+  const tx = TransactionBuilder.fromXDR(envelopeXdr, networkPassphrase());
+  const inner = "innerTransaction" in tx ? tx.innerTransaction : tx;
+  return BigInt(inner.sequence);
 }
 
 /** Which envelope merges this record's bridge back, if any. */
@@ -84,12 +95,37 @@ export async function sweepBridges(): Promise<SweepResult> {
     result.examined += 1;
     const bridge = record.landing!.publicKey;
     const item: SweepItem = { id: record.id, kind, status: record.status, bridge, action: "skipped" };
-    if (!(await bridgeExists(bridge))) {
+    const onChain = await bridgeSequence(bridge);
+    if (onChain === null) {
       // Already merged (the hash was lost, or it went through out of band): note it so the next sweep skips the lookup.
       item.note = "bridge already gone";
       const store = kind === "deposit" ? depositStore : withdrawalStore;
       const known = (record as { cleanupTxHash?: string; abortTxHash?: string })[envelope.field];
       await store.save({ ...record, [envelope.field]: known ?? "merged-out-of-band" });
+      result.skipped += 1;
+      result.items.push(item);
+      continue;
+    }
+    // A pre-authorized envelope that is applied but fails at the operation level still consumes its sequence number,
+    // and with it every other envelope at that number. So nothing is submitted unless it is certain to apply: the
+    // sequence must be the next one, and the trustline can only be dropped when the bridge holds no USDC.
+    if (envelopeSequence(envelope.xdr) !== onChain + 1n) {
+      item.note = `sequence moved on: envelope ${envelopeSequence(envelope.xdr)} vs next ${onChain + 1n}; left alone`;
+      result.skipped += 1;
+      result.items.push(item);
+      continue;
+    }
+    try {
+      const anchor = await discoverAnchor((record as { anchor?: { homeDomain: string } }).anchor?.homeDomain);
+      const usdc = await readTokenBalance(serverEnv.stellarRpcUrl(), networkPassphrase(), anchor.usdc.contractId, bridge);
+      if (usdc > 0n) {
+        item.note = `bridge still holds ${(Number(usdc) / 1e7).toFixed(7)} ${anchor.usdc.code}; left for the runbook`;
+        result.skipped += 1;
+        result.items.push(item);
+        continue;
+      }
+    } catch (err) {
+      item.note = `balance check failed: ${err instanceof Error ? err.message.slice(0, 100) : String(err)}`;
       result.skipped += 1;
       result.items.push(item);
       continue;

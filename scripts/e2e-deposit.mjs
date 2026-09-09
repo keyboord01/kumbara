@@ -275,7 +275,8 @@ try {
   await restoreAnchor();
   console.error("E2E DEPOSIT FAILED:", err);
   await page.screenshot({ path: ".data/e2e-deposit-failure.png", fullPage: true }).catch(() => {});
-  console.log("alerts:", (await page.locator("[role=alert]").allTextContents().catch(() => [])).join(" | ").slice(0, 600));
+  await page.getByRole("button", { name: /Ayrıntılar|Details/ }).first().click({ timeout: 2000 }).catch(() => undefined);
+  console.log("alerts:", (await page.locator("[role=alert]").allTextContents().catch(() => [])).join(" | ").slice(0, 900));
   console.log("body:", (await page.locator("body").innerText().catch(() => "")).replace(/\s+/g, " ").slice(0, 1500));
   console.log("console errors:", consoleErrors);
   process.exitCode = 1;

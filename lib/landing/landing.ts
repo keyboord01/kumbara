@@ -184,13 +184,44 @@ function sourceAccountAuth(usdcContract: string, from: string, to: string, amoun
 async function submit(deps: LandingDeps, tx: Transaction): Promise<{ hash: string; ledger: number }> {
   const sent = await deps.server.sendTransaction(tx);
   if (sent.status === "ERROR") {
-    throw new LandingError("submit_failed", `transaction rejected: ${sent.errorResult?.toXDR("base64") ?? "unknown"}`);
+    let code = "unknown";
+    try {
+      code = sent.errorResult?.result().switch().name ?? "unknown";
+    } catch {
+      code = "unknown";
+    }
+    throw new LandingError("submit_failed", `transaction rejected: ${code} (${sent.errorResult?.toXDR("base64") ?? "unknown"})`);
   }
   const polled = await deps.server.pollTransaction(sent.hash, { attempts: 40 });
   if (polled.status !== "SUCCESS") {
     throw new LandingError("submit_failed", `transaction ${sent.hash} ${polled.status}`);
   }
   return { hash: sent.hash, ledger: polled.ledger };
+}
+
+/**
+ * A sponsor-sourced transaction, built against the sponsor's current sequence and retried with a fresh one when the
+ * network rejects it as a bad sequence: two deposits started within the same seconds (two visitors at the booth, or a
+ * preview and a production run sharing the sponsor) otherwise lose one of them. Only pre-flight rejections are retried;
+ * a transaction that was included and failed is reported as such.
+ */
+async function submitSponsored(deps: LandingDeps, sponsorPub: string, build: (sponsorAccount: Account) => Transaction, signers: Keypair[]): Promise<{ hash: string; ledger: number; fee: string }> {
+  let lastError: unknown;
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const sponsorAccount = await deps.server.getAccount(sponsorPub);
+    const tx = build(sponsorAccount);
+    tx.sign(...signers);
+    try {
+      return { ...(await submit(deps, tx)), fee: tx.fee };
+    } catch (err) {
+      lastError = err;
+      const badSeq = err instanceof LandingError && /txBadSeq/.test(err.message);
+      if (!badSeq || attempt === 3) throw err;
+      deps.log?.(`sponsor sequence collided (attempt ${attempt}); rebuilding with a fresh sequence`);
+      await new Promise((r) => setTimeout(r, 300 + Math.floor(Math.random() * 700)));
+    }
+  }
+  throw lastError;
 }
 
 /** Soroban forward: footprint from a zero-amount simulation, resources padded. */
@@ -239,16 +270,20 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
 
   try {
     // A: sponsored creation + trustline.
-    const sponsorAccount = await deps.server.getAccount(sponsorPub);
-    const createTx = new TransactionBuilder(sponsorAccount, { fee: "1000", networkPassphrase: passphrase })
-      .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: landingPub }))
-      .addOperation(Operation.createAccount({ destination: landingPub, startingBalance: input.feeBufferXlm ?? "0" }))
-      .addOperation(Operation.changeTrust({ asset: input.usdc, source: landingPub }))
-      .addOperation(Operation.endSponsoringFutureReserves({ source: landingPub }))
-      .setTimeout(300)
-      .build();
-    createTx.sign(deps.sponsor, landing);
-    const created = await submit(deps, createTx);
+    const landingKey = landing;
+    const created = await submitSponsored(
+      deps,
+      sponsorPub,
+      (sponsorAccount) =>
+        new TransactionBuilder(sponsorAccount, { fee: "1000", networkPassphrase: passphrase })
+          .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: landingPub }))
+          .addOperation(Operation.createAccount({ destination: landingPub, startingBalance: input.feeBufferXlm ?? "0" }))
+          .addOperation(Operation.changeTrust({ asset: input.usdc, source: landingPub }))
+          .addOperation(Operation.endSponsoringFutureReserves({ source: landingPub }))
+          .setTimeout(300)
+          .build(),
+      [deps.sponsor, landingKey],
+    );
 
     // A½: the anchor conversation that needs the master key (SEP-10) and fixes
     // the amount, before anything is locked. The key signs challenges only.
@@ -311,25 +346,29 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
       abortTx.sign(landing);
     }
 
-    // C: lock.
-    const sponsorAccount2 = await deps.server.getAccount(sponsorPub);
-    const lockBuilder = new TransactionBuilder(sponsorAccount2, { fee: "1000", networkPassphrase: passphrase })
-      .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: landingPub }))
-      .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: forwardTx.hash(), weight: 1 } }))
-      .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: cleanupTx.hash(), weight: 1 } }));
-    if (abortTx) lockBuilder.addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: abortTx.hash(), weight: 1 } }));
-    const lockTx = lockBuilder
-      .addOperation(Operation.setOptions({ source: landingPub, masterWeight: 1, lowThreshold: 2, medThreshold: 2, highThreshold: 2 }))
-      .addOperation(Operation.endSponsoringFutureReserves({ source: landingPub }))
-      .setTimeout(300)
-      .build();
-    lockTx.sign(deps.sponsor, landing);
+    // C: lock. The landing key co-signs; it is wiped the moment the lock is on chain.
+    const lockKey = landing;
+    const locked = await submitSponsored(
+      deps,
+      sponsorPub,
+      (sponsorAccount) => {
+        const lockBuilder = new TransactionBuilder(sponsorAccount, { fee: "1000", networkPassphrase: passphrase })
+          .addOperation(Operation.beginSponsoringFutureReserves({ sponsoredId: landingPub }))
+          .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: forwardTx.hash(), weight: 1 } }))
+          .addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: cleanupTx.hash(), weight: 1 } }));
+        if (abortTx) lockBuilder.addOperation(Operation.setOptions({ source: landingPub, signer: { preAuthTx: abortTx.hash(), weight: 1 } }));
+        return lockBuilder
+          .addOperation(Operation.setOptions({ source: landingPub, masterWeight: 1, lowThreshold: 2, medThreshold: 2, highThreshold: 2 }))
+          .addOperation(Operation.endSponsoringFutureReserves({ source: landingPub }))
+          .setTimeout(300)
+          .build();
+      },
+      [deps.sponsor, lockKey],
+    );
 
     // D: the secret is no longer needed by anyone, ever.
     wipeKeypair(landing);
     landing = null;
-
-    const locked = await submit(deps, lockTx);
     const plan: LandingPlan = {
       publicKey: landingPub,
       kind: kind.type,
@@ -340,7 +379,7 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
       forwardTxHash: forwardTx.hash().toString("hex"),
       cleanupTxXdr: cleanupTx.toXDR(),
       cleanupTxHash: cleanupTx.hash().toString("hex"),
-      sponsorFeesStroops: (BigInt(createTx.fee) + BigInt(lockTx.fee)).toString(),
+      sponsorFeesStroops: (BigInt(created.fee) + BigInt(locked.fee)).toString(),
       challengesSigned,
     };
     if (abortTx) {

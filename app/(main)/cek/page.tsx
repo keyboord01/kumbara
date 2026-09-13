@@ -5,6 +5,10 @@ import Link from "next/link";
 import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 import { buildContractCallTransaction, buildTransferTransaction, usePasskeyWallet, useSignTransaction, useSpendingPolicy } from "@sembol/passkey-react";
 import { FailureScreen } from "@/components/FailureScreen";
+import { ScreenSkeleton } from "@/components/Skeleton";
+import { Spinner } from "@/components/Spinner";
+import { Stepper, type StepperStep } from "@/components/Stepper";
+import { useToast } from "@/components/Toaster";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
@@ -21,6 +25,7 @@ type WithdrawalStatus = "created" | "awaiting_usdc" | "usdc_sent" | "paid" | "co
 interface WithdrawalRecord {
   id: string;
   status: WithdrawalStatus;
+  updatedAt: string;
   amountUsdc: string;
   quote: { tryOut: string; rate: string; spreadBps: number };
   memoId: string;
@@ -49,6 +54,9 @@ const FINAL: WithdrawalStatus[] = ["completed", "failed"];
 const QUOTE_TTL_MS = 120_000;
 /** A client step (simulation + passkey + relay) that takes longer than this becomes a retryable failure. */
 const STEP_TIMEOUT_MS = 120_000;
+const WITHDRAW_STEPS = ["created", "awaiting_usdc", "usdc_sent", "paid", "completed"] as const;
+/** Typical seconds per step from the production round trips of 9–10 September (confirm to lira 43–58 s in all). */
+const WITHDRAW_TYPICAL: Partial<Record<string, number>> = { created: 12, awaiting_usdc: 25, usdc_sent: 8, paid: 6 };
 
 /** Simulations and reads are safe to repeat; one automatic retry when the first attempt stalls. Signing is never retried here. */
 async function retryOnceOnTimeout<T>(run: () => Promise<T>): Promise<T> {
@@ -87,6 +95,7 @@ function Withdraw() {
   const { kit, address } = usePasskeyWallet();
   const { info } = useAnchorInfo();
   const { signAndSubmit } = useSignTransaction();
+  const { toast } = useToast();
   const usdcToken = info ? { contractId: info.usdc.contractId } : ("native" as const);
   const { policy } = useSpendingPolicy(usdcToken);
   const [view, setView] = useState<"loading" | "form" | "progress">("loading");
@@ -189,7 +198,10 @@ function Withdraw() {
     const id = setInterval(() => {
       api<WithdrawalRecord>(`/api/withdraw/${recordId}`)
         .then((next) => {
-          setRecord(next);
+          setRecord((current) => {
+            if (next.status === "completed" && current?.status !== "completed") toast({ title: t.withdraw.steps.completed, body: t.toast.withdrawDone, variant: "success", key: "withdraw" });
+            return next;
+          });
           setPollFailure(null);
         })
         .catch((err: unknown) => {
@@ -198,7 +210,7 @@ function Withdraw() {
         });
     }, 3000);
     return () => clearInterval(id);
-  }, [recordId, recordStatus]);
+  }, [recordId, recordStatus, toast, t]);
 
   // The browser's part: vault withdrawal, then the transfer to the landing account.
   const runClientSteps = useCallback(async () => {
@@ -310,13 +322,7 @@ function Withdraw() {
   const overBalance = position ? amountStroops > position.usdc : false;
   const amountValid = amountStroops >= 10_000_000n && !overBalance && !overLimit;
 
-  if (view === "loading") {
-    return (
-      <p className="py-16 text-center text-sm text-muted" role="status">
-        {t.savings.loading}
-      </p>
-    );
-  }
+  if (view === "loading") return <ScreenSkeleton />;
 
   if (view === "form") {
     return (
@@ -343,15 +349,21 @@ function Withdraw() {
           <label className="flex flex-col gap-2">
             <span className="font-semibold">{t.withdraw.lead}</span>
             <span className="microlabel">{t.withdraw.amountLabel}</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={1}
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="tnum rounded-xl border border-line bg-paper px-4 py-3 text-2xl font-semibold outline-none focus:border-teal"
-            />
+            <span className="relative block">
+              <input
+                type="number"
+                inputMode="decimal"
+                min={1}
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="field tnum pr-20 text-2xl font-semibold"
+                aria-invalid={amount !== "" && !amountValid ? "true" : "false"}
+              />
+              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted" aria-hidden>
+                USDC
+              </span>
+            </span>
           </label>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={() => position && setAmount(floor2(position.usdc))} className="btn-secondary min-h-9 px-3 text-sm" disabled={!position || position.usdc < 10_000_000n}>
@@ -379,8 +391,9 @@ function Withdraw() {
           ) : null}
           {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
           <p className="text-xs text-muted">{t.withdraw.payoutHint}</p>
-          <button type="submit" disabled={!amountValid || submitting || !address} className="btn-primary w-full text-lg">
-            {submitting ? t.savings.loading : t.withdraw.continue}
+          <button type="submit" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : "false"} className="btn-primary w-full text-lg">
+            {submitting ? <Spinner /> : null}
+            {submitting ? t.withdraw.preparing : t.withdraw.continue}
           </button>
         </form>
       </div>
@@ -422,7 +435,17 @@ function Withdraw() {
 
       <section className="card p-5" aria-label={t.deposit.statusTitle}>
         <p className="microlabel">{t.deposit.statusTitle}</p>
-        <p className="mt-2 text-base font-semibold" role="status" aria-live="polite" data-testid="withdraw-current">
+        <div className="mt-3">
+          <Stepper
+            testId="withdraw-status"
+            steps={WITHDRAW_STEPS.map((s, i): StepperStep => {
+              const idx = WITHDRAW_STEPS.indexOf(record.status as (typeof WITHDRAW_STEPS)[number]);
+              const state: StepperStep["state"] = record.status === "failed" ? (i === 0 ? "failed" : "idle") : i < idx ? "done" : i === idx ? (s === "completed" ? "done" : "current") : "idle";
+              return { key: s, label: t.withdraw.steps[s], owner: s === "completed" ? undefined : s === "created" || s === "awaiting_usdc" ? "you" : "us", state, since: state === "current" ? record.updatedAt : undefined, typicalSeconds: state === "current" ? WITHDRAW_TYPICAL[s] : undefined };
+            })}
+          />
+        </div>
+        <p className="mt-4 border-t border-line pt-3 text-sm font-semibold text-ink" role="status" aria-live="polite" data-testid="withdraw-current">
           {t.withdraw.steps[record.status]}
         </p>
         {record.status === "usdc_sent" || record.status === "paid" ? (
@@ -435,7 +458,8 @@ function Withdraw() {
           </p>
         ) : null}
         {clientLabel && record.status !== "completed" ? (
-          <p className="mt-1 text-sm text-ink-2" role="status">
+          <p className="mt-1 flex items-center gap-2 text-sm text-ink-2" role="status">
+            <Spinner className="text-teal" />
             {clientLabel}
           </p>
         ) : null}

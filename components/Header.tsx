@@ -11,9 +11,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-paper/90 backdrop-blur">
       <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-3">
-        <Link href={isConnected ? "/kumbara" : "/"} className="flex items-baseline gap-2">
+        <Link href={isConnected ? "/kumbara" : "/"} className="flex min-w-0 items-baseline gap-2">
           <span className="text-lg font-bold tracking-tight text-teal">{t.brand}</span>
-          <span className="text-xs text-muted">{t.bySembol}</span>
+          <span className="hidden whitespace-nowrap text-xs text-muted min-[400px]:inline">{t.bySembol}</span>
         </Link>
         <div className="flex items-center gap-2">
           <NetworkBadge />

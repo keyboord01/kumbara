@@ -66,7 +66,7 @@ async function runBoothFlow(reference) {
   log("  driver chip:", ((await admin.getByTestId("driver").textContent()) ?? "").trim());
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
   await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
-  await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
+  await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
   const bankAt = Date.now();
   log("  bank played:", ((await admin.locator("[role=status]").first().textContent()) ?? "").trim());
   // The second press must be refused with the server's reason (already paid), rendered in the console.
@@ -125,6 +125,7 @@ await cdp.send("WebAuthn.addVirtualAuthenticator", {
 });
 const consoleErrors = [];
 page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`));
+page.on("requestfailed", (r) => consoleErrors.push(`requestfailed ${r.failure()?.errorText ?? ""} ${r.url().slice(0, 120)}`));
 page.on("console", (m) => {
   if (m.type() === "error") consoleErrors.push(m.text().slice(0, 300));
   if (m.text().startsWith("[kumbara]")) log("  console:", m.text().slice(0, 300));
@@ -171,7 +172,7 @@ try {
   // Some anchors attach the bank details to the transaction a few seconds after the request; the page polls for them.
   let iban = "";
   for (let i = 0; i < 12 && !iban; i += 1) {
-    iban = ((await page.locator("dd .font-mono").first().textContent().catch(() => "")) ?? "").trim();
+    iban = ((await page.getByTestId("deposit-iban").first().textContent().catch(() => "")) ?? "").trim();
     if (!iban) await page.waitForTimeout(3000);
   }
   log("IBAN:", iban);
@@ -224,7 +225,7 @@ try {
     if (admin.url().includes("token=")) throw new Error("admin token was not removed from the URL");
     await admin.getByText(reference).first().waitFor({ timeout: 20000 });
     await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
-    await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
+    await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
     log("  admin page:", ((await admin.locator("[role=status]").first().textContent()) ?? "").trim());
     await admin.close();
   } else {

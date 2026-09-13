@@ -3,18 +3,13 @@
 import Link from "next/link";
 import { usePasskeyWallet } from "@sembol/passkey-react";
 import { useLocale } from "@/lib/i18n";
+import { ScreenSkeleton } from "./Skeleton";
 
 /** Gate for kumbara-only screens. */
 export function RequireWallet({ children }: { children: React.ReactNode }) {
   const { status, isConnected } = usePasskeyWallet();
   const { t } = useLocale();
-  if (status === "initializing") {
-    return (
-      <p className="py-16 text-center text-sm text-muted" role="status">
-        {t.savings.loading}
-      </p>
-    );
-  }
+  if (status === "initializing") return <ScreenSkeleton />;
   if (!isConnected) {
     return (
       <div className="card mx-auto flex max-w-md flex-col items-center gap-4 p-8 text-center">

@@ -7,6 +7,7 @@ import { usePasskeyWallet, useSigners, useSpendingPolicy, useWalletBalance } fro
 import { AddressCard } from "@/components/AddressCard";
 import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
+import { Skeleton } from "@/components/Skeleton";
 import { RequireWallet } from "@/components/RequireWallet";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { classifyError, type Failure } from "@/lib/failures";
@@ -81,6 +82,13 @@ function Savings() {
   const [setup, setSetup] = useState<SetupState>("idle");
   const [setupFailure, setSetupFailure] = useState<Failure | null>(null);
   const started = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   // The first policy read completes when isLoading has been true and drops back to false.
   const seenLoading = useRef(false);
   useEffect(() => {
@@ -94,7 +102,8 @@ function Savings() {
     try {
       await setLimit({ limit: DEFAULT_LIMIT_USDC, period: DEFAULT_LIMIT_PERIOD, token: { contractId: info.usdc.contractId } });
       setSetup("done");
-      router.replace("/kumbara");
+      // The install runs in the background; if the visitor already tapped Yükle, do not pull them back here.
+      if (mounted.current && window.location.pathname === "/kumbara") router.replace("/kumbara");
     } catch (err) {
       const classified = classifyError(err, "relay");
       console.error("[kumbara] spending limit install failed", classified.kind, classified.detail);
@@ -109,7 +118,7 @@ function Savings() {
     const kick = setTimeout(() => {
       if (policy) {
         setSetup("done");
-        router.replace("/kumbara");
+        if (window.location.pathname === "/kumbara") router.replace("/kumbara");
       } else {
         void install();
       }
@@ -131,7 +140,7 @@ function Savings() {
         <h1 className="text-3xl font-bold tracking-tight">{t.savings.title}</h1>
         <button
           type="button"
-          className="text-sm text-teal underline-offset-2 hover:underline"
+          className="btn-chip"
           onClick={() => {
             setEpoch((e) => e + 1);
             void refresh();
@@ -164,7 +173,7 @@ function Savings() {
           <NetworkBadge />
         </div>
         <p className="tnum mt-2 text-4xl font-bold text-ink">
-          {inVault === null ? t.savings.loading : `${formatUsdc(inVault, locale)} USDC`}
+          {inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}
         </p>
         <p className="tnum mt-1 text-sm text-ink-2">
           {t.savings.tryEquiv} {formatTry(tryValue(inVault), locale)}

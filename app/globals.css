@@ -1,13 +1,17 @@
 @import "tailwindcss";
 
 /*
- * Kumbara palette: warm cream paper, deep teal ink, coral accent for the one
- * action that matters on each screen. Mobile first; system fonts only.
+ * Kumbara palette: warm cream paper, deep teal ink, coral for the one action
+ * that matters on each screen. Mobile first; system fonts only. Everything
+ * below is the design constraint set: one type scale, one radius set, one
+ * motion budget, 44 px targets, focus that is always visible.
  */
 @theme {
   --color-paper: #fbf7f0;
   --color-paper-2: #f3ede2;
+  --color-paper-3: #ebe3d3;
   --color-line: #e3dccd;
+  --color-line-2: #d3cab6;
   --color-ink: #12313a;
   --color-ink-2: #3f5b63;
   --color-muted: #5a6b71;
@@ -20,6 +24,11 @@
   --color-danger: #b42318;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius-card: 20px;
+  --radius-control: 14px;
+  --shadow-card: 0 1px 2px rgba(18, 49, 58, 0.04), 0 6px 20px -12px rgba(18, 49, 58, 0.18);
+  --shadow-toast: 0 10px 30px -10px rgba(18, 49, 58, 0.35);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 html {
@@ -27,17 +36,52 @@ html {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
 }
 
 body {
   min-height: 100dvh;
   margin: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Type scale: display 34, title 26, heading 20, body 16, small 14, micro 11. Headings wrap on balance. */
+h1 {
+  text-wrap: balance;
+}
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+/* Focus is part of the design, never removed. */
+:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-teal) 55%, transparent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @utility card {
   background: #fff;
   border: 1px solid var(--color-line);
-  border-radius: 20px;
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+@utility card-flat {
+  background: #fff;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-card);
 }
 
 @utility btn-primary {
@@ -51,7 +95,10 @@ body {
   font-weight: 600;
   min-height: 3.25rem;
   padding: 0 1.5rem;
-  transition: background 120ms ease, transform 120ms ease;
+  transition:
+    background 120ms ease,
+    transform 120ms ease,
+    opacity 120ms ease;
   &:hover {
     background: var(--color-coral-2);
   }
@@ -59,8 +106,13 @@ body {
     transform: translateY(1px);
   }
   &:disabled {
-    opacity: 0.6;
-    cursor: wait;
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+  }
+  &[aria-busy="true"] {
+    cursor: progress;
+    opacity: 0.85;
   }
 }
 
@@ -70,14 +122,74 @@ body {
   justify-content: center;
   gap: 0.5rem;
   border-radius: 999px;
-  border: 1px solid var(--color-line);
+  border: 1px solid var(--color-line-2);
   background: #fff;
   color: var(--color-ink);
   font-weight: 600;
-  min-height: 3rem;
+  min-height: 2.75rem;
   padding: 0 1.25rem;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease,
+    opacity 120ms ease;
   &:hover {
     border-color: var(--color-teal);
+    background: var(--color-paper);
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  &[aria-busy="true"] {
+    cursor: progress;
+  }
+}
+
+/* Quiet, chip-sized secondary action: copy, refresh, explorer links. */
+@utility btn-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.5rem;
+  padding: 0 0.875rem;
+  border-radius: 999px;
+  border: 1px solid var(--color-line-2);
+  background: #fff;
+  color: var(--color-ink);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition:
+    border-color 120ms ease,
+    background 120ms ease;
+  &:hover {
+    border-color: var(--color-teal);
+    background: var(--color-paper);
+  }
+  &:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+}
+
+/* The one text field style: amount inputs and the admin token. */
+@utility field {
+  width: 100%;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--color-line-2);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  padding: 0.75rem 1rem;
+  outline: none;
+  transition:
+    border-color 120ms ease,
+    box-shadow 120ms ease;
+  &:focus {
+    border-color: var(--color-teal);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-teal) 15%, transparent);
+  }
+  &[aria-invalid="true"] {
+    border-color: var(--color-danger);
   }
 }
 
@@ -91,6 +203,89 @@ body {
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--color-muted);
+}
+
+/* Status chips: one shape, the colour says the state. */
+@utility chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  border-radius: 999px;
+  padding: 0.125rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+/* Loading placeholder: a soft shimmer on paper, never a spinner for content that has a shape. */
+@utility skeleton {
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  background: var(--color-paper-2);
+  color: transparent;
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.7) 50%, transparent 100%);
+    transform: translateX(-100%);
+    animation: kumbara-shimmer 1.4s infinite;
+  }
+}
+
+@keyframes kumbara-shimmer {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes kumbara-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-coral) 45%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+}
+
+@keyframes kumbara-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes kumbara-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* The current step's dot breathes; the spinner is the same ring everywhere. */
+@utility step-current {
+  animation: kumbara-pulse 1.8s var(--ease-out) infinite;
+}
+
+@utility spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  animation: kumbara-spin 0.8s linear infinite;
+  flex: none;
+}
+
+@utility toast-in {
+  animation: kumbara-toast-in 220ms var(--ease-out);
 }
 
 /* Sembol component theming: match the Kumbara palette. */

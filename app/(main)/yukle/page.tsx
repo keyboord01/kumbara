@@ -4,6 +4,10 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
 import { FailureScreen } from "@/components/FailureScreen";
+import { ScreenSkeleton } from "@/components/Skeleton";
+import { Spinner } from "@/components/Spinner";
+import { Stepper, type StepperStep } from "@/components/Stepper";
+import { useToast } from "@/components/Toaster";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
@@ -48,21 +52,26 @@ const STEP_TIMEOUT_MS = 120_000;
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 /** Steps the server (and the booth driver) takes on its own; the page can be closed during these. */
 const SERVER_STEPS = new Set(["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded"]);
+/** Typical wall-clock seconds per step, from the production round trips of 9–10 September (bank to vault 33–42 s in all). */
+const TYPICAL_SECONDS: Partial<Record<string, number>> = { transfer_received: 8, onramp_pending: 8, onramp_paid: 10, forwarded: 6, in_wallet: 14 };
 
 function CopyButton({ value, label, copiedLabel }: { value: string; label: string; copiedLabel: string }) {
   const [copied, setCopied] = useState(false);
+  const { toast } = useToast();
   return (
     <button
       type="button"
-      className="btn-secondary min-h-8 px-2.5 text-xs"
+      className="btn-chip"
+      aria-label={`${label}: ${value}`}
       onClick={() => {
         void navigator.clipboard?.writeText(value).then(() => {
           setCopied(true);
+          toast({ title: copiedLabel, body: value, variant: "success", key: "copy" });
           setTimeout(() => setCopied(false), 1500);
         });
       }}
     >
-      {copied ? copiedLabel : label}
+      {copied ? "✓" : label}
     </button>
   );
 }
@@ -80,6 +89,7 @@ function Deposit() {
   const { kit, address } = usePasskeyWallet();
   const { info } = useAnchorInfo();
   const { signAndSubmit } = useSignTransaction();
+  const { toast } = useToast();
   const [view, setView] = useState<"loading" | "form" | "waiting">("loading");
   const [amount, setAmount] = useState("100");
   const [record, setRecord] = useState<DepositRecord | null>(null);
@@ -201,13 +211,14 @@ function Deposit() {
       if (next.status === "in_wallet") throw new StepTimeoutError("the server did not record the vault deposit yet; tap to report it again");
       setRecord(next);
       setAutopilot("done");
+      toast({ title: t.deposit.steps.in_vault, body: t.toast.depositDone, variant: "success", key: "deposit" });
     } catch (err) {
       const classified = classifyError(err, "vault");
       console.error("[kumbara] vault deposit failed", classified.kind, classified.detail);
       setAutopilotFailure(classified);
       setAutopilot("needs_tap");
     }
-  }, [record, kit, info, address, signAndSubmit]);
+  }, [record, kit, info, address, signAndSubmit, toast, t]);
 
   useEffect(() => {
     if (recordStatus !== "in_wallet" || autopilotStarted.current || !kit || !info || !address) return;
@@ -272,13 +283,7 @@ function Deposit() {
   const numberLocale = locale === "tr" ? "tr-TR" : "en-US";
   const amountValid = Number.isFinite(amountNumber) && amountNumber >= minAmount && (maxAmount === null || amountNumber <= maxAmount) && !overTreasury;
 
-  if (view === "loading") {
-    return (
-      <p className="py-16 text-center text-sm text-muted" role="status">
-        {t.savings.loading}
-      </p>
-    );
-  }
+  if (view === "loading") return <ScreenSkeleton />;
 
   if (view === "form") {
     return (
@@ -299,21 +304,27 @@ function Deposit() {
           <label className="flex flex-col gap-2">
             <span className="font-semibold">{t.deposit.lead}</span>
             <span className="microlabel">{t.deposit.amountLabel}</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              min={minAmount}
-              max={maxAmount ?? undefined}
-              step="any"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="tnum rounded-xl border border-line bg-paper px-4 py-3 text-2xl font-semibold outline-none focus:border-teal"
-              aria-describedby="deposit-limits"
-            />
+            <span className="relative block">
+              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted" aria-hidden>
+                ₺
+              </span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min={minAmount}
+                max={maxAmount ?? undefined}
+                step="any"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                className="field tnum pl-10 text-2xl font-semibold"
+                aria-describedby="deposit-limits"
+                aria-invalid={amount !== "" && !amountValid ? "true" : "false"}
+              />
+            </span>
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2" role="group" aria-label={t.deposit.amountLabel}>
             {t.deposit.quick.map((q) => (
-              <button key={q} type="button" onClick={() => setAmount(String(q))} className="btn-secondary min-h-9 px-3 text-sm">
+              <button key={q} type="button" onClick={() => setAmount(String(q))} aria-pressed={amount === String(q)} className={`btn-chip ${amount === String(q) ? "border-teal bg-teal/10 text-teal" : ""}`}>
                 ₺{q.toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}
               </button>
             ))}
@@ -328,8 +339,9 @@ function Deposit() {
             </p>
           ) : null}
           {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
-          <button type="submit" disabled={!amountValid || submitting || !address} className="btn-primary w-full text-lg">
-            {submitting ? t.savings.loading : t.deposit.continue}
+          <button type="submit" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : "false"} className="btn-primary w-full text-lg">
+            {submitting ? <Spinner /> : null}
+            {submitting ? t.deposit.preparing : t.deposit.continue}
           </button>
         </form>
       </div>
@@ -405,12 +417,12 @@ function Deposit() {
               <dd className="text-right font-medium">{record.instructions.bankName}</dd>
               {!record.instructions.iban ? <dd className="col-span-2 text-sm text-muted" role="status">{t.deposit.instructionsPending}</dd> : null}
             </div>
-            <div className="flex items-start justify-between gap-3">
-              <dt className="text-muted">{t.deposit.iban}</dt>
-              <dd className="flex items-center gap-2 text-right">
-                <span className="tnum font-mono text-sm font-medium">{record.instructions.ibanFormatted}</span>
+            <div className="rounded-xl bg-paper-2 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="text-muted">{t.deposit.iban}</dt>
                 <CopyButton value={record.instructions.iban} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
-              </dd>
+              </div>
+              <dd className="tnum mt-1 font-mono text-sm font-semibold tracking-wide text-ink" data-testid="deposit-iban">{record.instructions.ibanFormatted}</dd>
             </div>
             <div className="flex items-start justify-between gap-3">
               <dt className="text-muted">{t.deposit.recipient}</dt>
@@ -420,13 +432,13 @@ function Deposit() {
               <dt className="text-muted">{t.deposit.amount}</dt>
               <dd className="tnum text-right font-medium">{formatTry(Number(record.amountTry), locale)}</dd>
             </div>
-            <div className="flex items-start justify-between gap-3 rounded-xl bg-teal/5 p-3">
-              <dt className="font-semibold text-teal">{t.deposit.description}</dt>
-              <dd className="flex items-center gap-2 text-right">
-                <span className="font-mono text-base font-bold" data-testid="deposit-reference">
-                  {record.instructions.reference}
-                </span>
+            <div className="rounded-xl border border-teal/30 bg-teal/5 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <dt className="font-semibold text-teal">{t.deposit.description}</dt>
                 <CopyButton value={record.instructions.reference} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+              </div>
+              <dd className="mt-1 font-mono text-2xl font-bold tracking-wide text-ink" data-testid="deposit-reference">
+                {record.instructions.reference}
               </dd>
             </div>
           </dl>
@@ -437,22 +449,18 @@ function Deposit() {
 
       <section className="card p-5" aria-label={t.deposit.statusTitle}>
         <p className="microlabel">{t.deposit.statusTitle}</p>
-        <ol className="mt-3 flex flex-col gap-2" data-testid="deposit-status">
-          {STEP_ORDER.filter((s) => ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"].includes(s)).map((s) => {
-            const idx = STEP_ORDER.indexOf(s);
-            const state = record.status === "failed" ? "idle" : idx < currentIndex ? "done" : idx === currentIndex || (s === "in_wallet" && record.status === "in_wallet") ? "current" : "idle";
-            const active = record.status === s || (s === "transfer_received" && ["onramp_pending"].includes(record.status)) || (s === "onramp_paid" && record.status === "forwarded");
-            const yours = s === "in_wallet";
-            return (
-              <li key={s} className={`flex items-center gap-3 text-sm ${state === "done" ? "text-mint" : active || state === "current" ? "font-semibold text-ink" : "text-muted"}`}>
-                <span className={`h-2.5 w-2.5 rounded-full ${state === "done" ? "bg-mint" : active || state === "current" ? "bg-coral" : "bg-line"}`} aria-hidden />
-                <span className="flex-1">{t.deposit.steps[s]}</span>
-                {s !== "in_vault" ? <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${yours ? "bg-amber/15 text-amber" : "bg-paper-2 text-muted"}`}>{yours ? t.deposit.stepTagYou : t.deposit.stepTagUs}</span> : null}
-              </li>
-            );
-          })}
-        </ol>
-        <p className="mt-3 text-base font-semibold" role="status" aria-live="polite" data-testid="deposit-current">
+        <div className="mt-3">
+          <Stepper
+            testId="deposit-status"
+            steps={STEP_ORDER.filter((s) => ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"].includes(s)).map((s): StepperStep => {
+              const idx = STEP_ORDER.indexOf(s);
+              const active = record.status === s || (s === "transfer_received" && record.status === "onramp_pending") || (s === "onramp_paid" && record.status === "forwarded");
+              const state: StepperStep["state"] = record.status === "failed" ? (idx < currentIndex ? "done" : idx === currentIndex ? "failed" : "idle") : idx < currentIndex && !active ? "done" : active || idx === currentIndex ? (s === "in_vault" ? "done" : "current") : "idle";
+              return { key: s, label: t.deposit.steps[s], owner: s === "in_vault" ? undefined : s === "in_wallet" ? "you" : "us", state, since: state === "current" ? record.updatedAt : undefined, typicalSeconds: state === "current" ? TYPICAL_SECONDS[record.status] : undefined };
+            })}
+          />
+        </div>
+        <p className="mt-4 border-t border-line pt-3 text-sm font-semibold text-ink" role="status" aria-live="polite" data-testid="deposit-current">
           {t.deposit.steps[record.status]}
         </p>
         {SERVER_STEPS.has(record.status) ? (
@@ -470,7 +478,8 @@ function Deposit() {
           </p>
         ) : null}
         {record.status === "in_wallet" && autopilot === "signing" ? (
-          <p className="mt-2 text-sm text-ink-2" role="status">
+          <p className="mt-2 flex items-center gap-2 text-sm text-ink-2" role="status">
+            <Spinner className="text-teal" />
             {t.deposit.autopilotSigning}
           </p>
         ) : null}

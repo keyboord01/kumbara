@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toSembolError, usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
+import { Spinner } from "@/components/Spinner";
+import { useToast } from "@/components/Toaster";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { StepTimeoutError, withTimeout } from "@/lib/failures";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL } from "@/lib/config";
@@ -114,6 +116,7 @@ export default function BoothAdminPage() {
   const { kit, address, createWallet, disconnect } = usePasskeyWallet();
   const { info } = useAnchorInfo();
   const { signAndSubmit } = useSignTransaction();
+  const { toast } = useToast();
   const [token, setToken] = useState("");
   const [pending, setPending] = useState<Pending[] | null>(null);
   const [stuck, setStuck] = useState<Stuck[]>([]);
@@ -235,9 +238,10 @@ export default function BoothAdminPage() {
 
   useEffect(() => {
     if (!reconnected) return;
+    toast({ title: t.toast.reconnected, body: t.admin.reconnected, variant: "success", key: "net" });
     const id = setTimeout(() => setReconnected(false), 8_000);
     return () => clearTimeout(id);
-  }, [reconnected]);
+  }, [reconnected, toast, t]);
 
   useEffect(() => {
     if (!token) return;
@@ -254,6 +258,7 @@ export default function BoothAdminPage() {
       const body = (await res.json()) as { active?: string } & ApiErrorBody;
       if (!res.ok || !body.active) throw new Error(reason(res, body));
       setAnchorNote(`${t.admin.anchorSwitched}: ${body.active}`);
+      toast({ title: t.toast.anchorSwitched, body: body.active, variant: "success", key: "anchor" });
       await load();
     } catch (err) {
       setAnchorNote(err instanceof Error ? err.message : String(err));
@@ -271,9 +276,12 @@ export default function BoothAdminPage() {
       const body = (await res.json()) as PlayResult & ApiErrorBody;
       if (!res.ok) throw new Error(reason(res, body));
       setResult(body);
+      toast({ title: t.toast.bankPlayed, body: `₺${body.amountTry} · ${body.reference} · ${body.transferStatus}`, variant: "success", key: "bank" });
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const message = err instanceof Error ? err.message : String(err);
+      setError(message);
+      toast({ title: t.admin.reasonLabel, body: message, variant: "error", key: "reason" });
     } finally {
       setBusy("");
     }
@@ -320,6 +328,7 @@ export default function BoothAdminPage() {
       const body = (await res.json()) as { merged?: number; skipped?: number; examined?: number; items?: Array<{ id: string; action: string; note?: string }> } & ApiErrorBody;
       if (!res.ok) throw new Error(reason(res, body));
       setSweepNote(`${t.admin.sweepDone}: ${body.merged ?? 0} ${t.admin.sweepMerged}, ${body.skipped ?? 0} ${t.admin.sweepSkipped} (${body.examined ?? 0} ${t.admin.sweepExamined})`);
+      toast({ title: t.toast.sweepDone, body: `${body.merged ?? 0} ${t.admin.sweepMerged} · ${body.skipped ?? 0} ${t.admin.sweepSkipped}`, variant: body.merged ? "success" : "info", key: "sweep" });
       await load();
     } catch (err) {
       setSweepNote(`${t.admin.reasonLabel}: ${err instanceof Error ? err.message : String(err)}`);
@@ -440,7 +449,7 @@ export default function BoothAdminPage() {
         >
           <label className="flex flex-col gap-1 text-sm">
             <span className="microlabel">{t.admin.tokenLabel}</span>
-            <input name="token" type="password" autoComplete="off" className="rounded-xl border border-line bg-paper px-3 py-2 font-mono" />
+            <input name="token" type="password" autoComplete="off" className="field font-mono" />
           </label>
           <button type="submit" className="btn-secondary">
             {t.admin.tokenSubmit}
@@ -498,16 +507,50 @@ export default function BoothAdminPage() {
             </p>
           </section>
 
+          <section className="card flex flex-col gap-4 p-5" aria-live="polite" aria-label={t.admin.pending}>
+            <div>
+              <p className="microlabel">{t.admin.newest}</p>
+              {pending === null ? (
+                <p className="mt-1 text-sm text-muted">{t.savings.loading}</p>
+              ) : newest ? (
+                <div className="mt-1">
+                  <p className="font-mono text-2xl font-bold tracking-tight text-ink">{newest.reference}</p>
+                  <p className="tnum mt-1 text-sm text-ink-2">
+                    ₺{newest.amountTry} · {newest.contractId.slice(0, 6)}…{newest.contractId.slice(-4)} · {new Date(newest.createdAt).toLocaleTimeString()}
+                  </p>
+                  {pending.length > 1 && (
+                    <p className="text-xs text-muted">
+                      +{pending.length - 1} {t.admin.more}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-1 text-sm text-muted">{t.admin.none}</p>
+              )}
+            </div>
+            <button type="button" onClick={() => void play()} disabled={busy !== "" || !newest} aria-busy={busy === "play" ? "true" : "false"} className="btn-primary w-full text-lg">
+              {busy === "play" ? <Spinner /> : null}
+              {t.admin.play}
+            </button>
+            {result && (
+              <p className="rounded-xl bg-mint/10 p-3 text-sm text-mint" role="status">
+                {t.admin.played} ₺{result.amountTry} · {result.reference} · {result.transferStatus}
+              </p>
+            )}
+          </section>
+
           <section className="card p-5" aria-label={t.admin.health}>
             <p className="microlabel">{t.admin.health}</p>
-            <ul className="mt-3 grid grid-cols-2 gap-2 text-sm" data-testid="health-dots">
+            <ul className="mt-3 flex flex-wrap gap-2 text-sm" data-testid="health-dots">
               {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
                 const dep = deps?.[name];
                 return (
-                  <li key={name} className="flex items-center gap-2" title={dep?.detail ?? ""}>
-                    <span role="img" className={`h-3 w-3 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
-                    <span className="font-medium">{t.admin.healthNames[name]}</span>
-                    {dep && <span className="tnum text-xs text-muted">{dep.ms} ms</span>}
+                  <li key={name} className={`chip justify-between border ${dep ? (dep.ok ? "border-mint/30 bg-mint/10 text-ink" : "border-danger/30 bg-danger/10 text-ink") : "border-line bg-paper-2 text-muted"}`} title={dep?.detail ?? ""}>
+                    <span className="flex items-center gap-2">
+                      <span role="img" className={`h-2.5 w-2.5 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line-2"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                      {t.admin.healthNames[name]}
+                    </span>
+                    {dep ? <span className="tnum text-[11px] font-normal text-muted">{dep.ms} ms</span> : <Spinner className="h-3 w-3 text-muted" />}
                   </li>
                 );
               })}
@@ -560,18 +603,20 @@ export default function BoothAdminPage() {
                 </p>
                 <p className="mt-1 break-all font-mono text-xs text-muted">{sponsor.publicKey}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <a href={`${EXPLORER_BASE}/account/${sponsor.publicKey}`} target="_blank" rel="noreferrer" className="btn-secondary min-h-9 px-3 text-xs">
+                  <a href={`${EXPLORER_BASE}/account/${sponsor.publicKey}`} target="_blank" rel="noreferrer" className="btn-chip">
                     stellar.expert · {NETWORK_LABEL}
                   </a>
                   {NETWORK === "testnet" ? (
-                    <button type="button" onClick={() => void fund()} disabled={busy !== ""} className="btn-secondary min-h-9 px-3 text-xs">
-                      {busy === "fund" ? t.savings.loading : t.admin.sponsorFund}
+                    <button type="button" onClick={() => void fund()} disabled={busy !== ""} aria-busy={busy === "fund" ? "true" : "false"} className="btn-chip">
+                      {busy === "fund" ? <Spinner /> : null}
+                      {t.admin.sponsorFund}
                     </button>
                   ) : (
                     <span className="text-xs text-muted">{t.admin.sponsorFundHint}</span>
                   )}
-                  <button type="button" onClick={() => void sweep()} disabled={busy !== ""} className="btn-secondary min-h-9 px-3 text-xs" data-testid="sweep">
-                    {busy === "sweep" ? t.savings.loading : t.admin.sweep}
+                  <button type="button" onClick={() => void sweep()} disabled={busy !== ""} aria-busy={busy === "sweep" ? "true" : "false"} className="btn-chip" data-testid="sweep">
+                    {busy === "sweep" ? <Spinner /> : null}
+                    {t.admin.sweep}
                   </button>
                 </div>
                 {sweepNote ? <p className="mt-2 text-xs" role="status" data-testid="sweep-note">{sweepNote}</p> : null}
@@ -581,36 +626,6 @@ export default function BoothAdminPage() {
             )}
           </section>
 
-          <section className="card flex flex-col gap-4 p-5" aria-live="polite" aria-label={t.admin.pending}>
-            <div>
-              <p className="microlabel">{t.admin.newest}</p>
-              {pending === null ? (
-                <p className="mt-1 text-sm text-muted">{t.savings.loading}</p>
-              ) : newest ? (
-                <div className="mt-1 text-sm">
-                  <p className="font-mono font-semibold">{newest.reference}</p>
-                  <p className="tnum text-ink-2">
-                    ₺{newest.amountTry} · {newest.contractId.slice(0, 6)}…{newest.contractId.slice(-4)} · {new Date(newest.createdAt).toLocaleTimeString()}
-                  </p>
-                  {pending.length > 1 && (
-                    <p className="text-xs text-muted">
-                      +{pending.length - 1} {t.admin.more}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-1 text-sm text-muted">{t.admin.none}</p>
-              )}
-            </div>
-            <button type="button" onClick={() => void play()} disabled={busy !== "" || !newest} className="btn-primary w-full text-lg">
-              {busy === "play" ? t.savings.loading : t.admin.play}
-            </button>
-            {result && (
-              <p className="rounded-xl bg-mint/10 p-3 text-sm text-mint" role="status">
-                {t.admin.played} ₺{result.amountTry} · {result.reference} · {result.transferStatus}
-              </p>
-            )}
-          </section>
 
           {stuck.length > 0 && (
             <section className="card flex flex-col gap-3 p-5" aria-label={t.admin.stuck}>
@@ -632,7 +647,7 @@ export default function BoothAdminPage() {
                       ) : null}
                     </div>
                     {(d.status === "abandoned" || d.status === "failed") && (
-                      <button type="button" onClick={() => void resume(d.id)} disabled={busy !== ""} className="btn-secondary min-h-9 px-3 text-xs">
+                      <button type="button" onClick={() => void resume(d.id)} disabled={busy !== ""} className="btn-chip">
                         {t.admin.resume}
                       </button>
                     )}
@@ -650,7 +665,8 @@ export default function BoothAdminPage() {
           <section className="card flex flex-col gap-3 p-5" aria-label={t.admin.seed}>
             <p className="microlabel">{t.admin.seed}</p>
             <p className="text-sm text-ink-2">{t.admin.seedHint}</p>
-            <button type="button" onClick={() => void seedDemo()} disabled={busy !== "" || !info || (seed !== null && seed.stage !== "done" && seed.stage !== "error")} className="btn-secondary">
+            <button type="button" onClick={() => void seedDemo()} disabled={busy !== "" || !info || (seed !== null && seed.stage !== "done" && seed.stage !== "error")} aria-busy={busy === "seed" || (seed && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap") ? "true" : "false"} className="btn-secondary">
+              {busy === "seed" || (seed && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap") ? <Spinner /> : null}
               {busy === "seed" || (seed && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap") ? t.admin.seedRunning : t.admin.seed}
             </button>
             {seed && (

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCreateWallet, usePasskeyWallet } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
 import { FailureScreen } from "@/components/FailureScreen";
+import { Spinner } from "@/components/Spinner";
 import { classifyError, type Failure } from "@/lib/failures";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -91,7 +92,8 @@ export default function OnboardPage() {
           </p>
         ) : busy ? (
           <div className="flex flex-col gap-3">
-            <button type="button" disabled className="btn-primary w-full text-lg" aria-busy>
+            <button type="button" disabled className="btn-primary w-full text-lg" aria-busy="true">
+              <Spinner />
               {phaseLabel}
             </button>
             <p className="text-center text-sm text-muted" role="status" aria-live="polite">
@@ -136,10 +138,10 @@ export default function OnboardPage() {
         )}
       </section>
 
-      <ol className="grid gap-3 sm:grid-cols-2">
+      <ol className="card-flat flex flex-col overflow-hidden">
         {t.onboard.steps.map((step, i) => (
-          <li key={step} className="card flex items-start gap-3 p-4 text-sm text-ink-2">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal/10 font-semibold text-teal">{i + 1}</span>
+          <li key={step} className="flex items-center gap-3 px-4 py-3 text-sm text-ink-2 first:rounded-t-[var(--radius-card)] last:rounded-b-[var(--radius-card)] not-last:border-b not-last:border-line">
+            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal/10 text-xs font-bold text-teal">{i + 1}</span>
             <span>{step}</span>
           </li>
         ))}

@@ -31,7 +31,7 @@ async function playBank(reference) {
   await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
   await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
-  await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
+  await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
   await admin.close();
   return "admin page";
 }

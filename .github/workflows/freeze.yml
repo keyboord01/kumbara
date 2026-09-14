@@ -1,0 +1,32 @@
+# Code freeze guard: from the date in CODE_FREEZE, a push to main that changes
+# application code must carry a "hotfix:" subject. Docs, scripts, workflows and
+# the freeze file itself stay open. Delete CODE_FREEZE to lift the freeze.
+name: Freeze
+on:
+  push:
+    branches: [main]
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the freeze
+        env:
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        run: |
+          [ -f CODE_FREEZE ] || { echo "no freeze"; exit 0; }
+          since=$(head -1 CODE_FREEZE)
+          today=$(date -u +%F)
+          if [ "$today" \< "$since" ]; then echo "freeze starts $since (today $today)"; exit 0; fi
+          git cat-file -e "$BEFORE" 2>/dev/null || BEFORE=$(git rev-parse "$SHA~1")
+          changed=$(git diff --name-only "$BEFORE" "$SHA" | grep -Ev '^(docs/|scripts/|\.github/|CODE_FREEZE$|.*\.md$)' || true)
+          subject=$(git log -1 --format=%s "$SHA")
+          if [ -n "$changed" ] && ! printf '%s' "$subject" | grep -qi '^hotfix:'; then
+            echo "Frozen since $since. Application code changed without a hotfix subject:"
+            echo "$changed"
+            exit 1
+          fi
+          echo "ok: ${changed:-docs, scripts or workflows only}"

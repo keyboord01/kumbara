@@ -6,6 +6,8 @@
 
 Scale Track entry for the Rise In × Stellar Pro Hackathon (Istanbul, 19–20 September 2026) and the traction exhibit for a Stellar Community Fund Build Award (Integration Track) submission.
 
+**Code freeze:** frozen from 16 September 2026 for the hackathon demo (`CODE_FREEZE`); only `hotfix:` commits change application code until then. See `docs/booth-runbook.md`.
+
 ## What Kumbara is
 
 A Next.js web app. A user opens it on their phone, taps their passkey (Face ID, Touch ID or a password manager), and gets an OpenZeppelin smart account on Stellar with the passkey as its only signer. They deposit lira through a SEP-compliant anchor, receive USDC in that account, the USDC goes into a DeFindex vault, and they can withdraw back to lira through the same anchor. Fees are sponsored by Sembol Cloud, so the user never sees XLM.

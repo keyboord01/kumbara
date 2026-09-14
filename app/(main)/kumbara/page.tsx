@@ -220,9 +220,14 @@ function Savings() {
           <p className="microlabel">{t.savings.recovery}</p>
           <p className={`mt-1 font-semibold ${backupCount > 0 ? "text-mint" : "text-amber"}`}>{backupCount > 0 ? t.savings.recoveryOk : t.savings.recoveryMissing}</p>
           <p className="mt-1 text-xs text-muted">{t.savings.recoveryHint}</p>
-          <Link href="/kumbara/guvenlik" className="mt-3 inline-block text-sm text-teal hover:underline">
-            {t.savings.manage} →
-          </Link>
+          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+            <Link href="/kumbara/guvenlik" className="text-sm text-teal hover:underline">
+              {t.savings.manage} →
+            </Link>
+            <Link href="/kumbara/kanit" className="text-sm text-teal hover:underline" data-testid="proof-link">
+              {t.savings.proofLink} →
+            </Link>
+          </div>
         </div>
         <div className="card p-4" data-testid="limit-card">
           <p className="microlabel">{t.savings.limit}</p>

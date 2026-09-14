@@ -22,6 +22,7 @@
     "demo:deposit": "node --env-file=.env --import tsx scripts/demo-deposit.ts",
     "e2e:recover": "node --env-file=.env scripts/e2e-recover.mjs",
     "e2e:proof": "node --env-file=.env scripts/e2e-proof.mjs",
+    "e2e:goal": "node --env-file=.env scripts/e2e-goal.mjs",
     "e2e:deposit": "node --env-file=.env scripts/e2e-deposit.mjs",
     "e2e:leave": "E2E_LEAVE_AFTER_IBAN=1 node --env-file=.env scripts/e2e-deposit.mjs",
     "e2e:withdraw": "node --env-file=.env scripts/e2e-withdraw.mjs",
@@ -29,7 +30,7 @@
     "e2e:booth": "node --env-file=.env scripts/e2e-booth.mjs",
     "e2e:stats": "node scripts/e2e-stats.mjs",
     "e2e:failures": "node scripts/e2e-failures.mjs",
-    "e2e:all": "pnpm e2e:onboard && pnpm e2e:recover && pnpm e2e:proof && pnpm e2e:deposit && pnpm e2e:leave && pnpm e2e:withdraw && pnpm e2e:booth && pnpm e2e:stats && pnpm e2e:failures",
+    "e2e:all": "pnpm e2e:onboard && pnpm e2e:recover && pnpm e2e:proof && pnpm e2e:goal && pnpm e2e:deposit && pnpm e2e:leave && pnpm e2e:withdraw && pnpm e2e:booth && pnpm e2e:stats && pnpm e2e:failures",
     "demo:record": "node --env-file=.env scripts/demo-record.mjs"
   },
   "devDependencies": {

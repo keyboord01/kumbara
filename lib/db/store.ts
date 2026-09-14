@@ -72,6 +72,12 @@ const SCHEMA = [
      verified INTEGER NOT NULL,
      created_at TEXT NOT NULL
    )`,
+  `CREATE TABLE IF NOT EXISTS profiles (
+     contract_id TEXT PRIMARY KEY,
+     name TEXT NOT NULL,
+     goal_usdc TEXT,
+     updated_at TEXT NOT NULL
+   )`,
   `CREATE TABLE IF NOT EXISTS kv (
      key TEXT PRIMARY KEY,
      json TEXT NOT NULL,
@@ -356,4 +362,33 @@ export async function lookupCredential(saltHex: string): Promise<CredentialRow |
   const row = res.rows[0];
   if (!row) return null;
   return { saltHex: String(row.salt_hex), contractId: String(row.contract_id), kind: String(row.kind) as "primary" | "backup", verified: Number(row.verified) === 1, createdAt: String(row.created_at) };
+}
+
+// ---------------------------------------------------------------------------
+// Kumbara profiles: a nickname and a savings goal per contract. No personal
+// data: the name is the kumbara's, not the person's (the form says so), and
+// writes must come with the passkey credential the registry maps to the contract.
+// ---------------------------------------------------------------------------
+
+export interface ProfileRow {
+  contractId: string;
+  name: string;
+  goalUsdc: string | null;
+  updatedAt: string;
+}
+
+export async function getProfile(contractId: string): Promise<ProfileRow | null> {
+  const res = await (await db()).execute({ sql: "SELECT contract_id, name, goal_usdc, updated_at FROM profiles WHERE contract_id = ?", args: [contractId] });
+  const row = res.rows[0];
+  if (!row) return null;
+  return { contractId: String(row.contract_id), name: String(row.name), goalUsdc: row.goal_usdc === null || row.goal_usdc === undefined ? null : String(row.goal_usdc), updatedAt: String(row.updated_at) };
+}
+
+export async function setProfile(contractId: string, name: string, goalUsdc: string | null): Promise<ProfileRow> {
+  const updatedAt = new Date().toISOString();
+  await (await db()).execute({
+    sql: "INSERT INTO profiles (contract_id, name, goal_usdc, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(contract_id) DO UPDATE SET name = excluded.name, goal_usdc = excluded.goal_usdc, updated_at = excluded.updated_at",
+    args: [contractId, name, goalUsdc, updatedAt],
+  });
+  return { contractId, name, goalUsdc, updatedAt };
 }

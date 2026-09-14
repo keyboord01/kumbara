@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePasskeyWallet, useSigners, useSpendingPolicy, useWalletBalance } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
+import { GoalCard } from "@/components/GoalCard";
 import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { Skeleton } from "@/components/Skeleton";
@@ -199,6 +200,8 @@ function Savings() {
           </Link>
         </div>
       </section>
+
+      <GoalCard inVault={inVault} />
 
       <section className="card p-5" aria-label={t.savings.vault}>
         <div className="flex items-center justify-between gap-2">

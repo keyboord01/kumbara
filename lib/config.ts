@@ -28,6 +28,9 @@ export const sembolConfig: SembolConfig = {
   // Same-origin route; the browser never sees the relay URL or the project key.
   relayerUrl: "/api/relay",
   appName: "Kumbara",
+  // No third-party indexer: the kit's default (Mercury) no longer resolves. A kumbara's address derives from the
+  // passkey's credential id, and Kumbara's own registry (/api/registry) covers backup passkeys.
+  indexerUrl: false,
   ...(WEBAUTHN_RP_ID ? { rpId: WEBAUTHN_RP_ID } : {}),
   webAuthnHints: ["client-device", "hybrid"],
 };

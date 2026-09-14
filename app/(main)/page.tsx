@@ -7,6 +7,7 @@ import { useCreateWallet, usePasskeyWallet } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
 import { FailureScreen } from "@/components/FailureScreen";
 import { Spinner } from "@/components/Spinner";
+import { api } from "@/lib/api";
 import { classifyError, type Failure } from "@/lib/failures";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -67,6 +68,22 @@ export default function OnboardPage() {
       setStage("done");
       router.push("/kumbara");
     } catch (err) {
+      // The address derived from this passkey holds no kumbara: a backup passkey enrolled later. Kumbara's own
+      // registry may know which kumbara it belongs to (the primary passkey never needs this: its address derives).
+      const credentialId = /for credential ([A-Za-z0-9_-]+)/.exec(err instanceof Error ? err.message : String(err))?.[1];
+      if (credentialId) {
+        try {
+          const found = await api<{ contractId: string }>(`/api/registry?credential=${encodeURIComponent(credentialId)}`);
+          const wallet = await connect({ credentialId, contractId: found.contractId });
+          if (wallet) {
+            setStage("done");
+            router.push("/kumbara");
+            return;
+          }
+        } catch (lookupErr) {
+          console.info("[kumbara] registry lookup did not resolve this passkey", lookupErr instanceof Error ? lookupErr.message : String(lookupErr));
+        }
+      }
       const classified = classifyError(err, "passkey");
       console.error("[kumbara] connect failed", classified.kind, classified.detail);
       setFailure(classified);

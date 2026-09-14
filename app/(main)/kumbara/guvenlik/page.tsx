@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { AddSignerButton, RecoverySetup, SignerList, SpendingPolicyForm } from "@sembol/passkey-react";
+import { AddSignerButton, RecoverySetup, SignerList, SpendingPolicyForm, usePasskeyWallet } from "@sembol/passkey-react";
 import { RequireWallet } from "@/components/RequireWallet";
 import { useLocale } from "@/lib/i18n";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -9,6 +9,7 @@ import { useAnchorInfo } from "@/lib/useAnchorInfo";
 /** Recovery and spending-limit management, straight from @sembol/passkey-react. */
 function Security() {
   const { t } = useLocale();
+  const { address } = usePasskeyWallet();
   const { info } = useAnchorInfo();
   return (
     <div className="flex flex-col gap-5 py-2">
@@ -30,7 +31,13 @@ function Security() {
         <h2 className="font-semibold">{t.security.recovery}</h2>
         <p className="mt-1 text-sm text-ink-2">{t.security.recoveryHint}</p>
         <div className="mt-4">
-          <RecoverySetup />
+          <RecoverySetup
+            onEnrolled={(result) => {
+              // A backup passkey cannot derive the kumbara's address; remember which kumbara it opens.
+              const credentialId = (result as { credentialId?: string } | undefined)?.credentialId;
+              if (credentialId && address) void fetch("/api/registry", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ credentialId, contractId: address }) }).catch(() => undefined);
+            }}
+          />
         </div>
       </section>
       <section className="card p-5" aria-label={t.security.limit}>

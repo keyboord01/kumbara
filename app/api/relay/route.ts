@@ -13,6 +13,7 @@ import { boothRef, readCookie } from "@/lib/cookies.server";
 import { networkPassphrase, serverEnv } from "@/lib/env.server";
 import { sponsorStatus } from "@/lib/landing.server";
 import { recordEvent } from "@/lib/metrics.server";
+import { registerCredential } from "@/lib/store.server";
 import { guardAccountCreation, guardRelayCall } from "@/lib/ratelimit.server";
 import { relayForward } from "@/lib/relay.server";
 
@@ -34,8 +35,8 @@ function sameOrigin(request: Request): boolean {
   }
 }
 
-/** Contract address a createContractV2 host function will deploy to. */
-function deployedContractId(funcXdr: string): string | null {
+/** Contract address a createContractV2 host function will deploy to, and the salt it was derived from (the kit uses sha256 of the passkey credential id). */
+function deployedContract(funcXdr: string): { contractId: string; saltHex: string } | null {
   try {
     const func = xdr.HostFunction.fromXDR(funcXdr, "base64");
     if (func.switch().name !== "hostFunctionTypeCreateContractV2") return null;
@@ -44,10 +45,14 @@ function deployedContractId(funcXdr: string): string | null {
     const hashPreimage = xdr.HashIdPreimage.envelopeTypeContractId(
       new xdr.HashIdPreimageContractId({ networkId: hash(Buffer.from(networkPassphrase())), contractIdPreimage: preimage }),
     );
-    return StrKey.encodeContract(hash(hashPreimage.toXDR()));
+    return { contractId: StrKey.encodeContract(hash(hashPreimage.toXDR())), saltHex: Buffer.from(preimage.fromAddress().salt()).toString("hex") };
   } catch {
     return null;
   }
+}
+
+function deployedContractId(funcXdr: string): string | null {
+  return deployedContract(funcXdr)?.contractId ?? null;
 }
 
 function invokedContract(funcXdr: string): string | null {
@@ -139,6 +144,10 @@ export async function POST(request: Request): Promise<Response> {
         ? { type: "account_created", ts: Date.now(), network, projectId, ref, contractId: deployingContract, hash: txHash, tapToConfirmMs }
         : { type: "relayed_tx", ts: Date.now(), network, projectId, ref, hash: txHash, contract: invokedContract(func) },
     );
+    // The credential registry: the salt in the preimage is sha256 of the passkey's credential id, so this
+    // mapping comes from the deployment itself and needs nothing from the client.
+    const deployed = deployingContract ? deployedContract(func) : null;
+    if (deployed) await registerCredential(deployed.saltHex, deployed.contractId, "primary", true).catch((err: unknown) => console.warn(`[kumbara] registry write failed: ${err instanceof Error ? err.message : String(err)}`));
   }
   return new NextResponse(json ? JSON.stringify(json) : JSON.stringify({ success: false, error: text.slice(0, 300) }), {
     status: status >= 200 && status < 300 ? 200 : status,

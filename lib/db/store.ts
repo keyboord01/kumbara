@@ -65,6 +65,13 @@ const SCHEMA = [
      ts INTEGER NOT NULL
    )`,
   `CREATE INDEX IF NOT EXISTS ratelimit_bucket_ts ON ratelimit_hits(bucket, ts)`,
+  `CREATE TABLE IF NOT EXISTS credentials (
+     salt_hex TEXT PRIMARY KEY,
+     contract_id TEXT NOT NULL,
+     kind TEXT NOT NULL,
+     verified INTEGER NOT NULL,
+     created_at TEXT NOT NULL
+   )`,
   `CREATE TABLE IF NOT EXISTS kv (
      key TEXT PRIMARY KEY,
      json TEXT NOT NULL,
@@ -314,4 +321,39 @@ export function newId(prefix: string): string {
   let out = "";
   for (let i = 0; i < 16; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
   return `${prefix}_${out}`;
+}
+
+// ---------------------------------------------------------------------------
+// Credential registry: sha256(passkey credential id) → kumbara contract. Written
+// by the relay when a deployment confirms (verified), or by the browser after a
+// backup passkey is enrolled (unverified). No personal data: the key is the hash
+// of a random WebAuthn credential id.
+// ---------------------------------------------------------------------------
+
+export interface CredentialRow {
+  saltHex: string;
+  contractId: string;
+  kind: "primary" | "backup";
+  verified: boolean;
+  createdAt: string;
+}
+
+export async function registerCredential(saltHex: string, contractId: string, kind: "primary" | "backup", verified: boolean): Promise<CredentialRow> {
+  const conn = await db();
+  const existing = await lookupCredential(saltHex);
+  // A verified mapping (from a confirmed deployment) is never replaced by an unverified one.
+  if (existing?.verified && !verified) return existing;
+  const createdAt = existing?.createdAt ?? new Date().toISOString();
+  await conn.execute({
+    sql: "INSERT INTO credentials (salt_hex, contract_id, kind, verified, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(salt_hex) DO UPDATE SET contract_id = excluded.contract_id, kind = excluded.kind, verified = excluded.verified",
+    args: [saltHex, contractId, kind, verified ? 1 : 0, createdAt],
+  });
+  return { saltHex, contractId, kind, verified, createdAt };
+}
+
+export async function lookupCredential(saltHex: string): Promise<CredentialRow | null> {
+  const res = await (await db()).execute({ sql: "SELECT salt_hex, contract_id, kind, verified, created_at FROM credentials WHERE salt_hex = ?", args: [saltHex] });
+  const row = res.rows[0];
+  if (!row) return null;
+  return { saltHex: String(row.salt_hex), contractId: String(row.contract_id), kind: String(row.kind) as "primary" | "backup", verified: Number(row.verified) === 1, createdAt: String(row.created_at) };
 }

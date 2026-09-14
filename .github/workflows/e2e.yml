@@ -76,6 +76,7 @@ jobs:
         run: |
           mkdir -p .data && touch .env
           node scripts/e2e-onboard.mjs
+          node scripts/e2e-recover.mjs
           node scripts/e2e-deposit.mjs
           E2E_LEAVE_AFTER_IBAN=1 node scripts/e2e-deposit.mjs
           node scripts/e2e-withdraw.mjs
@@ -129,6 +130,10 @@ jobs:
         id: onboard
         if: steps.preflight.outputs.skip != 'true'
         run: mkdir -p .data && touch .env && node scripts/e2e-onboard.mjs
+      - name: Recover (same passkey, fresh contexts)
+        id: recover
+        if: steps.preflight.outputs.skip != 'true'
+        run: node scripts/e2e-recover.mjs
       - name: Deposit
         id: deposit
         if: steps.preflight.outputs.skip != 'true'
@@ -176,7 +181,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
+          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
           ARTIFACT_URL: ${{ steps.shots.outputs.artifact-url }}
         run: |
           TITLE="Scheduled E2E failed at step: $STEP"

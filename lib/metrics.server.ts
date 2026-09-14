@@ -126,10 +126,12 @@ export async function metricsSnapshot(filter: MetricsFilter) {
   const accountsAll = (await listEvents({ type: "account_created", sources: filter.sources }, 5000)) as unknown as Extract<MetricEvent, { type: "account_created" }>[];
   const inWindow = accountsAll.filter((e) => e.ts >= filter.since * 1000 && (!filter.ref || e.ref === filter.ref));
   const byRef: Record<string, number> = {};
+  let viaInvites = 0;
   for (const e of accountsAll) {
     if (e.ts < filter.since * 1000) continue;
     const key = e.ref ?? "(none)";
     byRef[key] = (byRef[key] ?? 0) + 1;
+    if (/^(e2e-)?inv-/.test(key)) viaInvites += 1;
   }
   const deposits = (await depositStore.list<DepositRow>(undefined, 5000)).filter((d) => included.has(sourceOfRef(d.ref)) && Date.parse(d.createdAt) >= filter.since * 1000 && (!filter.ref || d.ref === filter.ref));
   const withdrawals = (await withdrawalStore.list<WithdrawalRow>(undefined, 5000)).filter((w) => included.has(sourceOfRef(w.ref)) && Date.parse(w.createdAt) >= filter.since * 1000 && (!filter.ref || w.ref === filter.ref));
@@ -213,6 +215,7 @@ export async function metricsSnapshot(filter: MetricsFilter) {
     accounts: {
       total: accountsAll.length,
       sinceStart: inWindow.length,
+      viaInvites,
       byRef,
       items: inWindow.slice(0, 100).map((e) => ({ contractId: e.contractId, ref: e.ref, ts: e.ts, deployTx: e.hash, link: link(e.hash) })),
     },

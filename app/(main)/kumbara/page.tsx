@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { usePasskeyWallet, useSigners, useSpendingPolicy, useWalletBalance } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
 import { GoalCard } from "@/components/GoalCard";
+import { InviteCard } from "@/components/InviteCard";
 import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { Skeleton } from "@/components/Skeleton";
@@ -246,6 +247,8 @@ function Savings() {
           </Link>
         </div>
       </section>
+
+      <InviteCard />
 
       <AddressCard />
     </div>

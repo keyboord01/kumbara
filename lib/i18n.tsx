@@ -111,6 +111,13 @@ export const dict = {
       saved: "Kaydedildi",
       noGoal: "Hedef yok; istersen ekle.",
     },
+    invite: {
+      title: "Arkadaşını davet et",
+      lead: "Bu bağlantıyla açılan her kumbara burada sayılır. Bağlantıda kişisel bir şey yok.",
+      share: "Paylaş",
+      shareText: "Lirayı USDC olarak biriktir: passkey ile açılan, anahtarı sende olan kumbara (test ağı).",
+      count: "{n} arkadaşın bu bağlantıyla kumbara açtı.",
+    },
     security: {
       title: "Güvenlik",
       signers: "İmzacılar",
@@ -377,6 +384,7 @@ export const dict = {
       curveHint: "{minutes} dakikalık dilimlerde açılan kumbaralar",
       byRef: "Stant bağlantısına göre",
       noRef: "(bağlantı yok)",
+      viaInvites: "davetle",
       timingsTitle: "Süreler",
       timings: { tapToReady: "Dokunuştan kumbara hazıra", deposit: "Banka transferinden kasaya", withdraw: "Onaydan ödemeye" },
       median: "medyan",
@@ -520,6 +528,13 @@ export const dict = {
       cancel: "Cancel",
       saved: "Saved",
       noGoal: "No goal yet; add one if you like.",
+    },
+    invite: {
+      title: "Invite a friend",
+      lead: "Every kumbara opened through this link is counted here. Nothing personal in the link.",
+      share: "Share",
+      shareText: "Save lira as USDC: a passkey-opened kumbara whose key only you hold (testnet).",
+      count: "{n} friend(s) opened a kumbara through this link.",
     },
     security: {
       title: "Security",
@@ -787,6 +802,7 @@ export const dict = {
       curveHint: "kumbaras opened per {minutes}-minute bucket",
       byRef: "By booth link",
       noRef: "(no ref)",
+      viaInvites: "via invites",
       timingsTitle: "Timings",
       timings: { tapToReady: "Tap to kumbara ready", deposit: "Bank transfer to vault", withdraw: "Confirm to payout" },
       median: "median",

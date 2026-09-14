@@ -5,6 +5,7 @@
  * the same way. The per-booth-ref cap, counted from confirmed deployments,
  * is the primary guard: booth Wi-Fi shares one IP.
  */
+import { isInviteRef } from "./referral.server";
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { countEvents, rateLimitHit, sourceOfRef } from "./db/store";
@@ -61,7 +62,8 @@ export async function guardAccountCreation(request: Request, ref: string | null)
   const perRef = limits.accountsPerRef();
   // The per-ref cap protects real booth links; the automated E2E ref would
   // exhaust it within weeks and is still under the per-IP cap.
-  if (ref && perRef > 0 && sourceOfRef(ref) === "user") {
+  // Invite links are personal and unbounded in number; the per-IP cap still applies to them.
+  if (ref && perRef > 0 && sourceOfRef(ref) === "user" && !isInviteRef(ref)) {
     const used = await countEvents({ type: "account_created", ref });
     if (used >= perRef) return { allowed: false, code: "RATE_LIMITED_REF", message: `booth ref ${ref} reached its cap of ${perRef} accounts` };
   }

@@ -36,7 +36,7 @@ interface Snapshot {
   allTime: Totals;
   feed: FeedItem[];
   buckets: { minutes: number; from: number; to: number; series: Array<{ start: number; accounts: number }> };
-  accounts: { byRef: Record<string, number> };
+  accounts: { byRef: Record<string, number>; viaInvites?: number };
   timings: { tapToReady: Timing; deposit: Timing; withdraw: Timing; minSamples: number };
 }
 interface Health {
@@ -242,6 +242,7 @@ function Stats() {
             </p>
             <p className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
               <span>{label}</span>
+              {key === "accounts" && snapshot?.accounts.viaInvites ? <span data-testid="headline-via-invites">· {snapshot.accounts.viaInvites} {t.stats.viaInvites}</span> : null}
               {isMoney || key === "accounts" || key === "deposits" || key === "withdrawals" ? <NetworkBadge /> : null}
             </p>
           </div>

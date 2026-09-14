@@ -18,7 +18,7 @@ export function AddressCard() {
         <p className="microlabel">{t.savings.address}</p>
         <NetworkBadge />
       </div>
-      <p className="mt-2 break-all font-mono text-sm text-ink" title={address}>
+      <p className="mt-2 break-all font-mono text-sm text-ink" title={address} data-testid="kumbara-address">
         {displayAddress}
       </p>
       <div className="mt-3 flex flex-wrap gap-2 text-sm">

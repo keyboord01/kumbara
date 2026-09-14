@@ -29,6 +29,12 @@ interface Timing {
   medianMs: number | null;
   p90Ms: number | null;
 }
+interface FunnelStage {
+  stage: string;
+  count: number;
+  dropOff: number;
+  dropPct: number | null;
+}
 interface Snapshot {
   generatedAt: string;
   since: number;
@@ -37,6 +43,7 @@ interface Snapshot {
   feed: FeedItem[];
   buckets: { minutes: number; from: number; to: number; series: Array<{ start: number; accounts: number }> };
   accounts: { byRef: Record<string, number>; viaInvites?: number };
+  funnel?: { accounts: number; deposits: { stages: FunnelStage[]; exits: Record<string, number> }; withdrawals: { stages: FunnelStage[]; exits: Record<string, number> } };
   timings: { tapToReady: Timing; deposit: Timing; withdraw: Timing; minSamples: number };
 }
 interface Health {
@@ -250,6 +257,45 @@ function Stats() {
       </section>
 
       <div className={`grid gap-6 ${tv ? "grid-cols-2" : "grid-cols-1"}`}>
+        {snapshot?.funnel ? (
+          <section className="card p-5" aria-label={t.stats.funnelTitle} data-testid="funnel">
+            <h2 className="font-semibold">{t.stats.funnelTitle}</h2>
+            <p className="mt-1 text-xs text-ink-2">{t.stats.funnelHint}</p>
+            {(
+              [
+                ["deposits", t.stats.funnelDeposits, snapshot.funnel.deposits, t.stats.funnelStages.deposit],
+                ["withdrawals", t.stats.funnelWithdrawals, snapshot.funnel.withdrawals, t.stats.funnelStages.withdraw],
+              ] as const
+            ).map(([key, title, data, labels]) => (
+              <div key={key} className="mt-4" data-testid={`funnel-${key}`}>
+                <p className="microlabel">{title}</p>
+                <table className="tnum mt-2 w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted">
+                      <th className="py-1 font-medium">{t.stats.funnelStage}</th>
+                      <th className="py-1 text-right font-medium">{t.stats.funnelCount}</th>
+                      <th className="py-1 text-right font-medium">{t.stats.funnelDrop}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.stages.map((s, i) => (
+                      <tr key={s.stage} className="border-t border-line" data-stage={s.stage}>
+                        <td className="py-1.5">{(labels as Record<string, string>)[s.stage] ?? s.stage}</td>
+                        <td className="py-1.5 text-right font-semibold">{fmtInt(s.count)}</td>
+                        <td className={`py-1.5 text-right ${s.dropOff > 0 ? "text-amber" : "text-muted"}`}>{i === 0 ? "—" : s.dropPct === null ? "—" : `−${fmtInt(s.dropOff)} (${s.dropPct}%)`}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                {Object.keys(data.exits).length ? (
+                  <p className="mt-2 text-xs text-muted">
+                    {t.stats.funnelExits}: {Object.entries(data.exits).map(([k, v]) => `${(labels as Record<string, string>)[k] ?? k} ${fmtInt(v)}`).join(" · ")}
+                  </p>
+                ) : null}
+              </div>
+            ))}
+          </section>
+        ) : null}
         <section className="card p-5" aria-label={t.stats.feedTitle} data-testid="feed">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold">{t.stats.feedTitle}</h2>

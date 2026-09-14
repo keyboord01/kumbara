@@ -28,7 +28,7 @@ async function onboard(page, query) {
   await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
-  return (await page.locator("p.font-mono").first().getAttribute("title"))?.trim();
+  return (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
 }
 const text = async (page, id) => ((await page.getByTestId(id).textContent()) ?? "").replace(/\s+/g, " ").trim();
 

@@ -48,7 +48,7 @@ try {
   const depositDisabled = await page.getByRole("button", { name: "Yükle" }).isDisabled().catch(() => false);
   log("limit setup status shown; deposit disabled:", depositDisabled);
   if (!depositDisabled) throw new Error("deposit button should be disabled while the limit installs");
-  const addr = (await page.locator("p.font-mono").first().getAttribute("title"))?.trim();
+  const addr = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", addr);
   if (!addr?.startsWith("C")) throw new Error("no contract address rendered");
   const explorer = await page.locator("a[href*='stellar.expert']").first().getAttribute("href");

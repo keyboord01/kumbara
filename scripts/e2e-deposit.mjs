@@ -147,7 +147,7 @@ try {
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   log(`savings visible ${((Date.now() - tapAt) / 1000).toFixed(1)}s after tap`);
-  const contract = (await page.locator("p.font-mono").first().getAttribute("title"))?.trim();
+  const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
   await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
   log("✓ spending limit installed, deposit enabled");

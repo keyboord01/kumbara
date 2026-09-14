@@ -85,6 +85,7 @@ jobs:
           node scripts/e2e-withdraw.mjs
           node scripts/e2e-booth.mjs
           node scripts/e2e-stats.mjs
+          node scripts/e2e-funnel.mjs
           node scripts/e2e-failures.mjs
       - name: Deposit round trip on the second anchor (testanchor.stellar.org funds itself, no sandbox hook)
         if: steps.gate.outputs.ok == 'true'
@@ -178,6 +179,10 @@ jobs:
         id: stats
         if: steps.preflight.outputs.skip != 'true'
         run: node scripts/e2e-stats.mjs
+      - name: Funnel
+        id: funnel
+        if: steps.preflight.outputs.skip != 'true'
+        run: node scripts/e2e-funnel.mjs
       - name: Failure screens
         id: failures
         if: steps.preflight.outputs.skip != 'true'
@@ -196,7 +201,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.proof.outcome == 'failure' && 'proof' || steps.goal.outcome == 'failure' && 'goal' || steps.invite.outcome == 'failure' && 'invite' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
+          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.proof.outcome == 'failure' && 'proof' || steps.goal.outcome == 'failure' && 'goal' || steps.invite.outcome == 'failure' && 'invite' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.funnel.outcome == 'failure' && 'funnel' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
           ARTIFACT_URL: ${{ steps.shots.outputs.artifact-url }}
         run: |
           TITLE="Scheduled E2E failed at step: $STEP"

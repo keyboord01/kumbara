@@ -120,6 +120,45 @@ function bucketMinutes(spanMinutes: number): number {
   return 1440;
 }
 
+/** Pipeline stages in order; a record "reached" a stage if its history or current status is at or past it. */
+const DEPOSIT_STAGES = ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"] as const;
+const DEPOSIT_STAGE_INDEX: Record<string, number> = { awaiting_transfer: 0, transfer_received: 1, onramp_pending: 1, onramp_paid: 2, forwarded: 2, in_wallet: 3, in_vault: 4 };
+const WITHDRAW_STAGES = ["created", "awaiting_usdc", "usdc_sent", "paid", "completed"] as const;
+const WITHDRAW_STAGE_INDEX: Record<string, number> = { created: 0, awaiting_usdc: 1, usdc_sent: 2, paid: 3, completed: 4 };
+
+export interface FunnelStage {
+  stage: string;
+  /** Records that reached at least this stage. */
+  count: number;
+  /** Records that reached this stage and never the next one (last stage: 0). */
+  dropOff: number;
+  /** Share of the previous stage lost before this one, as a percentage (first stage: null). */
+  dropPct: number | null;
+}
+
+function funnel<T extends { status: string; history?: Array<{ status: string }> | undefined }>(records: T[], stages: readonly string[], index: Record<string, number>): { stages: FunnelStage[]; exits: Record<string, number> } {
+  const reached = new Array<number>(stages.length).fill(0);
+  const exits: Record<string, number> = {};
+  for (const r of records) {
+    let furthest = -1;
+    for (const s of [...(r.history ?? []).map((h) => h.status), r.status]) {
+      const i = index[s];
+      if (i !== undefined && i > furthest) furthest = i;
+    }
+    for (let i = 0; i <= furthest; i += 1) reached[i] = (reached[i] ?? 0) + 1;
+    if (!(r.status in index)) exits[r.status] = (exits[r.status] ?? 0) + 1;
+  }
+  return {
+    stages: stages.map((stage, i) => ({
+      stage,
+      count: reached[i] ?? 0,
+      dropOff: i < stages.length - 1 ? (reached[i] ?? 0) - (reached[i + 1] ?? 0) : 0,
+      dropPct: i === 0 ? null : (reached[i - 1] ?? 0) > 0 ? Math.round((1 - (reached[i] ?? 0) / (reached[i - 1] ?? 1)) * 1000) / 10 : null,
+    })),
+    exits,
+  };
+}
+
 /** The public traction snapshot. Accounts count only confirmed deployments. */
 export async function metricsSnapshot(filter: MetricsFilter) {
   const included = new Set<EventSource>(filter.sources);
@@ -212,6 +251,11 @@ export async function metricsSnapshot(filter: MetricsFilter) {
     feed,
     buckets: { minutes: width / 60_000, from: firstBucket, to: now, series },
     timings,
+    funnel: {
+      accounts: inWindow.length,
+      deposits: funnel(deposits, DEPOSIT_STAGES, DEPOSIT_STAGE_INDEX),
+      withdrawals: funnel(withdrawals, WITHDRAW_STAGES, WITHDRAW_STAGE_INDEX),
+    },
     accounts: {
       total: accountsAll.length,
       sinceStart: inWindow.length,

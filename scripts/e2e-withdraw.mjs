@@ -61,7 +61,7 @@ try {
   await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
-  const contract = (await page.locator("p.font-mono").first().getAttribute("title"))?.trim();
+  const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
   await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
 

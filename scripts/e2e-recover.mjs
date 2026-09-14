@@ -27,7 +27,7 @@ async function freshContext(credential) {
   });
   return { context, page, cdp, authenticatorId };
 }
-const contractOf = async (page) => (await page.locator("p.font-mono").first().getAttribute("title"))?.trim();
+const contractOf = async (page) => (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
 
 let a = null;
 try {

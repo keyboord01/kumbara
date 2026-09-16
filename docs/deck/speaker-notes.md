@@ -24,9 +24,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 3b · Try it now (hackathon variant)
 
-**TR.** Şimdi deneyin: kodu okutun, Open your kumbara'ya dokunun (uygulama İngilizce açılır; üstten Türkçe'ye geçilir), Face ID ya da Touch ID. Hesabınız açıldı. Deposit deyin, yüz yazın; bankayı ben oynatıyorum, bir dakikaya USDC kasada. Withdraw deyin, lira IBAN'a döner. Kurulum yok, kelime yok, XLM yok. Test ağı, gerçek para değil. Sayaç arkamda.
+**TR.** Şimdi deneyin: kodu okutun, Get started'a dokunun (uygulama İngilizce açılır; üstten Türkçe'ye geçilir), Face ID ya da Touch ID. Hesabınız açıldı. Deposit deyin, yüz yazın; bankayı ben oynatıyorum, bir dakikaya USDC kasada. Withdraw deyin, lira IBAN'a döner. Kurulum yok, kelime yok, XLM yok. Test ağı, gerçek para değil. Sayaç arkamda.
 
-**EN.** Try it now: scan, tap Open your kumbara, Face ID or Touch ID. Your account exists. Tap Deposit, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Withdraw and the lira comes back to the IBAN. The app opens in English; Türkçe is one tap away at the top. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
+**EN.** Try it now: scan, tap Get started, Face ID or Touch ID. Your account exists. Tap Deposit, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Withdraw and the lira comes back to the IBAN. The app opens in English; Türkçe is one tap away at the top. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
 
 ## 4 · Why it is better
 

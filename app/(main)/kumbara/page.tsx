@@ -189,8 +189,8 @@ function Savings() {
   const depositBlocked = false;
 
   return (
-    <div className="flex flex-col gap-5 py-2 lg:grid lg:grid-flow-row-dense lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6">
-      <div className="flex items-baseline justify-between gap-3 lg:col-span-2">
+    <div className="flex flex-col gap-5 py-2 lg:gap-6">
+      <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{t.savings.title}</h1>
         <Button
           variant="outline"
@@ -208,21 +208,25 @@ function Savings() {
 
       {setupActive &&
         (setup === "error" ? (
-          <div className="flex flex-col gap-2 lg:col-span-2" aria-label={t.savings.limit}>
+          <div className="flex flex-col gap-2" aria-label={t.savings.limit}>
             <Alert variant="destructive">
               <AlertTitle>{t.savings.limitSetupFailed}</AlertTitle>
             </Alert>
             {setupFailure ? <FailureScreen failure={setupFailure} compact primary={{ label: t.savings.limitSetupConfirm, onClick: () => void install() }} /> : null}
           </div>
         ) : (
-          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-teal/30 bg-teal/5 lg:col-span-2">
+          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-teal/30 bg-teal/5">
             <Spinner className="text-teal" />
             <AlertTitle className="text-teal">{t.savings.limitSetup}</AlertTitle>
             <AlertDescription className="text-ink-2">{t.savings.limitSetupHint}</AlertDescription>
           </Alert>
         ))}
 
-      <Card render={<section aria-label={t.savings.inVault} />} className="lg:col-start-1">
+      {/* Two independent stacks on a laptop, so a short card never leaves a gap beside a tall one; on a phone
+          `contents` flattens both into the single column and `order` keeps the reading order. */}
+      <div className="flex flex-col gap-5 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6">
+        <div className="contents lg:flex lg:flex-col lg:gap-6">
+          <Card render={<section aria-label={t.savings.inVault} />} className="max-lg:order-1 lg:order-none">
         <CardHeader>
           <CardTitle className="microlabel">{t.savings.inVault}</CardTitle>
           <CardAction>
@@ -272,11 +276,7 @@ function Savings() {
         </CardFooter>
       </Card>
 
-      <div className="contents lg:col-start-2 lg:block">
-        <GoalCard inVault={inVault} />
-      </div>
-
-      <Card render={<section aria-label={t.savings.vault} />} className="lg:col-start-1">
+          <Card render={<section aria-label={t.savings.vault} />} className="max-lg:order-3 lg:order-none">
         <CardHeader>
           <CardTitle className="microlabel">{t.savings.vault}</CardTitle>
           <CardDescription className="font-semibold text-foreground">{position?.name ?? <Skeleton className="h-4 w-40" />}</CardDescription>
@@ -296,7 +296,7 @@ function Savings() {
         </CardContent>
       </Card>
 
-      <section className="grid gap-3 sm:grid-cols-2 lg:col-start-1">
+          <section className="grid gap-3 max-lg:order-4 sm:grid-cols-2 lg:order-none">
         <Card size="sm">
           <CardHeader>
             <CardTitle className="microlabel">{t.savings.recovery}</CardTitle>
@@ -345,12 +345,19 @@ function Savings() {
         </Card>
       </section>
 
-      <div className="contents lg:col-start-2 lg:block">
-        <InviteCard />
-      </div>
+        </div>
 
-      <div className="contents lg:col-start-2 lg:block">
-        <AddressCard />
+        <div className="contents lg:flex lg:flex-col lg:gap-6">
+          <div className="max-lg:order-2 lg:order-none">
+            <GoalCard inVault={inVault} />
+          </div>
+          <div className="max-lg:order-5 lg:order-none">
+            <InviteCard />
+          </div>
+          <div className="max-lg:order-6 lg:order-none">
+            <AddressCard />
+          </div>
+        </div>
       </div>
     </div>
   );

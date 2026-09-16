@@ -151,6 +151,27 @@
   h3 {
     text-wrap: balance;
   }
+  /* Anything you can click says so: Tailwind's reset gives buttons the default arrow. */
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="switch"],
+  [role="checkbox"],
+  summary,
+  a[href],
+  label:has(> input[type="radio"]),
+  label:has(> input[type="checkbox"]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+  [aria-busy="true"] {
+    cursor: progress;
+  }
+
   /* Focus is part of the design, never removed. Primitives bring their own ring; this covers links and native controls. */
   :focus-visible {
     outline: 3px solid color-mix(in srgb, var(--color-teal) 55%, transparent);

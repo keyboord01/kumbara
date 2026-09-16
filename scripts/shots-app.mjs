@@ -29,10 +29,10 @@ const shot = async (name) => {
 try {
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: LANG, exact: true }).click();
-  await page.getByRole("button", { name: /Kumbaranı aç|Open your kumbara/ }).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /Başla|Get started/ }).waitFor({ timeout: 30000 });
   await shot("onboard");
 
-  await page.getByRole("button", { name: /Kumbaranı aç|Open your kumbara/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText(/Kumbara adresi|Kumbara address/).first().waitFor({ timeout: 30000 });
   await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });

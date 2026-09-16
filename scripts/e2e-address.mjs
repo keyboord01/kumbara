@@ -31,7 +31,7 @@ async function kumbara(name) {
   });
   log(`${name}: onboard`);
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   const address = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();

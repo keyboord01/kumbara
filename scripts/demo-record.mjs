@@ -72,8 +72,8 @@ try {
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   caption("Landing page on Stellar TESTNET: one button, no password, no app, no XLM.");
   await pause(2500);
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
-  caption("Tap 'Kumbaranı aç': the passkey (Face ID, Touch ID or a password manager) creates the key; the relay deploys the smart account.");
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
+  caption("Tap 'Başla': the passkey (Face ID, Touch ID or a password manager) creates the key; the relay deploys the smart account.");
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   caption("Savings screen: the kumbara exists on-chain, TESTNET address with a stellar.expert link.");

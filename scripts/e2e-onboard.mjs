@@ -33,8 +33,8 @@ try {
   const footer = await page.locator("footer").textContent();
   if (!footer?.includes("Test ağı")) throw new Error("testnet footer missing");
 
-  log("tap 'Kumbaranı aç'");
-  const cta = page.getByRole("button", { name: /Kumbaranı aç/ });
+  log("tap 'Başla'");
+  const cta = page.getByRole("button", { name: /Başla|Get started/ });
   await cta.waitFor({ timeout: 30000 });
   await cta.click();
   const tapAt = Date.now();

@@ -597,11 +597,12 @@ export default function BoothAdminPage() {
           </Card>
 
           <div className="grid gap-5 lg:grid-cols-[3fr_2fr] lg:items-start">
-            {/* The queue: every deposit waiting for its bank transfer. */}
+            {/* Each column is its own stack, so the short tools column never stretches the queue beside it. */}
             <div className="flex flex-col gap-4">
               <Card render={<section aria-live="polite" aria-label={t.admin.queue} />}>
                 <CardHeader>
                   <CardTitle>{t.admin.queue}</CardTitle>
+                  <CardDescription className="text-xs">{t.admin.queueHint.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</CardDescription>
                   {manualRows.length >= 2 ? (
                     <CardAction>
                       <Button variant="outline" size="sm" onClick={() => void playAll(manualRows)} disabled={busy !== ""}>
@@ -642,7 +643,9 @@ export default function BoothAdminPage() {
                                 <Badge variant="info" title={t.admin.autoSoon}>
                                   {t.admin.autoSoon}
                                 </Badge>
-                              ) : null}
+                              ) : (
+                                <Badge variant="warning">{t.admin.manual}</Badge>
+                              )}
                               {!auto || played ? (
                                 <Button size="sm" onClick={() => void play(row)} disabled={busy !== ""} aria-busy={playing === row.id ? "true" : undefined}>
                                   {playing === row.id ? <Spinner data-icon="inline-start" /> : null}

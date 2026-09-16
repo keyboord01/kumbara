@@ -26,7 +26,7 @@ async function fresh() {
 }
 async function onboard(page, query) {
   await page.goto(`${APP}/?${query}&net=testnet`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   return (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();

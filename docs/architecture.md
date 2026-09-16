@@ -14,7 +14,7 @@ sequenceDiagram
   participant A as TR Mock Anchor
   participant V as DeFindex vault
 
-  U->>K: Tap "Kumbaranı aç"
+  U->>K: Tap "Başla" (Get started)
   K->>U: WebAuthn create (passkey)
   K->>R: { func, auth } deploy smart account (project key, server-side)
   R->>S: fee-bumped createContractV2

@@ -193,10 +193,21 @@ async function submit(deps: LandingDeps, tx: Transaction): Promise<{ hash: strin
     throw new LandingError("submit_failed", `transaction rejected: ${code} (${sent.errorResult?.toXDR("base64") ?? "unknown"})`);
   }
   const polled = await deps.server.pollTransaction(sent.hash, { attempts: 40 });
-  if (polled.status !== "SUCCESS") {
-    throw new LandingError("submit_failed", `transaction ${sent.hash} ${polled.status}`);
+  if (polled.status === "SUCCESS") return { hash: sent.hash, ledger: polled.ledger };
+  // NOT_FOUND after the budget means the RPC never saw it in a ledger: either it lagged behind, or the
+  // transaction was dropped before inclusion. Re-broadcast the same signed envelope once (same hash and
+  // sequence, so it either lands once or comes back a duplicate) and poll again before giving up. Without
+  // this a visitor's deposit dies on an RPC hiccup, which is the one failure the booth cannot explain away.
+  if (polled.status === "NOT_FOUND") {
+    (deps.log ?? (() => undefined))(`transaction ${sent.hash} not found after the first poll; re-broadcasting once`);
+    const again = await deps.server.sendTransaction(tx);
+    if (again.status !== "ERROR") {
+      const second = await deps.server.pollTransaction(sent.hash, { attempts: 40 });
+      if (second.status === "SUCCESS") return { hash: sent.hash, ledger: second.ledger };
+      throw new LandingError("submit_failed", `transaction ${sent.hash} ${second.status} after a re-broadcast`);
+    }
   }
-  return { hash: sent.hash, ledger: polled.ledger };
+  throw new LandingError("submit_failed", `transaction ${sent.hash} ${polled.status}`);
 }
 
 /**

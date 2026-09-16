@@ -192,7 +192,7 @@ try {
   else await ensureDefaultAnchor();
   log("onboard");
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   const tapAt = Date.now();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });

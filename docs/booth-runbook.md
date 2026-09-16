@@ -24,7 +24,7 @@ Times are from the automated browser runs on testnet (`pnpm e2e:onboard`, `pnpm 
 
 | Step | What the visitor does | What happens | Time |
 | --- | --- | --- | --- |
-| 1 | Scans the QR, taps **Kumbaranı aç**, passkey (Face ID, Touch ID or a password manager) | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link; the counter on the booth screen and the stats feed tick | 8–16 s |
+| 1 | Scans the QR, taps **Başla** (**Get started**), passkey (Face ID, Touch ID or a password manager) | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link; the counter on the booth screen and the stats feed tick | 8–16 s |
 | 2 | Lands on Savings | Deposit and Withdraw are available at once; the 1,000 USDC per-transaction safety limit is set at the first withdrawal (or from "Set it now" on the limit card) | instant |
 | 3 | Taps **Yükle** (or **Deposit**), enters 100, **Devam** | IBAN, alıcı, açıklama (the reference) in the familiar transfer layout | 1–3 s |
 | 4 | Nothing: deposits up to ₺250 are played by the driver; above that the presenter taps **Play the bank** on the row | Sandbox transfer matched; the app detects the lira, runs the landing-account on-ramp and moves the USDC into the kumbara | 35–55 s |

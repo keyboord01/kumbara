@@ -16,7 +16,7 @@ const shot = async (name) => { await page.waitForTimeout(600); await page.screen
 try {
   await page.goto(`${APP}/?ref=shots&net=testnet`, { waitUntil: "networkidle" });
   await shot("01-home");
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   await shot("02-savings-setup");

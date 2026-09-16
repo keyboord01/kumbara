@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
+import { cn } from "cn";
 import { FailureScreen } from "@/components/FailureScreen";
 import { ScreenSkeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
@@ -59,6 +60,7 @@ const STEP_TIMEOUT_MS = 120_000;
 /** Form failures where "try again" would only repeat the same amount. */
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 /** Steps the server (and the booth driver) takes on its own; the page can be closed during these. */
+const PREVIEW_STEPS: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"];
 const SERVER_STEPS = new Set(["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded"]);
 /** Typical wall-clock seconds per step, from the production round trips of 9–10 September (bank to vault 33–42 s in all). */
 const TYPICAL_SECONDS: Partial<Record<string, number>> = { transfer_received: 8, onramp_pending: 8, onramp_paid: 10, forwarded: 6, in_wallet: 14 };
@@ -306,13 +308,13 @@ function Deposit() {
           </Link>
         </div>
         <form
-          className="flex flex-col gap-4"
+          className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:grid-rows-[auto_auto_auto_1fr] lg:items-start lg:[grid-template-areas:'form_side'_'notes_side'_'actions_side'_'._side']"
           onSubmit={(e) => {
             e.preventDefault();
             if (amountValid) void start();
           }}
         >
-          <Card>
+          <Card className="lg:[grid-area:form]">
             <CardHeader>
               <CardTitle>{t.deposit.lead}</CardTitle>
             </CardHeader>
@@ -365,17 +367,30 @@ function Deposit() {
               </FieldGroup>
             </CardContent>
           </Card>
-          {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) ? <p className="text-sm text-amber">{t.deposit.limitWarning}</p> : null}
-          {overTreasury && treasuryUsdc !== null ? (
-            <Alert className="border-amber/40 bg-amber/5">
-              <AlertDescription className="text-ink-2">{t.deposit.treasuryCap.replace("{usdc}", Math.floor(treasuryUsdc).toLocaleString(numberLocale))}</AlertDescription>
-            </Alert>
-          ) : null}
-          {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
-          <Button type="submit" size="xl" className="w-full" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
+          <div className="flex flex-col gap-4 empty:hidden lg:[grid-area:notes]">
+            {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) ? <p className="text-sm text-amber">{t.deposit.limitWarning}</p> : null}
+            {overTreasury && treasuryUsdc !== null ? (
+              <Alert className="border-amber/40 bg-amber/5">
+                <AlertDescription className="text-ink-2">{t.deposit.treasuryCap.replace("{usdc}", Math.floor(treasuryUsdc).toLocaleString(numberLocale))}</AlertDescription>
+              </Alert>
+            ) : null}
+            {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
+          </div>
+          <Button type="submit" size="xl" className="w-full lg:[grid-area:actions]" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
             {submitting ? <Spinner data-icon="inline-start" /> : null}
             {submitting ? t.deposit.preparing : t.deposit.continue}
           </Button>
+          {/* What happens next: the same steps the status card will show, idle. Last on a phone, beside the form on a laptop. */}
+          <aside className="flex flex-col gap-4 max-lg:order-last lg:sticky lg:top-24 lg:[grid-area:side]" aria-label={t.deposit.statusTitle}>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Stepper steps={PREVIEW_STEPS.map((step): StepperStep => ({ key: step, label: t.deposit.steps[step], owner: step === "in_vault" ? undefined : step === "in_wallet" ? "you" : "us", state: "idle" }))} />
+              </CardContent>
+            </Card>
+          </aside>
         </form>
       </div>
     );
@@ -399,8 +414,10 @@ function Deposit() {
       : null;
   const parked = failed?.kind === "amount_mismatch" || failed?.kind === "usdc_not_received";
 
+  const done = FINAL.includes(record.status);
+  const needsYou = record.status === "in_wallet";
   return (
-    <div className="flex flex-col gap-5 py-2">
+    <div className={cn("flex flex-col gap-5 py-2", done && "mx-auto w-full lg:max-w-2xl")}>
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.deposit.title}</h1>
         <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
@@ -408,6 +425,9 @@ function Deposit() {
         </Link>
       </div>
 
+      {/* Two columns on a laptop: what the visitor acts on, then the status beside it; one centred column once the deposit is final. */}
+      <div className={cn("grid gap-5", !done && "lg:grid-cols-[3fr_2fr] lg:items-start")}>
+      <div className="flex flex-col gap-5">
       {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="deposit" /> : null}
       {pollFailure ? <FailureScreen failure={pollFailure} primary={null} /> : null}
 
@@ -486,6 +506,25 @@ function Deposit() {
         </Card>
       ) : null}
 
+      {record.status === "onramp_pending" && anchorWaiting ? (
+        <Card size="sm" render={<section aria-label={t.deposit.abandonTitle} />} className="border-amber/40 bg-amber/5">
+          <CardHeader>
+            <CardTitle>{t.deposit.abandonTitle}</CardTitle>
+            <CardDescription className="text-ink-2">{t.deposit.abandonBody}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full" onClick={() => void cancel()} disabled={cancelling} aria-busy={cancelling ? "true" : undefined}>
+              {cancelling ? <Spinner data-icon="inline-start" /> : null}
+              {cancelling ? t.savings.loading : t.deposit.abandon}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
+      </div>
+
+      {/* The status column: sticky on a laptop, first on a phone while a step needs the visitor. */}
+      <div className={cn("flex flex-col gap-5", needsYou && "max-lg:order-first", !done && "lg:sticky lg:top-24")}>
       <Card render={<section aria-label={t.deposit.statusTitle} />}>
         <CardHeader>
           <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
@@ -553,23 +592,9 @@ function Deposit() {
           ) : null}
         </CardContent>
       </Card>
+      </div>
 
-      {record.status === "onramp_pending" && anchorWaiting ? (
-        <Card size="sm" render={<section aria-label={t.deposit.abandonTitle} />} className="border-amber/40 bg-amber/5">
-          <CardHeader>
-            <CardTitle>{t.deposit.abandonTitle}</CardTitle>
-            <CardDescription className="text-ink-2">{t.deposit.abandonBody}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button variant="outline" className="w-full" onClick={() => void cancel()} disabled={cancelling} aria-busy={cancelling ? "true" : undefined}>
-              {cancelling ? <Spinner data-icon="inline-start" /> : null}
-              {cancelling ? t.savings.loading : t.deposit.abandon}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 lg:col-span-2">
         {record.status === "in_vault" ? (
           <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
             {t.deposit.backToSavings}
@@ -590,6 +615,7 @@ function Deposit() {
             <p className="text-center text-xs text-muted-foreground">{t.deposit.cancelHint}</p>
           </>
         ) : null}
+      </div>
       </div>
     </div>
   );

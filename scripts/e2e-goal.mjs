@@ -9,6 +9,7 @@ const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -27,7 +28,7 @@ try {
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
 
   log("name the kumbara and set a goal");
   await page.getByTestId("goal-edit").click();

@@ -10,6 +10,7 @@ if (!ADMIN) throw new Error("BOOTH_ADMIN_TOKEN is required (pnpm e2e:withdraw lo
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -63,10 +64,10 @@ try {
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
 
   log("deposit 100 TRY");
-  await page.locator("a[href='/yukle']").click();
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").click();
   // The link can be re-rendered under the click while the limit card settles; make sure the deposit page is actually open.
   await page.waitForURL("**/yukle**", { timeout: 15000 }).catch(async () => {
     log("  deposit link click did not navigate; opening /yukle directly");

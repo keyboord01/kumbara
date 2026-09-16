@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 import { buildContractCallTransaction, buildTransferTransaction, usePasskeyWallet, useSignTransaction, useSpendingPolicy } from "@sembol/passkey-react";
 import { ExternalLinkIcon } from "lucide-react";
+import { cn } from "cn";
 import { FailureScreen } from "@/components/FailureScreen";
 import { ScreenSkeleton, Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
@@ -343,13 +344,13 @@ function Withdraw() {
           </Link>
         </div>
         <form
-          className="flex flex-col gap-4"
+          className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:grid-rows-[auto_auto_auto_1fr] lg:items-start lg:[grid-template-areas:'form_side'_'notes_side'_'actions_side'_'._side']"
           onSubmit={(e) => {
             e.preventDefault();
             if (amountValid) void start();
           }}
         >
-          <Card>
+          <Card className="lg:[grid-area:form]">
             <CardHeader>
               <CardTitle>{t.withdraw.lead}</CardTitle>
               <CardDescription className="text-ink-2">
@@ -403,18 +404,31 @@ function Withdraw() {
               </FieldGroup>
             </CardContent>
           </Card>
-          {overLimit && policy ? (
-            <FailureScreen failure={{ kind: "limit_exceeded", detail: `limit ${formatUsdc(policy.limit, locale)} USDC per transaction` }} compact />
-          ) : null}
-          {overBalance && position ? (
-            <FailureScreen failure={{ kind: "insufficient_balance", detail: `vault position ${formatUsdc(position.usdc, locale)} USDC` }} compact primary={null} />
-          ) : null}
-          {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
-          <p className="text-xs text-muted-foreground">{t.withdraw.payoutHint}</p>
-          <Button type="submit" size="xl" className="w-full" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
+          <div className="flex flex-col gap-4 empty:hidden lg:[grid-area:notes]">
+            {overLimit && policy ? (
+              <FailureScreen failure={{ kind: "limit_exceeded", detail: `limit ${formatUsdc(policy.limit, locale)} USDC per transaction` }} compact />
+            ) : null}
+            {overBalance && position ? (
+              <FailureScreen failure={{ kind: "insufficient_balance", detail: `vault position ${formatUsdc(position.usdc, locale)} USDC` }} compact primary={null} />
+            ) : null}
+            {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
+          </div>
+          <Button type="submit" size="xl" className="w-full lg:[grid-area:actions]" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
             {submitting ? <Spinner data-icon="inline-start" /> : null}
             {submitting ? t.withdraw.preparing : t.withdraw.continue}
           </Button>
+          {/* Where the lira goes and what happens next; last on a phone, beside the form on a laptop. */}
+          <aside className="flex flex-col gap-4 max-lg:order-last lg:sticky lg:top-24 lg:[grid-area:side]" aria-label={t.deposit.statusTitle}>
+            <p className="text-xs text-muted-foreground">{t.withdraw.payoutHint}</p>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Stepper steps={WITHDRAW_STEPS.map((step): StepperStep => ({ key: step, label: t.withdraw.steps[step], owner: step === "completed" ? undefined : step === "created" || step === "awaiting_usdc" ? "you" : "us", state: "idle" }))} />
+              </CardContent>
+            </Card>
+          </aside>
         </form>
       </div>
     );
@@ -425,8 +439,10 @@ function Withdraw() {
   const failed = record.status === "failed" ? classifyRecordError(record.error ?? { code: "step_failed", message: record.lastError?.message ?? "unknown" }, { landingAddress: record.landing?.publicKey }) : null;
   const retryLabel = vaultTxHash ? t.withdraw.tapTransfer : t.withdraw.tapVault;
 
+  const done = FINAL.includes(record.status);
+  const needsYou = record.status === "created" || record.status === "awaiting_usdc" || client === "needs_tap";
   return (
-    <div className="flex flex-col gap-5 py-2">
+    <div className={cn("flex flex-col gap-5 py-2", done && "mx-auto w-full lg:max-w-2xl")}>
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
         <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
@@ -434,6 +450,9 @@ function Withdraw() {
         </Link>
       </div>
 
+      {/* Two columns on a laptop: the quote and notices, then the status beside them; one centred column once the withdrawal is final. */}
+      <div className={cn("grid gap-5", !done && "lg:grid-cols-[3fr_2fr] lg:items-start")}>
+      <div className="flex flex-col gap-5">
       {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="withdraw" /> : null}
       {pollFailure ? <FailureScreen failure={pollFailure} primary={null} /> : null}
 
@@ -457,6 +476,11 @@ function Withdraw() {
         </CardContent>
       </Card>
 
+      {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
+      </div>
+
+      {/* The status column: sticky on a laptop, first on a phone while a step needs the visitor. */}
+      <div className={cn("flex flex-col gap-5", needsYou && "max-lg:order-first", !done && "lg:sticky lg:top-24")}>
       <Card render={<section aria-label={t.deposit.statusTitle} />}>
         <CardHeader>
           <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
@@ -530,9 +554,9 @@ function Withdraw() {
           ) : null}
         </CardContent>
       </Card>
+      </div>
 
-      {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 lg:col-span-2">
         {record.status === "completed" ? (
           <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
             {t.withdraw.backToSavings}
@@ -543,6 +567,7 @@ function Withdraw() {
             {t.withdraw.newWithdrawal}
           </Button>
         ) : null}
+      </div>
       </div>
     </div>
   );

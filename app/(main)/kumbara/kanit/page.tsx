@@ -53,7 +53,7 @@ function Proof() {
   const limitLine = policyLoading ? null : policy ? (policy.periodLedgers === 1 ? t.proof.limitPerTx.replace("{amount}", formatUsdc(policy.limit, locale)) : t.proof.limitPerWindow.replace("{amount}", formatUsdc(policy.limit, locale)).replace("{window}", describeLedgerPeriod(policy.periodLedgers))) : t.proof.limitNone;
 
   return (
-    <div className="flex flex-col gap-5 py-2">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 py-2 lg:max-w-2xl">
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{t.proof.title}</h1>
         <Button variant="link" size="xs" render={<Link href="/kumbara" />}>

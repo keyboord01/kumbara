@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -67,7 +68,7 @@ try {
   }
   log(`limit card after ${((Date.now() - limitAt) / 1000).toFixed(1)}s:`, limitText.replace(/\s+/g, " ").slice(0, 120));
   if (!/1\.000,00|1,000\.00/.test(limitText)) throw new Error("spending limit not shown");
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 15000 });
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 15000 });
   log("✓ deposit enabled after the limit installed");
   const vault = (await page.locator("section[aria-label='Kasa']").textContent()) ?? "";
   log("vault card:", vault.replace(/\s+/g, " ").slice(0, 160));

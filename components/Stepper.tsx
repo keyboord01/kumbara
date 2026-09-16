@@ -40,10 +40,12 @@ export function Stepper({ steps, testId }: { steps: StepperStep[]; testId?: stri
   const now = useNow(Boolean(current));
   const doneCount = steps.filter((s) => s.state === "done").length;
   const progress = steps.length > 1 ? (doneCount + (current ? 0.5 : 0)) / steps.length : 0;
+  const started = doneCount > 0 || Boolean(current) || steps.some((s) => s.state === "failed");
   return (
     <div data-testid={testId}>
-      <Progress value={Math.max(4, Math.round(progress * 100))} aria-label={current?.label ?? steps[steps.length - 1]?.label} className="gap-0 [&_[data-slot=progress-indicator]]:rounded-full [&_[data-slot=progress-indicator]]:bg-teal [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-track]]:h-1.5" />
-      <ol className="mt-4 flex flex-col">
+      {/* The bar appears once something has started; an all-idle preview shows the rail alone. */}
+      {started ? <Progress value={Math.max(4, Math.round(progress * 100))} aria-label={current?.label ?? steps[steps.length - 1]?.label} className="gap-0 [&_[data-slot=progress-indicator]]:rounded-full [&_[data-slot=progress-indicator]]:bg-teal [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-track]]:h-1.5" /> : null}
+      <ol className={cn("flex flex-col", started && "mt-4")}>
         {steps.map((s, i) => {
           const last = i === steps.length - 1;
           const elapsed = s.state === "current" && s.since ? Math.max(0, Math.round((now - Date.parse(s.since)) / 1000)) : null;

@@ -7,6 +7,7 @@ import { chromium } from "playwright";
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const consoleErrors = [];
 page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`));

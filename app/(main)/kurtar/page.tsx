@@ -91,7 +91,7 @@ export default function RecoverPage() {
 
   const busy = stage === "finding" || stage === "connecting";
   return (
-    <div className="flex flex-col gap-5 py-2">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 py-2 lg:max-w-2xl">
       <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{t.recover.title}</h1>
         <Button variant="link" size="xs" render={<Link href="/" />}>

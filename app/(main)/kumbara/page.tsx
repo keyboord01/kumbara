@@ -143,8 +143,8 @@ function Savings() {
   const depositBlocked = setupActive;
 
   return (
-    <div className="flex flex-col gap-5 py-2">
-      <div className="flex items-baseline justify-between gap-3">
+    <div className="flex flex-col gap-5 py-2 lg:grid lg:grid-flow-row-dense lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-6">
+      <div className="flex items-baseline justify-between gap-3 lg:col-span-2">
         <h1 className="text-3xl font-bold tracking-tight">{t.savings.title}</h1>
         <Button
           variant="outline"
@@ -162,21 +162,21 @@ function Savings() {
 
       {setupActive &&
         (setup === "error" ? (
-          <div className="flex flex-col gap-2" aria-label={t.savings.limit}>
+          <div className="flex flex-col gap-2 lg:col-span-2" aria-label={t.savings.limit}>
             <Alert variant="destructive">
               <AlertTitle>{t.savings.limitSetupFailed}</AlertTitle>
             </Alert>
             {setupFailure ? <FailureScreen failure={setupFailure} compact primary={{ label: t.savings.limitSetupConfirm, onClick: () => void install() }} /> : null}
           </div>
         ) : (
-          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-teal/30 bg-teal/5">
+          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-teal/30 bg-teal/5 lg:col-span-2">
             <Spinner className="text-teal" />
             <AlertTitle className="text-teal">{t.savings.limitSetup}</AlertTitle>
             <AlertDescription className="text-ink-2">{t.savings.limitSetupHint}</AlertDescription>
           </Alert>
         ))}
 
-      <Card render={<section aria-label={t.savings.inVault} />}>
+      <Card render={<section aria-label={t.savings.inVault} />} className="lg:col-start-1">
         <CardHeader>
           <CardTitle className="microlabel">{t.savings.inVault}</CardTitle>
           <CardAction>
@@ -211,9 +211,11 @@ function Savings() {
         </CardFooter>
       </Card>
 
-      <GoalCard inVault={inVault} />
+      <div className="contents lg:col-start-2 lg:block">
+        <GoalCard inVault={inVault} />
+      </div>
 
-      <Card render={<section aria-label={t.savings.vault} />}>
+      <Card render={<section aria-label={t.savings.vault} />} className="lg:col-start-1">
         <CardHeader>
           <CardTitle className="microlabel">{t.savings.vault}</CardTitle>
           <CardDescription className="font-semibold text-foreground">{position?.name ?? <Skeleton className="h-4 w-40" />}</CardDescription>
@@ -233,7 +235,7 @@ function Savings() {
         </CardContent>
       </Card>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-2 lg:col-start-1">
         <Card size="sm">
           <CardHeader>
             <CardTitle className="microlabel">{t.savings.recovery}</CardTitle>
@@ -275,9 +277,13 @@ function Savings() {
         </Card>
       </section>
 
-      <InviteCard />
+      <div className="contents lg:col-start-2 lg:block">
+        <InviteCard />
+      </div>
 
-      <AddressCard />
+      <div className="contents lg:col-start-2 lg:block">
+        <AddressCard />
+      </div>
     </div>
   );
 }

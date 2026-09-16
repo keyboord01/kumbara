@@ -100,10 +100,11 @@ export default function OnboardPage() {
   const unsupported = capabilities !== null && capabilities.supported === false;
 
   return (
-    <div className="flex flex-col gap-8 py-4">
+    <div className="flex flex-col gap-8 py-4 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)] lg:items-start lg:gap-x-14 lg:py-12">
+      <div className="flex flex-col gap-8">
       <section className="flex flex-col gap-4">
-        <h1 className="text-4xl leading-tight font-bold tracking-tight text-foreground">{t.onboard.title}</h1>
-        <p className="text-base leading-relaxed text-ink-2">{t.onboard.lead}</p>
+        <h1 className="text-4xl leading-tight font-bold tracking-tight text-foreground lg:text-5xl">{t.onboard.title}</h1>
+        <p className="text-base leading-relaxed text-ink-2 lg:text-lg">{t.onboard.lead}</p>
       </section>
 
       <Card>
@@ -162,8 +163,9 @@ export default function OnboardPage() {
           )}
         </CardContent>
       </Card>
+      </div>
 
-      <Card render={<ol aria-label={t.onboard.title} />} className="gap-0 py-0 shadow-none">
+      <Card render={<ol aria-label={t.onboard.title} />} className="gap-0 py-0 shadow-none lg:mt-3">
         {t.onboard.steps.map((step, i) => (
           <Item key={step} render={<li />} size="sm" className="rounded-none not-last:border-b-border">
             <ItemMedia>

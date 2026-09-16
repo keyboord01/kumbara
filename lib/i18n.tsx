@@ -13,7 +13,7 @@ export const dict = {
     network: { testnet: "TESTNET", mainnet: "MAINNET" },
     footer: "Test ağı. Gerçek lira hareket etmez.",
     footerMainnet: "Ana ağ. Gerçek USDC hareket eder.",
-    nav: { savings: "Kumbaram", deposit: "Yükle", withdraw: "Çek", security: "Güvenlik" },
+    nav: { savings: "Kumbaram", deposit: "Yükle", withdraw: "Çek", security: "Güvenlik", proof: "Kanıt", label: "Kumbara" },
     onboard: {
       title: "Liranı USDC olarak biriktir.",
       lead: "Kumbara, passkey ile (Face ID, Touch ID ya da parola yöneticin) açılan, anahtarı yalnızca sende olan bir USDC kumbarasıdır. Şifre yok, uygulama yok, XLM yok.",
@@ -31,7 +31,7 @@ export const dict = {
       haveOne: "Kumbaram zaten var",
       connecting: "Passkey ile bağlanılıyor…",
       lostPasskey: "Passkey'imi bulamıyorum",
-      steps: ["Passkey ile aç (Face ID, Touch ID)", "Lira yükle, USDC olsun", "USDC DeFindex'te getiri kazanabilir", "İstediğinde liraya geri çek"],
+      steps: ["Passkey ile aç (Face ID, Touch ID)", "Lira yükle, USDC olsun", "USDC DeFindex kasasında durur", "İstediğinde liraya geri çek"],
     },
     savings: {
       title: "Kumbaram",
@@ -40,7 +40,7 @@ export const dict = {
       tryEquiv: "≈",
       rateSource: { reflector: "Reflector kuru", anchor: "Anchor kuru" },
       vault: "Kasa",
-      yieldLine: "USDC'n DeFindex'te getiri kazanabilir.",
+      yieldLine: "USDC'n DeFindex kasasında durur.",
       noYield: "Test ağındaki kasada getiri oluşmaz.",
       risk: "Getiri garanti değildir. DeFindex stratejileri ve akıllı sözleşmeler risk taşır; kaybı göze alamayacağın parayı koyma.",
       recovery: "Kurtarma",
@@ -443,7 +443,7 @@ export const dict = {
     network: { testnet: "TESTNET", mainnet: "MAINNET" },
     footer: "Testnet. No real lira moves.",
     footerMainnet: "Mainnet. Real USDC moves.",
-    nav: { savings: "My kumbara", deposit: "Deposit", withdraw: "Withdraw", security: "Security" },
+    nav: { savings: "My kumbara", deposit: "Deposit", withdraw: "Withdraw", security: "Security", proof: "Proof", label: "Kumbara" },
     onboard: {
       title: "Put lira away as USDC.",
       lead: "Kumbara is a USDC piggy bank that opens with a passkey: Face ID, Touch ID or your password manager. Only you hold the key. No password, no app, no XLM.",
@@ -461,7 +461,7 @@ export const dict = {
       haveOne: "I already have a kumbara",
       connecting: "Connecting with your passkey…",
       lostPasskey: "I can't find my passkey",
-      steps: ["Open with a passkey (Face ID, Touch ID)", "Deposit lira, receive USDC", "USDC can earn yield through DeFindex", "Withdraw back to lira whenever you like"],
+      steps: ["Open with a passkey (Face ID, Touch ID)", "Deposit lira, receive USDC", "USDC sits in a DeFindex vault", "Withdraw back to lira whenever you like"],
     },
     savings: {
       title: "My kumbara",
@@ -470,7 +470,7 @@ export const dict = {
       tryEquiv: "≈",
       rateSource: { reflector: "Reflector rate", anchor: "Anchor rate" },
       vault: "Vault",
-      yieldLine: "Your USDC can earn yield through DeFindex.",
+      yieldLine: "Your USDC sits in a DeFindex vault.",
       noYield: "No yield accrues on the testnet vault.",
       risk: "Yield is not guaranteed. DeFindex strategies and smart contracts carry risk; do not put in money you cannot afford to lose.",
       recovery: "Recovery",
@@ -899,22 +899,25 @@ function subscribe(callback: () => void): () => void {
   };
 }
 
+/** English unless Turkish was chosen (toggle or `?lang=tr` on a link); the choice sticks per browser. */
 function readStoredLocale(): Locale {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "tr";
+    return window.localStorage.getItem(STORAGE_KEY) === "tr" ? "tr" : "en";
   } catch {
-    return "tr";
+    return "en";
   }
 }
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  // The stored preference is an external store: server snapshot "tr", client
-  // snapshot from localStorage, updates via a window event.
-  const locale = useSyncExternalStore(subscribe, readStoredLocale, () => "tr" as Locale);
+/** `?lang=tr|en` on any link (the booth QR, a share) selects and persists the language once. */
+function readLinkLocale(): Locale | null {
+  const raw = new URLSearchParams(window.location.search).get("lang")?.toLowerCase();
+  return raw === "tr" || raw === "en" ? raw : null;
+}
 
-  useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+export function LocaleProvider({ children }: { children: ReactNode }) {
+  // The stored preference is an external store: server snapshot "en", client
+  // snapshot from localStorage, updates via a window event.
+  const locale = useSyncExternalStore(subscribe, readStoredLocale, () => "en" as Locale);
 
   const setLocale = useCallback((next: Locale) => {
     try {
@@ -924,6 +927,15 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }
     window.dispatchEvent(new Event(LANG_EVENT));
   }, []);
+
+  useEffect(() => {
+    const linked = readLinkLocale();
+    if (linked && linked !== readStoredLocale()) setLocale(linked);
+  }, [setLocale]);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const value = useMemo<LocaleContextValue>(() => ({ locale, t: dict[locale] as Dict, setLocale }), [locale, setLocale]);
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

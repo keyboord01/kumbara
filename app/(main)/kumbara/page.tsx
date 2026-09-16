@@ -4,6 +4,8 @@ import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { usePasskeyWallet, useSigners, useSpendingPolicy, useWalletBalance } from "@sembol/passkey-react";
+import { cn } from "cn";
+import { ArrowRightIcon, ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import { AddressCard } from "@/components/AddressCard";
 import { GoalCard } from "@/components/GoalCard";
 import { InviteCard } from "@/components/InviteCard";
@@ -11,6 +13,10 @@ import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { Skeleton } from "@/components/Skeleton";
 import { RequireWallet } from "@/components/RequireWallet";
+import { Spinner } from "@/components/Spinner";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { classifyError, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
@@ -138,114 +144,135 @@ function Savings() {
 
   return (
     <div className="flex flex-col gap-5 py-2">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{t.savings.title}</h1>
-        <button
-          type="button"
-          className="btn-chip"
+        <Button
+          variant="outline"
+          size="sm"
           onClick={() => {
             setEpoch((e) => e + 1);
             void refresh();
             void wallet.refetch();
           }}
         >
+          <RefreshCwIcon data-icon="inline-start" />
           {t.savings.refresh}
-        </button>
+        </Button>
       </div>
 
-      {setupActive && (
-        <section className="card border-teal/30 bg-teal/5 p-4" aria-label={t.savings.limit}>
-          {setup === "error" ? (
-            <div>
-              <p className="font-semibold text-danger">{t.savings.limitSetupFailed}</p>
-              {setupFailure ? <FailureScreen failure={setupFailure} compact className="mt-2" primary={{ label: t.savings.limitSetupConfirm, onClick: () => void install() }} /> : null}
-            </div>
-          ) : (
-            <div role="status" aria-live="polite">
-              <p className="font-semibold text-teal">{t.savings.limitSetup}</p>
-              <p className="mt-1 text-sm text-ink-2">{t.savings.limitSetupHint}</p>
-            </div>
-          )}
-        </section>
-      )}
+      {setupActive &&
+        (setup === "error" ? (
+          <div className="flex flex-col gap-2" aria-label={t.savings.limit}>
+            <Alert variant="destructive">
+              <AlertTitle>{t.savings.limitSetupFailed}</AlertTitle>
+            </Alert>
+            {setupFailure ? <FailureScreen failure={setupFailure} compact primary={{ label: t.savings.limitSetupConfirm, onClick: () => void install() }} /> : null}
+          </div>
+        ) : (
+          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-teal/30 bg-teal/5">
+            <Spinner className="text-teal" />
+            <AlertTitle className="text-teal">{t.savings.limitSetup}</AlertTitle>
+            <AlertDescription className="text-ink-2">{t.savings.limitSetupHint}</AlertDescription>
+          </Alert>
+        ))}
 
-      <section className="card p-5" aria-label={t.savings.inVault}>
-        <div className="flex items-center justify-between">
-          <p className="microlabel">{t.savings.inVault}</p>
-          <NetworkBadge />
-        </div>
-        <p className="tnum mt-2 text-4xl font-bold text-ink">
-          {inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}
-        </p>
-        <p className="tnum mt-1 text-sm text-ink-2">
-          {t.savings.tryEquiv} {formatTry(tryValue(inVault), locale)}
-          {rate && <span className="text-muted"> · {t.savings.rateSource[rate.source]}</span>}
-        </p>
-        {waiting !== null && waiting > 0n && (
-          <p className="tnum mt-3 rounded-lg bg-paper-2 px-3 py-2 text-sm text-ink-2">
-            {t.savings.waiting}: <strong>{formatUsdc(waiting, locale)} USDC</strong> · {t.savings.tryEquiv} {formatTry(tryValue(waiting), locale)}
+      <Card render={<section aria-label={t.savings.inVault} />}>
+        <CardHeader>
+          <CardTitle className="microlabel">{t.savings.inVault}</CardTitle>
+          <CardAction>
+            <NetworkBadge />
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1">
+          <p className="tnum text-4xl font-bold text-foreground">{inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}</p>
+          <p className="tnum text-sm text-ink-2">
+            {t.savings.tryEquiv} {formatTry(tryValue(inVault), locale)}
+            {rate && <span className="text-muted-foreground"> · {t.savings.rateSource[rate.source]}</span>}
           </p>
-        )}
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          {depositBlocked ? (
-            <button type="button" disabled aria-disabled className="btn-primary" title={t.savings.limitSetup}>
-              {t.savings.deposit}
-            </button>
-          ) : (
-            <Link href="/yukle" className="btn-primary">
-              {t.savings.deposit}
-            </Link>
+          {waiting !== null && waiting > 0n && (
+            <p className="tnum mt-2 rounded-lg bg-muted px-3 py-2 text-sm text-ink-2">
+              {t.savings.waiting}: <strong>{formatUsdc(waiting, locale)} USDC</strong> · {t.savings.tryEquiv} {formatTry(tryValue(waiting), locale)}
+            </p>
           )}
-          <Link href="/cek" className="btn-secondary">
+        </CardContent>
+        <CardFooter className="grid grid-cols-2 gap-2">
+          {depositBlocked ? (
+            <Button size="xl" disabled title={t.savings.limitSetup}>
+              {t.savings.deposit}
+            </Button>
+          ) : (
+            <Button size="xl" render={<Link href="/yukle" />}>
+              {t.savings.deposit}
+            </Button>
+          )}
+          <Button variant="outline" size="xl" render={<Link href="/cek" />}>
             {t.savings.withdraw}
-          </Link>
-        </div>
-      </section>
+          </Button>
+        </CardFooter>
+      </Card>
 
       <GoalCard inVault={inVault} />
 
-      <section className="card p-5" aria-label={t.savings.vault}>
-        <div className="flex items-center justify-between gap-2">
-          <p className="microlabel">{t.savings.vault}</p>
+      <Card render={<section aria-label={t.savings.vault} />}>
+        <CardHeader>
+          <CardTitle className="microlabel">{t.savings.vault}</CardTitle>
+          <CardDescription className="font-semibold text-foreground">{position?.name ?? <Skeleton className="h-4 w-40" />}</CardDescription>
           {info && (
-            <a href={`${EXPLORER_BASE}/contract/${info.vault.id}`} target="_blank" rel="noreferrer" className="text-xs text-teal hover:underline">
-              stellar.expert · {NETWORK_LABEL}
-            </a>
+            <CardAction>
+              <Button variant="link" size="xs" render={<a href={`${EXPLORER_BASE}/contract/${info.vault.id}`} target="_blank" rel="noreferrer" />}>
+                stellar.expert · {NETWORK_LABEL}
+                <ExternalLinkIcon data-icon="inline-end" />
+              </Button>
+            </CardAction>
           )}
-        </div>
-        <p className="mt-1 font-semibold">{position?.name ?? t.savings.loading}</p>
-        <p className="mt-2 text-sm text-ink-2">{t.savings.yieldLine}</p>
-        {NETWORK === "testnet" && <p className="mt-1 text-sm text-amber">{t.savings.noYield}</p>}
-        <p className="mt-2 text-xs leading-relaxed text-muted">{t.savings.risk}</p>
-      </section>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-1">
+          <p className="text-sm text-ink-2">{t.savings.yieldLine}</p>
+          {NETWORK === "testnet" && <p className="text-sm text-amber">{t.savings.noYield}</p>}
+          <p className="text-xs leading-relaxed text-muted-foreground">{t.savings.risk}</p>
+        </CardContent>
+      </Card>
 
       <section className="grid gap-3 sm:grid-cols-2">
-        <div className="card p-4">
-          <p className="microlabel">{t.savings.recovery}</p>
-          <p className={`mt-1 font-semibold ${backupCount > 0 ? "text-mint" : "text-amber"}`}>{backupCount > 0 ? t.savings.recoveryOk : t.savings.recoveryMissing}</p>
-          <p className="mt-1 text-xs text-muted">{t.savings.recoveryHint}</p>
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
-            <Link href="/kumbara/guvenlik" className="text-sm text-teal hover:underline">
-              {t.savings.manage} →
-            </Link>
-            <Link href="/kumbara/kanit" className="text-sm text-teal hover:underline" data-testid="proof-link">
-              {t.savings.proofLink} →
-            </Link>
-          </div>
-        </div>
-        <div className="card p-4" data-testid="limit-card">
-          <p className="microlabel">{t.savings.limit}</p>
-          <p className="tnum mt-1 font-semibold">
-            {policy
-              ? `${formatUsdc(policy.limit, locale)} USDC ${perTx ? t.savings.limitPerTx : `${t.savings.limitPer} ${policy.periodLedgers} ${t.savings.ledgers}`}`
-              : setupActive
-                ? t.savings.limitSetup
-                : t.savings.limitNone}
-          </p>
-          <Link href="/kumbara/guvenlik" className="mt-3 inline-block text-sm text-teal hover:underline">
-            {t.savings.manage} →
-          </Link>
-        </div>
+        <Card size="sm">
+          <CardHeader>
+            <CardTitle className="microlabel">{t.savings.recovery}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1">
+            <p className={cn("font-semibold", backupCount > 0 ? "text-mint-2" : "text-amber")}>{backupCount > 0 ? t.savings.recoveryOk : t.savings.recoveryMissing}</p>
+            <p className="text-xs text-muted-foreground">{t.savings.recoveryHint}</p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              <Button variant="link" size="xs" render={<Link href="/kumbara/guvenlik" />}>
+                {t.savings.manage}
+                <ArrowRightIcon data-icon="inline-end" />
+              </Button>
+              <Button variant="link" size="xs" render={<Link href="/kumbara/kanit" />} data-testid="proof-link">
+                {t.savings.proofLink}
+                <ArrowRightIcon data-icon="inline-end" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <Card size="sm" data-testid="limit-card">
+          <CardHeader>
+            <CardTitle className="microlabel">{t.savings.limit}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1">
+            <p className="tnum font-semibold">
+              {policy
+                ? `${formatUsdc(policy.limit, locale)} USDC ${perTx ? t.savings.limitPerTx : `${t.savings.limitPer} ${policy.periodLedgers} ${t.savings.ledgers}`}`
+                : setupActive
+                  ? t.savings.limitSetup
+                  : t.savings.limitNone}
+            </p>
+            <div className="mt-2">
+              <Button variant="link" size="xs" render={<Link href="/kumbara/guvenlik" />}>
+                {t.savings.manage}
+                <ArrowRightIcon data-icon="inline-end" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
       </section>
 
       <InviteCard />

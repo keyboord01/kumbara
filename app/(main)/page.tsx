@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { useCreateWallet, usePasskeyWallet } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
 import { FailureScreen } from "@/components/FailureScreen";
+import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Item, ItemContent, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { api } from "@/lib/api";
 import { classifyError, type Failure } from "@/lib/failures";
 import { useLocale } from "@/lib/i18n";
@@ -98,71 +102,81 @@ export default function OnboardPage() {
   return (
     <div className="flex flex-col gap-8 py-4">
       <section className="flex flex-col gap-4">
-        <h1 className="text-4xl font-bold leading-tight tracking-tight text-ink">{t.onboard.title}</h1>
+        <h1 className="text-4xl leading-tight font-bold tracking-tight text-foreground">{t.onboard.title}</h1>
         <p className="text-base leading-relaxed text-ink-2">{t.onboard.lead}</p>
       </section>
 
-      <section className="card p-5">
-        {status === "initializing" ? (
-          <p className="text-sm text-muted" role="status">
-            {t.savings.loading}
-          </p>
-        ) : busy ? (
-          <div className="flex flex-col gap-3">
-            <button type="button" disabled className="btn-primary w-full text-lg" aria-busy="true">
-              <Spinner />
-              {phaseLabel}
-            </button>
-            <p className="text-center text-sm text-muted" role="status" aria-live="polite">
-              {phaseLabel}
-            </p>
-          </div>
-        ) : isConnected && address ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-sm text-ink-2">{t.onboard.done}</p>
-            <AddressCard />
-            {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
-            <Link href="/kumbara" className="btn-primary w-full">
-              {t.onboard.existing}
-            </Link>
-          </div>
-        ) : unsupported ? (
-          <FailureScreen failure={{ kind: "passkey_unsupported", detail: JSON.stringify(capabilities) }} primary={null} compact />
-        ) : (
-          <div className="flex flex-col gap-4">
-            {infoFailure ? <FailureScreen failure={infoFailure} compact onRetry={retryInfo} /> : null}
-            <button type="button" onClick={start} disabled={!info} className="btn-primary w-full text-lg">
-              {t.onboard.cta}
-            </button>
-            {failure ? (
-              <FailureScreen
-                failure={failure}
-                compact
-                onRetry={failure.kind === "passkey_lost" ? undefined : start}
-                secondary={failure.kind === "passkey_lost" ? null : { label: t.onboard.haveOne, onClick: () => void connectExisting() }}
-              />
-            ) : null}
-            <p className="text-xs leading-relaxed text-muted">{t.onboard.limitNote}</p>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <button type="button" onClick={() => void connectExisting()} className="text-teal underline-offset-2 hover:underline">
-                {t.onboard.haveOne}
-              </button>
-              <Link href="/kurtar" className="text-muted underline-offset-2 hover:underline">
-                {t.onboard.lostPasskey}
-              </Link>
+      <Card>
+        <CardContent className="flex flex-col gap-4">
+          {status === "initializing" ? (
+            <div role="status" aria-live="polite" aria-label={t.savings.loading} className="flex flex-col gap-3">
+              <Skeleton className="h-13 w-full rounded-full" />
+              <Skeleton className="mx-auto h-4 w-48" />
+              <span className="sr-only">{t.savings.loading}</span>
             </div>
-          </div>
-        )}
-      </section>
+          ) : busy ? (
+            <>
+              <Button size="xl" className="w-full" disabled aria-busy="true">
+                <Spinner data-icon="inline-start" />
+                {phaseLabel}
+              </Button>
+              <p className="text-center text-sm text-muted-foreground" role="status" aria-live="polite">
+                {phaseLabel}
+              </p>
+            </>
+          ) : isConnected && address ? (
+            <>
+              <p className="text-sm text-ink-2">{t.onboard.done}</p>
+              <AddressCard />
+              {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
+              <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
+                {t.onboard.existing}
+              </Button>
+            </>
+          ) : unsupported ? (
+            <FailureScreen failure={{ kind: "passkey_unsupported", detail: JSON.stringify(capabilities) }} primary={null} compact />
+          ) : (
+            <>
+              {infoFailure ? <FailureScreen failure={infoFailure} compact onRetry={retryInfo} /> : null}
+              <Button size="xl" className="w-full" onClick={start} disabled={!info}>
+                {t.onboard.cta}
+              </Button>
+              {failure ? (
+                <FailureScreen
+                  failure={failure}
+                  compact
+                  onRetry={failure.kind === "passkey_lost" ? undefined : start}
+                  secondary={failure.kind === "passkey_lost" ? null : { label: t.onboard.haveOne, onClick: () => void connectExisting() }}
+                />
+              ) : null}
+              <p className="text-xs leading-relaxed text-muted-foreground">{t.onboard.limitNote}</p>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <Button variant="link" size="xs" onClick={() => void connectExisting()}>
+                  {t.onboard.haveOne}
+                </Button>
+                <Button variant="link" size="xs" className="text-muted-foreground" render={<Link href="/kurtar" />}>
+                  {t.onboard.lostPasskey}
+                </Button>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
-      <ol className="card-flat flex flex-col overflow-hidden">
+      <Card render={<ol aria-label={t.onboard.title} />} className="gap-0 py-0 shadow-none">
         {t.onboard.steps.map((step, i) => (
-          <li key={step} className="flex items-center gap-3 px-4 py-3 text-sm text-ink-2 first:rounded-t-[var(--radius-card)] last:rounded-b-[var(--radius-card)] not-last:border-b not-last:border-line">
-            <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-teal/10 text-xs font-bold text-teal">{i + 1}</span>
-            <span>{step}</span>
-          </li>
+          <Item key={step} render={<li />} size="sm" className="rounded-none not-last:border-b-border">
+            <ItemMedia>
+              <span className="grid size-7 place-items-center rounded-full bg-teal/10 text-xs font-bold text-teal" aria-hidden>
+                {i + 1}
+              </span>
+            </ItemMedia>
+            <ItemContent>
+              <ItemTitle className="font-normal text-ink-2">{step}</ItemTitle>
+            </ItemContent>
+          </Item>
         ))}
-      </ol>
+      </Card>
     </div>
   );
 }

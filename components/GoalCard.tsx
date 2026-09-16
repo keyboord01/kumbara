@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader } from "@/components/ui/card";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
@@ -94,7 +94,7 @@ export function GoalCard({ inVault }: { inVault: bigint | null }) {
   return (
     <Card render={<section aria-label={t.goal.title} />} data-testid="goal-card">
       <CardHeader>
-        <CardTitle className="microlabel">{t.goal.title}</CardTitle>
+        <p className="microlabel">{t.goal.title}</p>
         {!editing && profile !== undefined ? (
           <CardAction>
             <Button variant="outline" size="sm" onClick={() => setEditing(true)} data-testid="goal-edit">

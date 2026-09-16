@@ -92,8 +92,8 @@ try {
   await input.waitFor({ timeout: 20000 });
   await input.fill("1");
   await page.getByText(/Alacağın lira/).waitFor({ timeout: 20000 });
-  await page.locator("div.rounded-xl.bg-paper-2 p.tnum").first().waitFor({ timeout: 20000 });
-  const quoteText = ((await page.locator("div.rounded-xl.bg-paper-2").textContent()) ?? "").replace(/\s+/g, " ");
+  await page.locator("[data-testid='withdraw-quote'] p.tnum").first().waitFor({ timeout: 20000 });
+  const quoteText = ((await page.locator("[data-testid='withdraw-quote']").textContent()) ?? "").replace(/\s+/g, " ");
   log("quote shown:", quoteText.slice(0, 120));
   // The rate is lira per USDC (SEP-38 states the sell price the other way round); an inverted display would read 0.02.
   const rateText = quoteText.match(/([\d.,]+) ₺\/USDC/)?.[1] ?? "";

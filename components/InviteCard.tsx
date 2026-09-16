@@ -6,7 +6,7 @@ import { CheckIcon, CopyIcon, Share2Icon } from "lucide-react";
 import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toaster";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { useLocale } from "@/lib/i18n";
 
@@ -59,7 +59,7 @@ export function InviteCard() {
   return (
     <Card render={<section aria-label={t.invite.title} />} data-testid="invite-card">
       <CardHeader>
-        <CardTitle className="microlabel">{t.invite.title}</CardTitle>
+        <p className="microlabel">{t.invite.title}</p>
         <CardDescription className="text-ink-2">{t.invite.lead}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">

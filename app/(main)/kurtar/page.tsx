@@ -4,8 +4,14 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { usePasskeyWallet } from "@sembol/passkey-react";
+import { CheckCircle2Icon } from "lucide-react";
 import { FailureScreen } from "@/components/FailureScreen";
 import { Spinner } from "@/components/Spinner";
+import { Alert, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
 import { classifyError, type Failure } from "@/lib/failures";
 import { useLocale } from "@/lib/i18n";
@@ -86,51 +92,57 @@ export default function RecoverPage() {
   const busy = stage === "finding" || stage === "connecting";
   return (
     <div className="flex flex-col gap-5 py-2">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{t.recover.title}</h1>
-        <Link href="/" className="text-sm text-teal hover:underline">
+        <Button variant="link" size="xs" render={<Link href="/" />}>
           {t.recover.back}
-        </Link>
+        </Button>
       </div>
       <p className="text-sm leading-relaxed text-ink-2">{t.recover.lead}</p>
       <p className="text-sm leading-relaxed text-ink-2">{t.failures.kinds.passkey_lost.body}</p>
-      <section className="card flex flex-col gap-4 p-5" aria-label={t.recover.title}>
-        {stage === "done" ? (
-          <p className="text-sm font-semibold text-mint" role="status" data-testid="recover-done">
-            {t.recover.done}
-          </p>
-        ) : (
-          <>
-            <button type="button" onClick={() => void find()} disabled={busy || !kit} aria-busy={busy ? "true" : "false"} className="btn-primary w-full text-lg" data-testid="recover-find">
-              {busy ? <Spinner /> : null}
-              {stage === "finding" ? t.recover.finding : stage === "connecting" ? t.savings.loading : t.recover.find}
-            </button>
-            {note ? (
-              <p className="text-sm text-ink-2" role="status" data-testid="recover-note">
-                {note}
-              </p>
-            ) : null}
-            {stage === "manual" ? (
-              <form
-                className="flex flex-col gap-3"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  void connectManual();
-                }}
-              >
-                <label className="flex flex-col gap-1 text-sm">
-                  <span className="microlabel">{t.recover.manualLabel}</span>
-                  <input value={manual} onChange={(e) => setManual(e.target.value)} className="field font-mono text-sm" placeholder="C…" autoComplete="off" spellCheck={false} data-testid="recover-address" />
-                </label>
-                <p className="text-xs text-muted">{t.recover.manualHint}</p>
-                <button type="submit" disabled={!/^C[A-Z2-7]{55}$/.test(manual.trim())} className="btn-secondary w-full">
-                  {t.recover.manualSubmit}
-                </button>
-              </form>
-            ) : null}
-          </>
-        )}
-      </section>
+      <Card render={<section aria-label={t.recover.title} />}>
+        <CardContent className="flex flex-col gap-4">
+          {stage === "done" ? (
+            <Alert role="status" data-testid="recover-done" className="border-mint/30 bg-mint/5">
+              <CheckCircle2Icon className="text-mint" />
+              <AlertTitle className="text-mint-2">{t.recover.done}</AlertTitle>
+            </Alert>
+          ) : (
+            <>
+              <Button size="xl" className="w-full" onClick={() => void find()} disabled={busy || !kit} aria-busy={busy ? "true" : undefined} data-testid="recover-find">
+                {busy ? <Spinner data-icon="inline-start" /> : null}
+                {stage === "finding" ? t.recover.finding : stage === "connecting" ? t.savings.loading : t.recover.find}
+              </Button>
+              {note ? (
+                <p className="text-sm text-ink-2" role="status" data-testid="recover-note">
+                  {note}
+                </p>
+              ) : null}
+              {stage === "manual" ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    void connectManual();
+                  }}
+                >
+                  <FieldGroup className="gap-4">
+                    <Field>
+                      <FieldLabel htmlFor="recover-address" className="microlabel">
+                        {t.recover.manualLabel}
+                      </FieldLabel>
+                      <Input id="recover-address" value={manual} onChange={(e) => setManual(e.target.value)} className="font-mono text-sm" placeholder="C…" autoComplete="off" spellCheck={false} data-testid="recover-address" />
+                      <FieldDescription className="text-xs">{t.recover.manualHint}</FieldDescription>
+                    </Field>
+                    <Button type="submit" variant="outline" className="w-full" disabled={!/^C[A-Z2-7]{55}$/.test(manual.trim())}>
+                      {t.recover.manualSubmit}
+                    </Button>
+                  </FieldGroup>
+                </form>
+              ) : null}
+            </>
+          )}
+        </CardContent>
+      </Card>
       {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
     </div>
   );

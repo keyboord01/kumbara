@@ -4,14 +4,21 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Address, nativeToScVal, xdr } from "@stellar/stellar-sdk";
 import { buildContractCallTransaction, buildTransferTransaction, usePasskeyWallet, useSignTransaction, useSpendingPolicy } from "@sembol/passkey-react";
+import { ExternalLinkIcon } from "lucide-react";
 import { FailureScreen } from "@/components/FailureScreen";
-import { ScreenSkeleton } from "@/components/Skeleton";
+import { ScreenSkeleton, Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { Stepper, type StepperStep } from "@/components/Stepper";
 import { useToast } from "@/components/Toaster";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
+import { Separator } from "@/components/ui/separator";
 import { api } from "@/lib/api";
 import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { StepTimeoutError, classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
@@ -79,8 +86,9 @@ const floor2 = (stroops: bigint): string => {
 
 function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
-    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-teal hover:underline">
-      {label} · {NETWORK_LABEL} ↗
+    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-teal hover:underline">
+      {label} · {NETWORK_LABEL}
+      <ExternalLinkIcon className="size-3.5" aria-hidden />
     </a>
   );
 }
@@ -325,64 +333,76 @@ function Withdraw() {
   if (view === "loading") return <ScreenSkeleton />;
 
   if (view === "form") {
+    const invalid = amount !== "" && !amountValid;
     return (
       <div className="flex flex-col gap-5 py-2">
         <div className="flex items-baseline justify-between">
           <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
-          <Link href="/kumbara" className="text-sm text-teal hover:underline">
+          <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
             {t.withdraw.backToSavings}
           </Link>
         </div>
         <form
-          className="card flex flex-col gap-4 p-5"
+          className="flex flex-col gap-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (amountValid) void start();
           }}
         >
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-ink-2">
-              {t.withdraw.available}: <strong className="tnum">{position ? `${formatUsdc(position.usdc, locale)} USDC` : "…"}</strong>
-            </p>
-            <NetworkBadge />
-          </div>
-          <label className="flex flex-col gap-2">
-            <span className="font-semibold">{t.withdraw.lead}</span>
-            <span className="microlabel">{t.withdraw.amountLabel}</span>
-            <span className="relative block">
-              <input
-                type="number"
-                inputMode="decimal"
-                min={1}
-                step="0.01"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="field tnum pr-20 text-2xl font-semibold"
-                aria-invalid={amount !== "" && !amountValid ? "true" : "false"}
-              />
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-muted" aria-hidden>
-                USDC
-              </span>
-            </span>
-          </label>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => position && setAmount(floor2(position.usdc))} className="btn-secondary min-h-9 px-3 text-sm" disabled={!position || position.usdc < 10_000_000n}>
-              {t.withdraw.all}
-            </button>
-          </div>
-          <p className="text-xs text-muted">{t.withdraw.min}</p>
-          {quote ? (
-            <div className="rounded-xl bg-paper-2 p-3">
-              <p className="microlabel">{t.withdraw.quoteTitle}</p>
-              <p className="tnum text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
-              <p className="tnum text-xs text-ink-2">
-                {t.withdraw.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({quote.spreadBps} bps {t.withdraw.spread}) · {t.withdraw.indicative}
-              </p>
-              <p className="tnum mt-1 text-xs text-muted" data-testid="quote-age">
-                {t.withdraw.quoteAge.replace("{seconds}", String(Math.max(0, Math.round(quoteAge / 1000))))}
-              </p>
-            </div>
-          ) : null}
+          <Card>
+            <CardHeader>
+              <CardTitle>{t.withdraw.lead}</CardTitle>
+              <CardDescription className="text-ink-2">
+                {t.withdraw.available}: <strong className="tnum">{position ? `${formatUsdc(position.usdc, locale)} USDC` : <Skeleton className="h-4 w-20" />}</strong>
+              </CardDescription>
+              <CardAction>
+                <NetworkBadge />
+              </CardAction>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup className="gap-3">
+                <Field data-invalid={invalid ? true : undefined}>
+                  <FieldLabel htmlFor="withdraw-amount" className="microlabel text-[11px] font-normal">
+                    {t.withdraw.amountLabel}
+                  </FieldLabel>
+                  <InputGroup className="h-14">
+                    <InputGroupInput
+                      id="withdraw-amount"
+                      type="number"
+                      inputMode="decimal"
+                      min={1}
+                      step="0.01"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="tnum text-2xl font-semibold"
+                      aria-invalid={invalid ? "true" : "false"}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupText className="font-semibold">USDC</InputGroupText>
+                    </InputGroupAddon>
+                  </InputGroup>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={() => position && setAmount(floor2(position.usdc))} disabled={!position || position.usdc < 10_000_000n}>
+                      {t.withdraw.all}
+                    </Button>
+                  </div>
+                  <FieldDescription className="text-xs">{t.withdraw.min}</FieldDescription>
+                </Field>
+                {quote ? (
+                  <div className="rounded-lg bg-muted p-3" data-testid="withdraw-quote">
+                    <p className="microlabel">{t.withdraw.quoteTitle}</p>
+                    <p className="tnum text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
+                    <p className="tnum text-xs text-ink-2">
+                      {t.withdraw.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({quote.spreadBps} bps {t.withdraw.spread}) · {t.withdraw.indicative}
+                    </p>
+                    <p className="tnum mt-1 text-xs text-muted-foreground" data-testid="quote-age">
+                      {t.withdraw.quoteAge.replace("{seconds}", String(Math.max(0, Math.round(quoteAge / 1000))))}
+                    </p>
+                  </div>
+                ) : null}
+              </FieldGroup>
+            </CardContent>
+          </Card>
           {overLimit && policy ? (
             <FailureScreen failure={{ kind: "limit_exceeded", detail: `limit ${formatUsdc(policy.limit, locale)} USDC per transaction` }} compact />
           ) : null}
@@ -390,11 +410,11 @@ function Withdraw() {
             <FailureScreen failure={{ kind: "insufficient_balance", detail: `vault position ${formatUsdc(position.usdc, locale)} USDC` }} compact primary={null} />
           ) : null}
           {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
-          <p className="text-xs text-muted">{t.withdraw.payoutHint}</p>
-          <button type="submit" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : "false"} className="btn-primary w-full text-lg">
-            {submitting ? <Spinner /> : null}
+          <p className="text-xs text-muted-foreground">{t.withdraw.payoutHint}</p>
+          <Button type="submit" size="xl" className="w-full" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
+            {submitting ? <Spinner data-icon="inline-start" /> : null}
             {submitting ? t.withdraw.preparing : t.withdraw.continue}
-          </button>
+          </Button>
         </form>
       </div>
     );
@@ -409,7 +429,7 @@ function Withdraw() {
     <div className="flex flex-col gap-5 py-2">
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
-        <Link href="/kumbara" className="text-sm text-teal hover:underline">
+        <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
           {t.withdraw.backToSavings}
         </Link>
       </div>
@@ -419,23 +439,29 @@ function Withdraw() {
 
       {failed ? <FailureScreen failure={failed} primary={failed.kind === "usdc_not_received" || failed.kind === "anchor_not_matched" ? undefined : { label: t.withdraw.newWithdrawal, onClick: reset }} secondary={failed.kind === "usdc_not_received" || failed.kind === "anchor_not_matched" ? { label: t.withdraw.newWithdrawal, onClick: reset } : null} /> : null}
 
-      <section className="card p-5" aria-label={t.withdraw.quoteTitle}>
-        <div className="flex items-center justify-between">
-          <p className="microlabel">{t.withdraw.quoteTitle}</p>
-          <NetworkBadge />
-        </div>
-        <p className="tnum mt-2 text-3xl font-bold">{formatTry(Number(record.amountTry ?? record.quote.tryOut), locale)}</p>
-        <p className="tnum mt-1 text-sm text-ink-2">
-          {formatUsdc(record.amountUsdc, locale)} USDC · {t.withdraw.rateLine} {Number(record.quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC
-        </p>
-        <p className="mt-1 text-sm text-ink-2">
-          {t.withdraw.payoutTo}: <span className="font-mono">{maskIban(record.payoutIban)}</span>
-        </p>
-      </section>
+      <Card render={<section aria-label={t.withdraw.quoteTitle} />}>
+        <CardHeader>
+          <CardTitle className="microlabel text-[11px] font-normal">{t.withdraw.quoteTitle}</CardTitle>
+          <CardAction>
+            <NetworkBadge />
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <p className="tnum text-3xl font-bold">{formatTry(Number(record.amountTry ?? record.quote.tryOut), locale)}</p>
+          <p className="tnum mt-1 text-sm text-ink-2">
+            {formatUsdc(record.amountUsdc, locale)} USDC · {t.withdraw.rateLine} {Number(record.quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC
+          </p>
+          <p className="mt-1 text-sm text-ink-2">
+            {t.withdraw.payoutTo}: <span className="font-mono">{maskIban(record.payoutIban)}</span>
+          </p>
+        </CardContent>
+      </Card>
 
-      <section className="card p-5" aria-label={t.deposit.statusTitle}>
-        <p className="microlabel">{t.deposit.statusTitle}</p>
-        <div className="mt-3">
+      <Card render={<section aria-label={t.deposit.statusTitle} />}>
+        <CardHeader>
+          <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
           <Stepper
             testId="withdraw-status"
             steps={WITHDRAW_STEPS.map((s, i): StepperStep => {
@@ -444,76 +470,78 @@ function Withdraw() {
               return { key: s, label: t.withdraw.steps[s], owner: s === "completed" ? undefined : s === "created" || s === "awaiting_usdc" ? "you" : "us", state, since: state === "current" ? record.updatedAt : undefined, typicalSeconds: state === "current" ? WITHDRAW_TYPICAL[s] : undefined };
             })}
           />
-        </div>
-        <p className="mt-4 border-t border-line pt-3 text-sm font-semibold text-ink" role="status" aria-live="polite" data-testid="withdraw-current">
-          {t.withdraw.steps[record.status]}
-        </p>
-        {record.status === "usdc_sent" || record.status === "paid" ? (
-          <p className="mt-1 text-sm text-teal" data-testid="close-hint">
-            {t.withdraw.closeHint}
-          </p>
-        ) : record.status === "created" || record.status === "awaiting_usdc" ? (
-          <p className="mt-1 text-sm text-amber" data-testid="needs-you">
-            {t.withdraw.needsYou}
-          </p>
-        ) : null}
-        {clientLabel && record.status !== "completed" ? (
-          <p className="mt-1 flex items-center gap-2 text-sm text-ink-2" role="status">
-            <Spinner className="text-teal" />
-            {clientLabel}
-          </p>
-        ) : null}
-        {client === "needs_tap" && !FINAL.includes(record.status) ? (
-          clientFailure ? (
-            <FailureScreen
-              failure={clientFailure}
-              compact
-              className="mt-3"
-              primary={clientFailure.kind === "limit_exceeded" ? undefined : { label: retryLabel, onClick: () => void runClientSteps() }}
-              secondary={clientFailure.kind === "limit_exceeded" ? { label: retryLabel, onClick: () => void runClientSteps() } : null}
-            />
-          ) : (
-            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3" data-testid="returned">
-              {resumed ? <p className="text-base font-semibold text-ink">{t.withdraw.returnedTitle}</p> : null}
-              <p className="mt-1 text-sm text-ink-2">{t.withdraw.needsTap}</p>
-              <button type="button" onClick={() => void runClientSteps()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
-                {retryLabel}
-              </button>
-            </div>
-          )
-        ) : null}
-        {record.status === "completed" ? (
-          <dl className="mt-3 grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-muted">{t.withdraw.receivedTry}</dt>
-            <dd className="tnum text-right font-semibold" data-testid="withdraw-try">
-              {formatTry(Number(record.amountTry ?? record.quote.tryOut), locale)}
-            </dd>
-            <dt className="text-muted">{t.withdraw.payout}</dt>
-            <dd className="text-right font-mono text-xs" data-testid="withdraw-payout">
-              {record.payoutId ?? "–"}
-            </dd>
-          </dl>
-        ) : null}
-        {vaultTxHash || record.vaultTxHash || record.transferTxHash || record.paymentTxHash ? (
-          <div className="mt-4 flex flex-col gap-1">
-            {record.vaultTxHash ?? vaultTxHash ? <TxLink hash={(record.vaultTxHash ?? vaultTxHash) as string} label={t.withdraw.links.vault} /> : null}
-            {record.transferTxHash ? <TxLink hash={record.transferTxHash} label={t.withdraw.links.transfer} /> : null}
-            {record.paymentTxHash ? <TxLink hash={record.paymentTxHash} label={t.withdraw.links.payment} /> : null}
+          <Separator />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-foreground" role="status" aria-live="polite" data-testid="withdraw-current">
+              {t.withdraw.steps[record.status]}
+            </p>
+            {record.status === "usdc_sent" || record.status === "paid" ? (
+              <p className="text-sm text-teal" data-testid="close-hint">
+                {t.withdraw.closeHint}
+              </p>
+            ) : record.status === "created" || record.status === "awaiting_usdc" ? (
+              <p className="text-sm text-amber" data-testid="needs-you">
+                {t.withdraw.needsYou}
+              </p>
+            ) : null}
+            {clientLabel && record.status !== "completed" ? (
+              <p className="flex items-center gap-2 text-sm text-ink-2" role="status">
+                <Spinner className="text-teal" />
+                {clientLabel}
+              </p>
+            ) : null}
           </div>
-        ) : null}
-      </section>
+          {client === "needs_tap" && !FINAL.includes(record.status) ? (
+            clientFailure ? (
+              <FailureScreen
+                failure={clientFailure}
+                compact
+                primary={clientFailure.kind === "limit_exceeded" ? undefined : { label: retryLabel, onClick: () => void runClientSteps() }}
+                secondary={clientFailure.kind === "limit_exceeded" ? { label: retryLabel, onClick: () => void runClientSteps() } : null}
+              />
+            ) : (
+              <Alert role="status" data-testid="returned" className="border-amber/40 bg-amber/5">
+                {resumed ? <AlertTitle className="text-base font-semibold">{t.withdraw.returnedTitle}</AlertTitle> : null}
+                <AlertDescription className="text-ink-2">{t.withdraw.needsTap}</AlertDescription>
+                <Button onClick={() => void runClientSteps()} className="mt-2 w-fit">
+                  {retryLabel}
+                </Button>
+              </Alert>
+            )
+          ) : null}
+          {record.status === "completed" ? (
+            <dl className="grid grid-cols-2 gap-2 text-sm">
+              <dt className="text-muted-foreground">{t.withdraw.receivedTry}</dt>
+              <dd className="tnum text-right font-semibold" data-testid="withdraw-try">
+                {formatTry(Number(record.amountTry ?? record.quote.tryOut), locale)}
+              </dd>
+              <dt className="text-muted-foreground">{t.withdraw.payout}</dt>
+              <dd className="text-right font-mono text-xs" data-testid="withdraw-payout">
+                {record.payoutId ?? "–"}
+              </dd>
+            </dl>
+          ) : null}
+          {vaultTxHash || record.vaultTxHash || record.transferTxHash || record.paymentTxHash ? (
+            <div className="flex flex-col gap-1">
+              {record.vaultTxHash ?? vaultTxHash ? <TxLink hash={(record.vaultTxHash ?? vaultTxHash) as string} label={t.withdraw.links.vault} /> : null}
+              {record.transferTxHash ? <TxLink hash={record.transferTxHash} label={t.withdraw.links.transfer} /> : null}
+              {record.paymentTxHash ? <TxLink hash={record.paymentTxHash} label={t.withdraw.links.payment} /> : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
 
       {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
       <div className="flex flex-col gap-2">
         {record.status === "completed" ? (
-          <Link href="/kumbara" className="btn-primary w-full">
+          <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
             {t.withdraw.backToSavings}
-          </Link>
+          </Button>
         ) : null}
         {record.status === "completed" ? (
-          <button type="button" onClick={reset} className="btn-secondary w-full">
+          <Button variant="outline" className="w-full" onClick={reset}>
             {t.withdraw.newWithdrawal}
-          </button>
+          </Button>
         ) : null}
       </div>
     </div>

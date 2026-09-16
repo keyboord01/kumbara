@@ -3,7 +3,7 @@
 import { useWalletAddress } from "@sembol/passkey-react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardAction, CardContent, CardHeader } from "@/components/ui/card";
 import { NETWORK_LABEL } from "@/lib/config";
 import { useLocale } from "@/lib/i18n";
 import { NetworkBadge } from "./NetworkBadge";
@@ -18,7 +18,7 @@ export function AddressCard() {
   return (
     <Card size="sm">
       <CardHeader>
-        <CardTitle className="microlabel">{t.savings.address}</CardTitle>
+        <p className="microlabel">{t.savings.address}</p>
         <CardAction>
           <NetworkBadge />
         </CardAction>

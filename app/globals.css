@@ -20,7 +20,6 @@
   --color-line-2: #d3cab6;
   --color-ink: #12313a;
   --color-ink-2: #3f5b63;
-  --color-muted: #5a6b71;
   --color-teal: #0f6b6b;
   --color-teal-2: #0b5555;
   --color-coral: #e5533d;
@@ -168,128 +167,6 @@
   }
 }
 
-@utility card {
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
-
-@utility card-flat {
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-}
-
-@utility btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 999px;
-  background: var(--color-coral);
-  color: #fff;
-  font-weight: 600;
-  min-height: 3.25rem;
-  padding: 0 1.5rem;
-  transition:
-    background 120ms ease,
-    transform 120ms ease,
-    opacity 120ms ease;
-  &:hover {
-    background: var(--color-coral-2);
-  }
-  &:active {
-    transform: translateY(1px);
-  }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    transform: none;
-  }
-  &[aria-busy="true"] {
-    cursor: progress;
-    opacity: 0.85;
-  }
-}
-
-@utility btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-line-2);
-  background: #fff;
-  color: var(--color-ink);
-  font-weight: 600;
-  min-height: 2.75rem;
-  padding: 0 1.25rem;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    opacity 120ms ease;
-  &:hover {
-    border-color: var(--color-teal);
-    background: var(--color-paper);
-  }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-  &[aria-busy="true"] {
-    cursor: progress;
-  }
-}
-
-/* Quiet, chip-sized secondary action: copy, refresh, explorer links. */
-@utility btn-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  min-height: 2.5rem;
-  padding: 0 0.875rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-line-2);
-  background: #fff;
-  color: var(--color-ink);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease;
-  &:hover {
-    border-color: var(--color-teal);
-    background: var(--color-paper);
-  }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-}
-
-/* The one text field style: amount inputs and the admin token. */
-@utility field {
-  width: 100%;
-  border-radius: var(--radius-control);
-  border: 1px solid var(--color-line-2);
-  background: var(--color-paper);
-  color: var(--color-ink);
-  padding: 0.75rem 1rem;
-  outline: none;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-  &:focus {
-    border-color: var(--color-teal);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-teal) 15%, transparent);
-  }
-  &[aria-invalid="true"] {
-    border-color: var(--color-danger);
-  }
-}
-
 @utility tnum {
   font-variant-numeric: tabular-nums;
 }
@@ -299,37 +176,7 @@
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-/* Status chips: one shape, the colour says the state. */
-@utility chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  border-radius: 999px;
-  padding: 0.125rem 0.625rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.25rem;
-  white-space: nowrap;
-}
-
-/* Loading placeholder: a soft shimmer on paper, never a spinner for content that has a shape. */
-@utility skeleton {
-  position: relative;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--color-paper-2);
-  color: transparent;
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.7) 50%, transparent 100%);
-    transform: translateX(-100%);
-    animation: kumbara-shimmer 1.4s infinite;
-  }
+  color: var(--muted-foreground);
 }
 
 @keyframes kumbara-shimmer {
@@ -348,12 +195,6 @@
   }
 }
 
-@keyframes kumbara-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes kumbara-toast-in {
   from {
     opacity: 0;
@@ -365,20 +206,9 @@
   }
 }
 
-/* The current step's dot breathes; the spinner is the same ring everywhere. */
+/* The current step's dot breathes. */
 @utility step-current {
   animation: kumbara-pulse 1.8s var(--ease-out) infinite;
-}
-
-@utility spinner {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  border-radius: 999px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  animation: kumbara-spin 0.8s linear infinite;
-  flex: none;
 }
 
 @utility toast-in {

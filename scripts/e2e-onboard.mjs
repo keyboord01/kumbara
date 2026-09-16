@@ -44,11 +44,11 @@ try {
   log(`savings screen visible ${toSavings.toFixed(1)}s after tap (target < 20 s)`);
   if (toSavings > 40) throw new Error(`savings screen took ${toSavings.toFixed(1)}s`);
 
-  // The spending limit installs in the background from Savings; Deposit waits on it.
-  await page.getByText(/Güvenlik kuralı kuruluyor/).first().waitFor({ timeout: 20000 });
-  const depositDisabled = await page.getByRole("button", { name: "Yükle" }).isDisabled().catch(() => false);
-  log("limit setup status shown; deposit disabled:", depositDisabled);
-  if (!depositDisabled) throw new Error("deposit button should be disabled while the limit installs");
+  // One approval opened the kumbara: Deposit is available at once; the safety limit is set at the first withdrawal.
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 15000 });
+  const deferred = ((await page.getByTestId("limit-card").textContent()) ?? "").replace(/\s+/g, " ");
+  log("limit card before any withdrawal:", deferred.slice(0, 80));
+  if (!/İlk çekimde kurulur|Set at your first withdrawal/.test(deferred)) throw new Error("limit card should say the limit is set at the first withdrawal");
   const addr = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", addr);
   if (!addr?.startsWith("C")) throw new Error("no contract address rendered");
@@ -58,7 +58,9 @@ try {
   const badge = await page.locator("[aria-label='TESTNET']").count();
   log("TESTNET badges on screen:", badge);
 
-  // Limit card shows the default per-transaction cap once the rule is installed.
+  // "Set it now" installs the limit early (one passkey approval); the card then shows the per-transaction cap.
+  await page.getByTestId("limit-set-now").click();
+  await page.getByText(/Güvenlik kuralı kuruluyor/).first().waitFor({ timeout: 20000 });
   let limitText = "";
   const limitAt = Date.now();
   for (let i = 0; i < 30; i += 1) {

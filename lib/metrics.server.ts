@@ -12,7 +12,9 @@ export type MetricEvent =
   | { type: "account_created"; ts: number; network: string; projectId: string; ref: string | null; contractId: string | null; hash: string; tapToConfirmMs?: number | null }
   | { type: "relayed_tx"; ts: number; network: string; projectId: string; ref: string | null; hash: string; contract: string | null }
   | { type: "deposit_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; depositId: string; anchorTx: string | null; forwardTx: string | null; vaultTx: string; usdc: string }
-  | { type: "withdrawal_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; withdrawalId: string; vaultTx: string | null; paymentTx: string | null; usdc: string; try: string | null };
+  | { type: "withdrawal_completed"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; withdrawalId: string; vaultTx: string | null; paymentTx: string | null; usdc: string; try: string | null }
+  /** USDC that was already in the kumbara (sent to its address, or left by an interrupted deposit) put in the vault; feed only, never a funnel stage. */
+  | { type: "vault_deposit"; ts: number; network: string; projectId: string; ref: string | null; contractId: string; vaultTx: string; usdc: string };
 
 export async function recordEvent(event: MetricEvent): Promise<void> {
   try {
@@ -212,6 +214,8 @@ export async function metricsSnapshot(filter: MetricsFilter) {
     .map((e) => {
       if (e.type === "account_created") return { type: e.type, ts: e.ts, contractId: e.contractId, usdc: null, try: null, hash: e.hash, link: link(e.hash) };
       if (e.type === "deposit_completed") return { type: e.type, ts: e.ts, contractId: e.contractId, usdc: e.usdc, try: null, hash: e.vaultTx, link: link(e.vaultTx) };
+      // A direct vault deposit reads as a deposit in the feed (the stats page labels feed rows by type).
+      if (e.type === "vault_deposit") return { type: "deposit_completed" as const, ts: e.ts, contractId: e.contractId, usdc: e.usdc, try: null, hash: e.vaultTx, link: link(e.vaultTx) };
       return { type: e.type, ts: e.ts, contractId: e.contractId, usdc: e.usdc, try: e.try, hash: e.paymentTx ?? e.vaultTx, link: link(e.paymentTx ?? e.vaultTx) };
     });
 

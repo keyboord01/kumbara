@@ -73,8 +73,12 @@ try {
     await page.waitForTimeout(2000);
   }
   log("driver:", ((await page.getByTestId("driver").textContent()) ?? "").trim(), "·", ((await page.getByTestId("driver-last").textContent()) ?? "").trim().slice(0, 120));
+  // The queue lists a play button per deposit above the auto-bank threshold; with nothing waiting there is none.
+  const playable = page.getByRole("button", { name: /Bankayı oynat|Play the bank/ });
+  const waiting = await playable.count();
+  log("queue: deposits waiting for a press:", waiting);
   // A refused action shows the server's reason, not a bare status: play the bank with nothing pending.
-  if (!(await page.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).isEnabled())) {
+  if (waiting === 0) {
     const refused = await (await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: "{}" })).json();
     log("play-bank with nothing pending →", JSON.stringify(refused.error));
     if (!refused.error?.code || !refused.error?.message) throw new Error("play-bank refusal carries no code/message");

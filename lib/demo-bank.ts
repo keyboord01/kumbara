@@ -7,7 +7,13 @@
  * presenter-only /booth/admin button so both do exactly the same thing. A
  * production anchor has no such hook: the real bank transfer plays this part.
  */
-import { depositStore } from "./db/store";
+import { depositStore, withLease } from "./db/store";
+
+/** Who told the anchor the lira arrived: the driver by itself (small amounts) or a person on the presenter console. */
+export interface BankPlayed {
+  at: string;
+  by: "auto" | "admin";
+}
 
 export interface PendingDeposit {
   id: string;
@@ -15,6 +21,7 @@ export interface PendingDeposit {
   amountTry: string;
   createdAt: string;
   reference: string;
+  bankPlayed?: BankPlayed;
 }
 
 interface DepositRow {
@@ -27,11 +34,12 @@ interface DepositRow {
   instructions: { reference: string };
   anchor?: { homeDomain: string };
   sep6?: { id: string; transferServer: string };
+  bankPlayed?: BankPlayed;
 }
 
 export async function listPendingDeposits(limit = 10): Promise<PendingDeposit[]> {
   const rows = await depositStore.listByStatus<DepositRow>("awaiting_transfer", limit);
-  return rows.map((d) => ({ id: d.id, contractId: d.contractId, amountTry: d.amountTry, createdAt: d.createdAt, reference: d.instructions.reference }));
+  return rows.map((d) => ({ id: d.id, contractId: d.contractId, amountTry: d.amountTry, createdAt: d.createdAt, reference: d.instructions.reference, ...(d.bankPlayed ? { bankPlayed: d.bankPlayed } : {}) }));
 }
 
 export interface PlayBankInput {
@@ -39,6 +47,8 @@ export interface PlayBankInput {
   depositId?: string;
   /** Override the simulated amount (TRY); default: the deposit's own amount. */
   amountTry?: string;
+  /** Recorded on the deposit as `bankPlayed.by`; the driver passes "auto", every manual path is "admin". */
+  by?: BankPlayed["by"];
 }
 
 export interface PlayBankResult {
@@ -83,5 +93,20 @@ export async function playBank(input: PlayBankInput = {}): Promise<PlayBankResul
     if (/already/i.test(message)) throw new PlayBankError("already_paid", `deposit ${target.id}: ${message}`);
     throw new PlayBankError("anchor_rejected", message);
   }
+  await stampBankPlayed(target.id, { at: new Date().toISOString(), by: input.by ?? "admin" });
   return { depositId: target.id, reference: target.instructions.reference, amountTry: amount, transferId: target.sep6.id, transferStatus: body.transaction?.status ?? "pending_anchor" };
+}
+
+/** Note who played the bank on the record, under the deposit's own lease so a concurrent step is not overwritten; never fails the play. */
+async function stampBankPlayed(id: string, played: BankPlayed): Promise<void> {
+  await withLease(
+    `deposit:${id}`,
+    10_000,
+    async () => {
+      const fresh = await depositStore.get<DepositRow>(id);
+      if (fresh && !fresh.bankPlayed) await depositStore.save({ ...fresh, bankPlayed: played });
+    },
+    async () => undefined,
+    5_000,
+  ).catch(() => undefined);
 }

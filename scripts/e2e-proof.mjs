@@ -42,7 +42,7 @@ try {
   const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
   await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
-  log("✓ spending limit installed");
+  log("✓ deposit enabled (the safety limit is set at the first withdrawal)");
 
   log("Savings → Kanıt");
   await page.getByTestId("proof-link").click();
@@ -51,7 +51,7 @@ try {
   log("  TR:", tr.signers, "|", tr.kumbara, "|", tr.limit);
   if (!/^İmzacılar: 1, senin passkey'in\.$/.test(tr.signers)) throw new Error(`signers line: ${tr.signers}`);
   if (!/^Kumbara: yok\.$/.test(tr.kumbara)) throw new Error(`kumbara line: ${tr.kumbara}`);
-  if (!/^Limit: işlem başına [\d.,]+ USDC\.$/.test(tr.limit)) throw new Error(`limit line: ${tr.limit}`);
+  if (!/^Limit: (işlem başına [\d.,]+ USDC|kurulmamış)\.$/.test(tr.limit)) throw new Error(`limit line: ${tr.limit}`);
   const links = await page.locator("[data-testid='proof-links'] a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   log("  links:", links.length, links.map((l) => l.replace("https://stellar.expert/explorer/", "")).join(" "));
   if (links.length < 3 || links.some((l) => !l.includes("/testnet/contract/"))) throw new Error("expected three testnet contract links");
@@ -65,7 +65,7 @@ try {
   log("  EN:", en.signers, "|", en.kumbara, "|", en.limit);
   if (!/^Signers: 1, your passkey\.$/.test(en.signers)) throw new Error(`EN signers line: ${en.signers}`);
   if (!/^Kumbara: none\.$/.test(en.kumbara)) throw new Error(`EN kumbara line: ${en.kumbara}`);
-  if (!/^Limit: [\d.,]+ USDC per transaction\.$/.test(en.limit)) throw new Error(`EN limit line: ${en.limit}`);
+  if (!/^Limit: ([\d.,]+ USDC per transaction|not set)\.$/.test(en.limit)) throw new Error(`EN limit line: ${en.limit}`);
   console.log("\nE2E PROOF OK. console errors:", consoleErrors.length ? consoleErrors : "none");
   console.log("CONTRACT=" + contract);
 } catch (err) {

@@ -36,9 +36,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 5 · How it works
 
-**TR.** Beş hamle: passkey akıllı hesabı açar, limit zincire yazılır, anchor IBAN verir, geçici hesap USDC'yi iletir, bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir. Para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: ilet, sonra kapan. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor.
+**TR.** Beş hamle: passkey akıllı hesabı açar, ilk çekimde limit zincire yazılır, anchor IBAN verir, geçici hesap USDC'yi iletir, bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir. Para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: ilet, sonra kapan. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor.
 
-**EN.** Five moves: a passkey opens the smart account, the limit is written on-chain, the anchor issues an IBAN, a temporary account forwards the USDC, one approval into the vault. The bridge: the anchor can only pay a normal Stellar account. We create a temporary account whose only two transactions are signed before any money arrives: forward, then close. Nobody, including us, can redirect it. No custody, no trust in us.
+**EN.** Five moves: a passkey opens the smart account, the limit is written on-chain at the first withdrawal, the anchor issues an IBAN, a temporary account forwards the USDC, one approval into the vault. The bridge: the anchor can only pay a normal Stellar account. We create a temporary account whose only two transactions are signed before any money arrives: forward, then close. Nobody, including us, can redirect it. No custody, no trust in us.
 
 ## 6 · Where else it works
 

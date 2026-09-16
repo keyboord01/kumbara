@@ -25,12 +25,12 @@ Times are from the automated browser runs on testnet (`pnpm e2e:onboard`, `pnpm 
 | Step | What the visitor does | What happens | Time |
 | --- | --- | --- | --- |
 | 1 | Scans the QR, taps **Kumbaranı aç**, passkey (Face ID, Touch ID or a password manager) | Smart account deployed through the relay, Savings screen appears with the TESTNET address and a stellar.expert link; the counter on the booth screen and the stats feed tick | 8–16 s |
-| 2 | Waits on Savings | Spending limit (1,000 USDC per transaction) installs in the background; second passkey prompt; Deposit unlocks | +13–25 s |
-| 3 | Taps **Yükle**, enters 100, **Devam** | IBAN, alıcı, açıklama (the reference) in the familiar transfer layout | 1–3 s |
-| 4 | Presenter taps **Play the bank** on the admin page | Sandbox transfer matched; the app detects the lira, runs the landing-account on-ramp and moves the USDC into the kumbara | 35–55 s |
+| 2 | Lands on Savings | Deposit and Withdraw are available at once; the 1,000 USDC per-transaction safety limit is set at the first withdrawal (or from "Set it now" on the limit card) | instant |
+| 3 | Taps **Yükle** (or **Deposit**), enters 100, **Devam** | IBAN, alıcı, açıklama (the reference) in the familiar transfer layout | 1–3 s |
+| 4 | Nothing: deposits up to ₺250 are played by the driver; above that the presenter taps **Play the bank** on the row | Sandbox transfer matched; the app detects the lira, runs the landing-account on-ramp and moves the USDC into the kumbara | 35–55 s |
 | 5 | Passkey once more (autopilot) | USDC deposited into the DeFindex vault (through its strategy); three TESTNET transaction links; "deposited" appears in the stats feed | 10–20 s |
 | 6 | Back on Savings | Vault balance and its TRY equivalent (Reflector rate) | instant |
-| 7 | Taps **Çek**, enters 1 (or **Tümünü çek**), **Devam**, two passkey approvals | Vault withdrawal, transfer to the reverse landing account, anchor payout; payout reference shown; "withdrew" in the feed | 40–65 s |
+| 7 | Taps **Çek**, enters 1 (or **Tümünü çek**), **Devam**, three passkey approvals the first time (safety limit, vault, send), two after | Vault withdrawal, transfer to the reverse landing account, anchor payout; payout reference shown; "withdrew" in the feed | 40–65 s |
 
 Measured totals: scan to Savings 8–16 s; scan to USDC in the vault 80–120 s; a full deposit-and-withdraw round trip 2–3 minutes. Seeding the jury demo account from the admin page takes about 90 s.
 
@@ -113,6 +113,8 @@ Before doors:
 2. System Settings → Lock Screen: never turn the display off, never require a password after sleep, for the day.
 3. Open `/booth/admin?token=…` in its own window, confirm **driver: on**, and never close that tab. If it shows **driver: off** with a reason, read the reason (it is the server's own message) and fix that first.
 4. Wi-Fi drops: the console shows "Bağlantı koptu; yeniden bağlanıyor…" and resumes by itself when the network is back (it re-ticks on `online` and when the tab becomes visible). Nothing to do.
+
+Small deposits need no press at all: while the admin tab (or the GitHub backstop) ticks, the driver plays the sandbox bank for any deposit at or below ₺250 (`BOOTH_AUTO_BANK_MAX_TRY`, default 250) about five seconds after the visitor reaches the IBAN screen, and the record notes `bankPlayed.by = auto`. Larger deposits show in the console's queue, each with its own **Play the bank** button (and a **Play all** button when several wait); the console's lead line names the current threshold. `BOOTH_AUTO_BANK_MAX_TRY=0` turns the automatic play off.
 
 Backstop: a GitHub Actions cron (`.github/workflows/pipeline-tick.yml`) calls the same tick every 5 minutes with the admin token, so a closed laptop delays a visitor's deposit by at most a few minutes instead of stalling it. Both are idempotent and share the record leases.
 

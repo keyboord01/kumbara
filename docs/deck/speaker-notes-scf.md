@@ -28,9 +28,9 @@ Read aloud. TR first, then EN. The slides carry one idea each; these notes carry
 
 ## 5 · How it works
 
-**TR.** Beş hamle: passkey akıllı hesabı açar, relay ücreti öder; limit zincire yazılır; anchor IBAN verir; geçici hesap USDC'yi iletir; bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir, akıllı hesaba değil. Bu yüzden para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: USDC'yi kumbarana ilet, sonra kendini kapat. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor. Üç karma ekranda; on denemede on tam eşleşme.
+**TR.** Beş hamle: passkey akıllı hesabı açar, relay ücreti öder; ilk çekimde limit zincire yazılır; anchor IBAN verir; geçici hesap USDC'yi iletir; bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir, akıllı hesaba değil. Bu yüzden para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: USDC'yi kumbarana ilet, sonra kendini kapat. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor. Üç karma ekranda; on denemede on tam eşleşme.
 
-**EN.** Five moves: a passkey opens the smart account and the relay pays the fees; the limit is written on-chain; the anchor issues an IBAN; a temporary account forwards the USDC; one approval into the vault. The bridge: the anchor can only pay a normal Stellar account, not a smart account. So we create a temporary account whose only two possible transactions are signed before any money arrives: forward the USDC to your kumbara, then close itself. Nobody, including us, can ever redirect it. No custody, no trust in us. Three hashes on the slide; ten exact matches in ten runs.
+**EN.** Five moves: a passkey opens the smart account and the relay pays the fees; the limit is written on-chain at the first withdrawal; the anchor issues an IBAN; a temporary account forwards the USDC; one approval into the vault. The bridge: the anchor can only pay a normal Stellar account, not a smart account. So we create a temporary account whose only two possible transactions are signed before any money arrives: forward the USDC to your kumbara, then close itself. Nobody, including us, can ever redirect it. No custody, no trust in us. Three hashes on the slide; ten exact matches in ten runs.
 
 ## 6 · Where it works
 

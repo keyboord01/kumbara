@@ -1,5 +1,5 @@
-// Gate 3 end-to-end: onboard → deposit 100 TRY (admin page plays the bank) →
-// withdraw 1 USDC → reverse landing account → anchor payout. Live testnet,
+// Gate 3 end-to-end: onboard → deposit 300 TRY (above the ₺250 auto-play cap, so the presenter console plays the bank) →
+// withdraw 1 USDC (installs the safety limit first) → reverse landing account → anchor payout. Live testnet,
 // Chrome virtual authenticator.
 //   pnpm e2e:withdraw   (APP_URL defaults to http://localhost:3100; needs BOOTH_ADMIN_TOKEN in .env)
 import { chromium } from "playwright";
@@ -31,10 +31,18 @@ async function playBank(reference) {
   const admin = await context.newPage();
   await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
-  await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
+  // One button per manual row in the queue.
+  await admin.locator("[data-testid='queue-item']").filter({ hasText: reference }).getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
   await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
   await admin.close();
   return "admin page";
+}
+
+/** "6,16 USDC" (tr) or "6.16 USDC" (en) → 6.16 */
+function parseUsdc(text) {
+  const raw = (text.match(/[\d.,]+/)?.[0] ?? "").trim();
+  const normalized = raw.includes(",") ? raw.replace(/\./g, "").replace(",", ".") : raw;
+  return Number(normalized);
 }
 
 async function waitFor(testId, doneRe, failRe, maxPolls, onTick) {
@@ -66,7 +74,7 @@ try {
   log("contract:", contract);
   await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
 
-  log("deposit 100 TRY");
+  log("deposit 300 TRY");
   await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").click();
   // The link can be re-rendered under the click while the limit card settles; make sure the deposit page is actually open.
   await page.waitForURL("**/yukle**", { timeout: 15000 }).catch(async () => {
@@ -75,7 +83,7 @@ try {
   });
   const depositInput = page.locator("input[type=number]");
   await depositInput.waitFor({ timeout: 20000 });
-  await depositInput.fill("100");
+  await depositInput.fill("300");
   await page.getByRole("button", { name: /Devam/ }).click();
   // The request builds and locks the bridge account (SEP-10/12/38/6 inside) before the IBAN shows: up to 90 s on production.
   await page.getByTestId("deposit-reference").waitFor({ timeout: 90000 });
@@ -91,6 +99,15 @@ try {
   await page.goto(`${APP}/cek`, { waitUntil: "networkidle" });
   const input = page.locator("input[type=number]");
   await input.waitFor({ timeout: 20000 });
+  // What the vault holds before the withdrawal (Turkish number format); the remainder is checked against it afterwards.
+  let availableText = "";
+  for (let i = 0; i < 20 && !/USDC/.test(availableText); i += 1) {
+    availableText = ((await page.getByTestId("withdraw-available").textContent()) ?? "").trim();
+    if (!/USDC/.test(availableText)) await page.waitForTimeout(1000);
+  }
+  const available = parseUsdc(availableText);
+  log("available before:", availableText);
+  if (!(available > 1)) throw new Error(`the vault should hold the deposit before withdrawing, saw "${availableText}"`);
   await input.fill("1");
   await page.getByText(/Alacağın lira/).waitFor({ timeout: 20000 });
   await page.locator("[data-testid='withdraw-quote'] p.tnum").first().waitFor({ timeout: 20000 });
@@ -121,15 +138,26 @@ try {
 
   await page.locator("a[href='/kumbara']").first().click();
   await page.waitForURL("**/kumbara", { timeout: 15000 });
+  const expected = available - 1;
   let inVault = "";
   for (let i = 0; i < 10; i += 1) {
     inVault = ((await page.locator("section[aria-label='Kumbarada'] p.tnum").first().textContent()) ?? "").trim();
-    if (/^1,0\d USDC/.test(inVault)) break;
+    if (Math.abs(parseUsdc(inVault) - expected) <= 0.05) break;
     await page.getByRole("button", { name: "Yenile" }).click().catch(() => {});
     await page.waitForTimeout(3000);
   }
-  log("savings shows in vault:", inVault);
-  if (!/^1,0\d USDC/.test(inVault)) throw new Error(`expected about 1.05 USDC left in the vault, saw ${inVault}`);
+  log("savings shows in vault:", inVault, "| expected about", expected.toFixed(2));
+  if (Math.abs(parseUsdc(inVault) - expected) > 0.05) throw new Error(`expected about ${expected.toFixed(2)} USDC left in the vault, saw ${inVault}`);
+  // The safety limit is installed by the first withdrawal (one extra passkey approval), not at onboarding.
+  let limitText = "";
+  for (let i = 0; i < 10; i += 1) {
+    limitText = ((await page.getByTestId("limit-card").textContent()) ?? "").replace(/\s+/g, " ");
+    if (/1\.000,00|1,000\.00/.test(limitText)) break;
+    await page.getByRole("button", { name: "Yenile" }).click().catch(() => {});
+    await page.waitForTimeout(3000);
+  }
+  log("limit card after the first withdrawal:", limitText.slice(0, 100));
+  if (!/1\.000,00|1,000\.00/.test(limitText)) throw new Error(`the first withdrawal should have installed the 1,000 USDC limit, saw: ${limitText}`);
   console.log("\nE2E WITHDRAW OK. console errors:", consoleErrors.length ? consoleErrors : "none");
   console.log("CONTRACT=" + contract);
 } catch (err) {

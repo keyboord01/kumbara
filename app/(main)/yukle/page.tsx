@@ -2,11 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
+import { usePasskeyWallet, useSignTransaction, useWalletAddress } from "@sembol/passkey-react";
 import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
+import QRCode from "qrcode";
 import { cn } from "cn";
 import { FailureScreen } from "@/components/FailureScreen";
-import { ScreenSkeleton } from "@/components/Skeleton";
+import { ScreenSkeleton, Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { Stepper, type StepperStep } from "@/components/Stepper";
 import { useToast } from "@/components/Toaster";
@@ -14,6 +15,7 @@ import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -87,6 +89,64 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
   );
 }
 
+type DepositMethod = "iban" | "address";
+
+/**
+ * The other way in: USDC sent straight to the kumbara's contract address from
+ * a Soroban-capable wallet or another kumbara. Nothing to submit here; once it
+ * lands, Savings offers to put it in the vault.
+ */
+function AddressDeposit() {
+  const { t } = useLocale();
+  const { address, explorerUrl } = useWalletAddress();
+  const [svg, setSvg] = useState("");
+  useEffect(() => {
+    if (!address) return;
+    QRCode.toString(address, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#12313a", light: "#ffffff" } })
+      .then(setSvg)
+      .catch(() => setSvg(""));
+  }, [address]);
+  if (!address) return null;
+  return (
+    <div className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:items-start">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.deposit.addressTitle}</CardTitle>
+          <CardDescription className="text-ink-2">{t.deposit.addressLead}</CardDescription>
+          <CardAction>
+            <Badge variant="info">{t.deposit.addressAsset}</Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+            {svg ? <Card size="sm" className="w-full max-w-[180px] flex-none px-(--card-spacing)" role="img" aria-label={address} dangerouslySetInnerHTML={{ __html: svg }} /> : <Skeleton className="size-[180px]" />}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <p className="break-all font-mono text-sm text-foreground" data-testid="deposit-address">
+                {address}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <CopyButton value={address} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+                {explorerUrl ? (
+                  <Button variant="outline" size="sm" render={<a href={explorerUrl} target="_blank" rel="noreferrer" />}>
+                    stellar.expert · {NETWORK_LABEL}
+                    <ExternalLinkIcon data-icon="inline-end" />
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-24" aria-label={t.deposit.addressTitle}>
+        <Alert className="border-amber/40 bg-amber/5">
+          <AlertDescription className="text-ink-2">{t.deposit.addressCaveat}</AlertDescription>
+        </Alert>
+        <p className="text-sm text-ink-2">{t.deposit.addressThen}</p>
+      </aside>
+    </div>
+  );
+}
+
 function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
     <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-teal hover:underline">
@@ -104,6 +164,7 @@ function Deposit() {
   const { toast } = useToast();
   const [view, setView] = useState<"loading" | "form" | "waiting">("loading");
   const [amount, setAmount] = useState("100");
+  const [method, setMethod] = useState<DepositMethod>("iban");
   const [record, setRecord] = useState<DepositRecord | null>(null);
   const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -307,6 +368,32 @@ function Deposit() {
             {t.deposit.backToSavings}
           </Link>
         </div>
+        {/* Lira over the bank, or USDC straight to the kumbara's address. */}
+        <div className="flex flex-col gap-2">
+          <p className="microlabel text-[11px]">{t.deposit.method.label}</p>
+          <ToggleGroup
+            variant="segment"
+            size="lg"
+            spacing={0.5}
+            value={[method]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (next === "iban" || next === "address") setMethod(next);
+            }}
+            aria-label={t.deposit.method.label}
+            data-testid="deposit-method"
+          >
+            <ToggleGroupItem value="iban" data-testid="deposit-method-iban">
+              {t.deposit.method.iban}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="address" data-testid="deposit-method-address">
+              {t.deposit.method.address}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        {method === "address" ? (
+          <AddressDeposit />
+        ) : (
         <form
           className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:grid-rows-[auto_auto_auto_1fr] lg:items-start lg:[grid-template-areas:'form_side'_'notes_side'_'actions_side'_'._side']"
           onSubmit={(e) => {
@@ -392,6 +479,7 @@ function Deposit() {
             </Card>
           </aside>
         </form>
+        )}
       </div>
     );
   }

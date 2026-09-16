@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toSembolError, usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
 import { cn } from "cn";
-import { ExternalLinkIcon, ShieldAlertIcon, WifiOffIcon } from "lucide-react";
+import { ChevronDownIcon, ExternalLinkIcon, ShieldAlertIcon, WifiOffIcon } from "lucide-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
@@ -13,6 +13,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -29,6 +31,7 @@ interface Pending {
   amountTry: string;
   createdAt: string;
   reference: string;
+  bankPlayed?: { at: string; by: "auto" | "admin" };
 }
 interface Stuck {
   id: string;
@@ -137,6 +140,10 @@ export default function BoothAdminPage() {
   const [ci, setCi] = useState<CiStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"" | "play" | "fund" | "seed" | "anchor" | "sweep">("");
+  /** Per-row play in flight, and rows played from here in the last minute (kept on screen until the driver moves them on). */
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [playedRows, setPlayedRows] = useState<Record<string, { row: Pending; at: number }>>({});
+  const [autoBankMaxTry, setAutoBankMaxTry] = useState(250);
   const [sweepNote, setSweepNote] = useState<string | null>(null);
   const [anchors, setAnchors] = useState<AnchorsInfo | null>(null);
   const [anchorNote, setAnchorNote] = useState<string | null>(null);
@@ -166,7 +173,7 @@ export default function BoothAdminPage() {
     if (!token) return;
     try {
       const [p, h, s, c, a] = await Promise.all([
-        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; error?: { message: string } } })),
+        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; autoBankMaxTry?: number; error?: { message: string } } })),
         fetch("/api/health").then((r) => r.json() as Promise<Health>),
         fetch("/api/booth/admin/sponsor", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as Sponsor & { error?: { message: string } } })),
         fetch("/api/ci/status").then((r) => (r.ok ? (r.json() as Promise<CiStatus>) : null)).catch(() => null),
@@ -175,6 +182,7 @@ export default function BoothAdminPage() {
       if (!p.ok) throw new Error(p.body.error?.message ?? "unauthorized");
       setPending(p.body.pending ?? []);
       setStuck(p.body.stuck ?? []);
+      if (typeof p.body.autoBankMaxTry === "number") setAutoBankMaxTry(p.body.autoBankMaxTry);
       setHealth(h);
       setCi(c);
       setAnchors(a);
@@ -278,15 +286,18 @@ export default function BoothAdminPage() {
     }
   };
 
-  const play = async () => {
+  // Play the bank for one queued deposit; the row stays on screen (marked played) until the driver moves the record on.
+  const play = async (row: Pending) => {
     setBusy("play");
+    setPlaying(row.id);
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/booth/admin/play-bank", auth({ method: "POST", body: "{}" }));
+      const res = await fetch("/api/booth/admin/play-bank", auth({ method: "POST", body: JSON.stringify({ depositId: row.id }) }));
       const body = (await res.json()) as PlayResult & ApiErrorBody;
       if (!res.ok) throw new Error(reason(res, body));
       setResult(body);
+      setPlayedRows((rows) => ({ ...rows, [row.id]: { row: { ...row, bankPlayed: { at: new Date().toISOString(), by: "admin" } }, at: Date.now() } }));
       toast({ title: t.toast.bankPlayed, body: `₺${body.amountTry} · ${body.reference} · ${body.transferStatus}`, variant: "success", key: "bank" });
       await load();
     } catch (err) {
@@ -294,8 +305,13 @@ export default function BoothAdminPage() {
       setError(message);
       toast({ title: t.admin.reasonLabel, body: message, variant: "error", key: "reason" });
     } finally {
+      setPlaying(null);
       setBusy("");
     }
+  };
+
+  const playAll = async (rows: Pending[]) => {
+    for (const row of rows) await play(row);
   };
 
   const resume = async (depositId: string) => {
@@ -438,22 +454,48 @@ export default function BoothAdminPage() {
     return () => clearTimeout(kick);
   }, [seedDepositStatus, seedContract, kit, info, address, runSeedAutopilot]);
 
-  const newest = pending?.[0] ?? null;
   const deps = health && "anchor" in health.dependencies ? health.dependencies : null;
   const intl = locale === "tr" ? "tr-TR" : "en-US";
   const driverOn = driver.on && !offline;
   const seedRunning = busy === "seed" || (seed !== null && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap");
+  // The queue: what the server lists, plus rows played from here in the last minute that the driver has not moved on yet.
+  const queue: Pending[] = (() => {
+    const listed = pending ?? [];
+    const ids = new Set(listed.map((r) => r.id));
+    const kept = Object.values(playedRows)
+      .filter((p) => !ids.has(p.row.id) && clock - p.at < 60_000)
+      .map((p) => p.row);
+    return [...listed.map((r) => playedRows[r.id]?.row ?? r), ...kept];
+  })();
+  const isAuto = (row: Pending) => autoBankMaxTry > 0 && Number(row.amountTry) <= autoBankMaxTry;
+  const manualRows = queue.filter((row) => !isAuto(row) && !row.bankPlayed);
+  const ageOf = (row: Pending) => t.admin.age.replace("{s}", String(Math.max(0, Math.round((clock - Date.parse(row.createdAt)) / 1000))));
+  const driverLine = driver.last
+    ? `${t.admin.driverLast}: ${Math.max(0, Math.round((clock - driver.lastAt) / 1000))} s · ${
+        driver.last.skipped
+          ? t.admin.driverSkipped
+          : (() => {
+              const moved = [...driver.last.deposits, ...driver.last.withdrawals].filter((i) => i.to !== i.from);
+              return moved.length ? `${moved.length} ${t.admin.driverAdvanced} (${moved.map((i) => `${i.id.slice(0, 8)}: ${i.from} → ${i.to}`).join(", ")})` : t.admin.driverIdle;
+            })()
+      } · ${driver.last.elapsedMs} ms`
+    : driver.error
+      ? `${t.admin.reasonLabel}: ${driver.error}`
+      : "…";
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t.admin.title}</h1>
-        <NetworkBadge />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-6 lg:max-w-5xl lg:px-8">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">{t.admin.title}</h1>
+          <NetworkBadge />
+        </div>
+        <p className="text-sm text-ink-2">{t.admin.lead.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</p>
       </div>
-      <p className="text-sm text-ink-2">{t.admin.lead}</p>
 
       {!token && (
         <Card
+          className="lg:max-w-xl"
           render={
             <form
               onSubmit={(e) => {
@@ -517,273 +559,315 @@ export default function BoothAdminPage() {
             </Alert>
           ) : null}
 
-          <Card render={<section aria-label={t.admin.driver} />}>
-            <CardHeader>
-              <CardTitle className="microlabel">{t.admin.driver}</CardTitle>
-              <CardDescription className="text-xs">{t.admin.driverHint}</CardDescription>
-              <CardAction>
-                <Badge variant={driverOn ? "success" : "destructive"} data-testid="driver" data-on={driverOn ? "true" : "false"}>
+          {/* Status strip: connections, the driver, the sponsor. One row, wraps on a phone. */}
+          <Card size="sm" render={<section aria-label={t.admin.statusStrip} />}>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <ul className="flex flex-wrap gap-2" data-testid="health-dots" aria-label={t.admin.health}>
+                  {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
+                    const dep = deps?.[name];
+                    return (
+                      <li key={name}>
+                        <Badge variant={dep ? (dep.ok ? "success" : "destructive") : "secondary"} className="h-7 gap-2 px-3 text-sm text-foreground" title={dep?.detail ?? ""}>
+                          <span role="img" className={cn("size-2.5 rounded-full", dep ? (dep.ok ? "bg-mint" : "bg-destructive") : "bg-input")} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                          {t.admin.healthNames[name]}
+                          {dep ? <span className="tnum text-[11px] font-normal text-muted-foreground">{dep.ms} ms</span> : <Spinner className="size-3 text-muted-foreground" />}
+                        </Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <Badge variant={driverOn ? "success" : "destructive"} className="h-7 px-3 text-sm" data-testid="driver" data-on={driverOn ? "true" : "false"} title={t.admin.driverHint}>
                   {driverOn ? t.admin.driverOn : t.admin.driverOff}
                 </Badge>
-              </CardAction>
-            </CardHeader>
-            <CardContent>
+                {sponsor ? (
+                  <Badge variant={sponsor.ok ? "success" : "destructive"} className="h-7 px-3 text-sm" title={sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow}>
+                    <span className="tnum font-bold" data-testid="sponsor-balance">
+                      {sponsor.availableXlm.toLocaleString(intl, { maximumFractionDigits: 2 })} XLM
+                    </span>
+                  </Badge>
+                ) : (
+                  <Skeleton className="h-7 w-28" />
+                )}
+              </div>
               <p className="tnum text-xs text-ink-2" data-testid="driver-last">
-                {driver.last
-                  ? `${t.admin.driverLast}: ${Math.max(0, Math.round((clock - driver.lastAt) / 1000))} s · ${driver.last.skipped ? t.admin.driverSkipped : (() => {
-                      const moved = [...driver.last.deposits, ...driver.last.withdrawals].filter((i) => i.to !== i.from);
-                      return moved.length ? `${moved.length} ${t.admin.driverAdvanced} (${moved.map((i) => `${i.id.slice(0, 8)}: ${i.from} → ${i.to}`).join(", ")})` : t.admin.driverIdle;
-                    })()} · ${driver.last.elapsedMs} ms`
-                  : driver.error
-                    ? `${t.admin.reasonLabel}: ${driver.error}`
-                    : "…"}
+                {driverLine}
               </p>
             </CardContent>
           </Card>
 
-          <Card render={<section aria-live="polite" aria-label={t.admin.pending} />}>
-            <CardHeader>
-              <CardTitle className="microlabel">{t.admin.newest}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              {pending === null ? (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-8 w-48" />
-                  <Skeleton className="h-4 w-64" />
-                </div>
-              ) : newest ? (
-                <div className="flex flex-col gap-1">
-                  <p className="font-mono text-2xl font-bold tracking-tight text-foreground">{newest.reference}</p>
-                  <p className="tnum text-sm text-ink-2">
-                    ₺{newest.amountTry} · {newest.contractId.slice(0, 6)}…{newest.contractId.slice(-4)} · {new Date(newest.createdAt).toLocaleTimeString()}
-                  </p>
-                  {pending.length > 1 && (
-                    <p className="text-xs text-muted-foreground">
-                      +{pending.length - 1} {t.admin.more}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">{t.admin.none}</p>
-              )}
-              <Button size="xl" className="w-full" onClick={() => void play()} disabled={busy !== "" || !newest} aria-busy={busy === "play" ? "true" : undefined}>
-                {busy === "play" ? <Spinner data-icon="inline-start" /> : null}
-                {t.admin.play}
-              </Button>
-              {result && (
-                <Alert role="status" className="border-mint/30 bg-mint/10">
-                  <AlertDescription className="text-mint-2">
-                    {t.admin.played} ₺{result.amountTry} · {result.reference} · {result.transferStatus}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card render={<section aria-label={t.admin.health} />}>
-            <CardHeader>
-              <CardTitle className="microlabel">{t.admin.health}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ul className="flex flex-wrap gap-2" data-testid="health-dots">
-                {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
-                  const dep = deps?.[name];
-                  return (
-                    <li key={name}>
-                      <Badge variant={dep ? (dep.ok ? "success" : "destructive") : "secondary"} className="h-7 gap-2 px-3 text-sm text-foreground" title={dep?.detail ?? ""}>
-                        <span role="img" className={cn("size-2.5 rounded-full", dep ? (dep.ok ? "bg-mint" : "bg-destructive") : "bg-input")} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
-                        {t.admin.healthNames[name]}
-                        {dep ? <span className="tnum text-[11px] font-normal text-muted-foreground">{dep.ms} ms</span> : <Spinner className="size-3 text-muted-foreground" />}
-                      </Badge>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card render={<section aria-label={t.admin.anchor} />}>
-            <CardHeader>
-              <CardTitle className="microlabel">{t.admin.anchor}</CardTitle>
-              <CardDescription className="text-xs">{t.admin.anchorHint}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-2">
-              {anchors ? (
-                <RadioGroup value={anchors.active} onValueChange={(value) => void switchAnchor(String(value))} disabled={busy !== ""} aria-label={t.admin.anchorSwitch} data-testid="anchor-list">
-                  {anchors.anchors.map((a) => (
-                    <Item key={a.homeDomain} variant="outline" render={<label />} className="cursor-pointer items-start">
-                      <ItemMedia>
-                        <RadioGroupItem value={a.homeDomain} disabled={!a.ok} aria-label={`${t.admin.anchorSwitch}: ${a.homeDomain}`} className="mt-0.5" />
-                      </ItemMedia>
-                      <ItemContent>
-                        <ItemTitle className="gap-2">
-                          {a.orgName ?? a.homeDomain}
-                          {a.homeDomain === anchors.active ? <Badge variant="info">{t.admin.anchorActive}</Badge> : null}
-                        </ItemTitle>
-                        <ItemDescription className="break-all font-mono text-xs">{a.homeDomain}</ItemDescription>
-                        <ItemDescription className="text-xs">
-                          {a.ok ? `${a.asset?.code ?? ""}${a.fiatCode ? ` ⇄ ${a.fiatCode}` : ""}${a.limits?.fiat ? ` · ${a.limits.fiat.min ?? "?"}–${a.limits.fiat.max ?? "?"} ${a.fiatCode ?? ""}` : ""} · ${a.treasury ? t.admin.anchorHook : t.admin.anchorNoHook}` : `${t.admin.anchorUnavailable}: ${a.error ?? ""}`}
-                        </ItemDescription>
-                      </ItemContent>
-                    </Item>
-                  ))}
-                </RadioGroup>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-16 w-full" />
-                  <Skeleton className="h-16 w-full" />
-                </div>
-              )}
-              {anchorNote ? (
-                <p className="text-sm" role="status">
-                  {anchorNote}
-                </p>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          <Card render={<section aria-label={t.admin.sponsor} />}>
-            <CardHeader>
-              <CardTitle className="microlabel">{t.admin.sponsor}</CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 text-sm">
-              {sponsor ? (
-                <>
-                  <div className="flex flex-col gap-1">
-                    <p className={cn("tnum text-2xl font-bold", sponsor.ok ? "text-mint-2" : "text-destructive")} data-testid="sponsor-balance">
-                      {sponsor.availableXlm.toLocaleString(intl, { maximumFractionDigits: 2 })} XLM
-                    </p>
-                    <p className={sponsor.ok ? "text-mint-2" : "text-destructive"}>
-                      {sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow} · min {sponsor.minXlm} · max {sponsor.maxXlm}
-                    </p>
-                    <p className="tnum text-xs text-muted-foreground" data-testid="sponsor-reserves">
-                      {t.admin.sponsorHeld.replace("{held}", sponsor.balanceXlm.toLocaleString(intl, { maximumFractionDigits: 2 })).replace("{count}", String(sponsor.sponsoring))}
-                    </p>
-                    <p className="break-all font-mono text-xs text-muted-foreground">{sponsor.publicKey}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" size="sm" render={<a href={`${EXPLORER_BASE}/account/${sponsor.publicKey}`} target="_blank" rel="noreferrer" />}>
-                      stellar.expert · {NETWORK_LABEL}
-                      <ExternalLinkIcon data-icon="inline-end" />
-                    </Button>
-                    {NETWORK === "testnet" ? (
-                      <Button variant="outline" size="sm" onClick={() => void fund()} disabled={busy !== ""} aria-busy={busy === "fund" ? "true" : undefined}>
-                        {busy === "fund" ? <Spinner data-icon="inline-start" /> : null}
-                        {t.admin.sponsorFund}
+          <div className="grid gap-5 lg:grid-cols-[3fr_2fr] lg:items-start">
+            {/* The queue: every deposit waiting for its bank transfer. */}
+            <div className="flex flex-col gap-4">
+              <Card render={<section aria-live="polite" aria-label={t.admin.queue} />}>
+                <CardHeader>
+                  <CardTitle>{t.admin.queue}</CardTitle>
+                  {manualRows.length >= 2 ? (
+                    <CardAction>
+                      <Button variant="outline" size="sm" onClick={() => void playAll(manualRows)} disabled={busy !== ""}>
+                        {t.admin.playAll}
                       </Button>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">{t.admin.sponsorFundHint}</span>
-                    )}
-                    <Button variant="outline" size="sm" onClick={() => void sweep()} disabled={busy !== ""} aria-busy={busy === "sweep" ? "true" : undefined} data-testid="sweep">
-                      {busy === "sweep" ? <Spinner data-icon="inline-start" /> : null}
-                      {t.admin.sweep}
-                    </Button>
-                  </div>
-                  {sweepNote ? (
-                    <p className="text-xs" role="status" data-testid="sweep-note">
-                      {sweepNote}
-                    </p>
+                    </CardAction>
                   ) : null}
-                </>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  <Skeleton className="h-8 w-40" />
-                  <Skeleton className="h-4 w-56" />
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  {pending === null ? (
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-14 w-full" />
+                      <Skeleton className="h-14 w-full" />
+                    </div>
+                  ) : queue.length === 0 ? (
+                    <Empty className="py-6">
+                      <EmptyHeader>
+                        <EmptyTitle>{t.admin.queueEmpty}</EmptyTitle>
+                      </EmptyHeader>
+                    </Empty>
+                  ) : (
+                    <ItemGroup className="gap-2">
+                      {queue.map((row) => {
+                        const auto = isAuto(row);
+                        const played = Boolean(row.bankPlayed);
+                        return (
+                          <Item key={row.id} variant="outline" size="sm" data-testid="queue-item" data-auto={auto ? "true" : "false"}>
+                            <ItemContent>
+                              <ItemTitle className="font-mono text-lg font-bold tracking-tight">{row.reference}</ItemTitle>
+                              <ItemDescription className="tnum text-xs">
+                                ₺{row.amountTry} · {ageOf(row)} · {row.contractId.slice(0, 6)}…{row.contractId.slice(-4)}
+                              </ItemDescription>
+                            </ItemContent>
+                            <ItemActions>
+                              {played ? (
+                                <Badge variant="success">{row.bankPlayed?.by === "auto" ? t.admin.auto : t.admin.played.replace(/:$/, "")}</Badge>
+                              ) : auto ? (
+                                <Badge variant="info" title={t.admin.autoSoon}>
+                                  {t.admin.autoSoon}
+                                </Badge>
+                              ) : null}
+                              {!auto || played ? (
+                                <Button size="sm" onClick={() => void play(row)} disabled={busy !== ""} aria-busy={playing === row.id ? "true" : undefined}>
+                                  {playing === row.id ? <Spinner data-icon="inline-start" /> : null}
+                                  {t.admin.play}
+                                </Button>
+                              ) : null}
+                            </ItemActions>
+                          </Item>
+                        );
+                      })}
+                    </ItemGroup>
+                  )}
+                  {result && (
+                    <Alert role="status" className="border-mint/30 bg-mint/10">
+                      <AlertDescription className="text-mint-2">
+                        {t.admin.played} ₺{result.amountTry} · {result.reference} · {result.transferStatus}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
 
-          {stuck.length > 0 && (
-            <Card render={<section aria-label={t.admin.stuck} />}>
-              <CardHeader>
-                <CardTitle className="microlabel">{t.admin.stuck}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">
-                <ItemGroup className="gap-2">
-                  {stuck.map((d) => (
-                    <Item key={d.id} variant="muted" size="sm">
-                      <ItemContent>
-                        <ItemTitle className="tnum">
-                          ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : d.status === "failed" ? t.failures.kinds.amount_mismatch.title : t.deposit.steps.onramp_pending}
-                        </ItemTitle>
-                        <ItemDescription className="font-mono text-xs">
-                          {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.anchorTxId ?? ""}
-                        </ItemDescription>
-                        {d.landing ? (
-                          <ItemDescription className="text-xs text-ink-2">
-                            {t.failures.landingLabel}:{" "}
-                            <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-teal underline underline-offset-4">
-                              {d.landing.slice(0, 8)}…{d.landing.slice(-6)}
-                            </a>{" "}
-                            · {t.admin.paid} {d.paidUsdc ?? "?"} / {d.usdc ?? "?"} USDC
-                          </ItemDescription>
-                        ) : null}
-                      </ItemContent>
-                      {(d.status === "abandoned" || d.status === "failed") && (
-                        <ItemActions>
-                          <Button variant="outline" size="sm" onClick={() => void resume(d.id)} disabled={busy !== ""}>
-                            {t.admin.resume}
-                          </Button>
-                        </ItemActions>
-                      )}
-                    </Item>
-                  ))}
-                </ItemGroup>
-                {resumed && (
-                  <p className="text-sm text-mint-2" role="status">
-                    {t.admin.resumed}
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          <Card render={<section aria-label={t.admin.seed} />}>
-            <CardHeader>
-              <CardTitle className="microlabel">{t.admin.seed}</CardTitle>
-              <CardDescription className="text-ink-2">{t.admin.seedHint}</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3">
-              <Button variant="outline" onClick={() => void seedDemo()} disabled={busy !== "" || !info || (seed !== null && seed.stage !== "done" && seed.stage !== "error")} aria-busy={seedRunning ? "true" : undefined}>
-                {seedRunning ? <Spinner data-icon="inline-start" /> : null}
-                {seedRunning ? t.admin.seedRunning : t.admin.seed}
-              </Button>
-              {seed && (
-                <Alert role="status" data-testid="seed-status" className="bg-muted">
-                  <AlertTitle className="font-mono text-xs font-normal">{seed.contractId || "…"}</AlertTitle>
-                  <AlertDescription className="text-foreground">
-                    <p>{seed.stage === "done" ? t.admin.seedDone : seed.stage === "error" ? (seed.message ?? t.errors.generic) : seed.deposit ? t.deposit.steps[(seed.deposit.status as keyof typeof t.deposit.steps) ?? "awaiting_transfer"] : t.admin.seedRunning}</p>
-                    {seed.stage === "needs_tap" && (
-                      <Button size="sm" className="w-fit" onClick={() => void runSeedAutopilot()}>
-                        {t.admin.seedTap}
-                      </Button>
-                    )}
-                    {seed.stage === "done" && (
-                      <Button size="sm" className="w-fit" render={<Link href="/kumbara" />}>
-                        {t.nav.savings} →
-                      </Button>
-                    )}
-                  </AlertDescription>
+              {error && (
+                <Alert variant="destructive" data-testid="admin-error">
+                  <ShieldAlertIcon />
+                  <AlertTitle>{t.admin.reasonLabel}</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-            </CardContent>
-          </Card>
 
-          {error && (
-            <Alert variant="destructive" data-testid="admin-error">
-              <ShieldAlertIcon />
-              <AlertTitle>{t.admin.reasonLabel}</AlertTitle>
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
-          )}
-          <div className="flex items-center justify-between text-xs">
-            <Link href="/booth?n=1" className="rounded-sm text-teal underline-offset-4 hover:underline">
-              {t.admin.qr} →
-            </Link>
-            <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => setToken("")}>
-              {t.admin.forget}
-            </Button>
+              {stuck.length > 0 && (
+                <Card render={<section aria-label={t.admin.stuck} />}>
+                  <CardHeader>
+                    <CardTitle className="microlabel">{t.admin.stuck}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3">
+                    <ItemGroup className="gap-2">
+                      {stuck.map((d) => (
+                        <Item key={d.id} variant="muted" size="sm">
+                          <ItemContent>
+                            <ItemTitle className="tnum">
+                              ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : d.status === "failed" ? t.failures.kinds.amount_mismatch.title : t.deposit.steps.onramp_pending}
+                            </ItemTitle>
+                            <ItemDescription className="font-mono text-xs">
+                              {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.anchorTxId ?? ""}
+                            </ItemDescription>
+                            {d.landing ? (
+                              <ItemDescription className="text-xs text-ink-2">
+                                {t.failures.landingLabel}:{" "}
+                                <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-teal underline underline-offset-4">
+                                  {d.landing.slice(0, 8)}…{d.landing.slice(-6)}
+                                </a>{" "}
+                                · {t.admin.paid} {d.paidUsdc ?? "?"} / {d.usdc ?? "?"} USDC
+                              </ItemDescription>
+                            ) : null}
+                          </ItemContent>
+                          {(d.status === "abandoned" || d.status === "failed") && (
+                            <ItemActions>
+                              <Button variant="outline" size="sm" onClick={() => void resume(d.id)} disabled={busy !== ""}>
+                                {t.admin.resume}
+                              </Button>
+                            </ItemActions>
+                          )}
+                        </Item>
+                      ))}
+                    </ItemGroup>
+                    {resumed && (
+                      <p className="text-sm text-mint-2" role="status">
+                        {t.admin.resumed}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+            </div>
+
+            {/* Tools: the seed, the sponsor, the anchor. */}
+            <div className="flex flex-col gap-4">
+              <p className="microlabel">{t.admin.tools}</p>
+
+              <Card render={<section aria-label={t.admin.seed} />}>
+                <CardHeader>
+                  <CardTitle className="microlabel">{t.admin.seed}</CardTitle>
+                  <CardDescription className="text-xs text-ink-2">{t.admin.seedHint}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  <Button variant="outline" onClick={() => void seedDemo()} disabled={busy !== "" || !info || (seed !== null && seed.stage !== "done" && seed.stage !== "error")} aria-busy={seedRunning ? "true" : undefined}>
+                    {seedRunning ? <Spinner data-icon="inline-start" /> : null}
+                    {seedRunning ? t.admin.seedRunning : t.admin.seed}
+                  </Button>
+                  {seed && (
+                    <Alert role="status" data-testid="seed-status" className="bg-muted">
+                      <AlertTitle className="font-mono text-xs font-normal">{seed.contractId || "…"}</AlertTitle>
+                      <AlertDescription className="text-foreground">
+                        <p>{seed.stage === "done" ? t.admin.seedDone : seed.stage === "error" ? (seed.message ?? t.errors.generic) : seed.deposit ? t.deposit.steps[(seed.deposit.status as keyof typeof t.deposit.steps) ?? "awaiting_transfer"] : t.admin.seedRunning}</p>
+                        {seed.stage === "needs_tap" && (
+                          <Button size="sm" className="w-fit" onClick={() => void runSeedAutopilot()}>
+                            {t.admin.seedTap}
+                          </Button>
+                        )}
+                        {seed.stage === "done" && (
+                          <Button size="sm" className="w-fit" render={<Link href="/kumbara" />}>
+                            {t.nav.savings} →
+                          </Button>
+                        )}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card render={<section aria-label={t.admin.sponsor} />}>
+                <CardHeader>
+                  <CardTitle className="microlabel">{t.admin.sponsor}</CardTitle>
+                  {sponsor ? (
+                    <CardAction>
+                      <span className={cn("text-xs font-semibold", sponsor.ok ? "text-mint-2" : "text-destructive")}>{sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow}</span>
+                    </CardAction>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3 text-sm">
+                  {sponsor ? (
+                    <>
+                      <div className="flex flex-col gap-1">
+                        <p className={cn("tnum text-xl font-bold", sponsor.ok ? "text-mint-2" : "text-destructive")}>
+                          {sponsor.availableXlm.toLocaleString(intl, { maximumFractionDigits: 2 })} XLM <span className="text-xs font-normal text-muted-foreground">· min {sponsor.minXlm} · max {sponsor.maxXlm}</span>
+                        </p>
+                        <p className="tnum text-xs text-muted-foreground" data-testid="sponsor-reserves">
+                          {t.admin.sponsorHeld.replace("{held}", sponsor.balanceXlm.toLocaleString(intl, { maximumFractionDigits: 2 })).replace("{count}", String(sponsor.sponsoring))}
+                        </p>
+                        <p className="break-all font-mono text-xs text-muted-foreground">{sponsor.publicKey}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" render={<a href={`${EXPLORER_BASE}/account/${sponsor.publicKey}`} target="_blank" rel="noreferrer" />}>
+                          stellar.expert · {NETWORK_LABEL}
+                          <ExternalLinkIcon data-icon="inline-end" />
+                        </Button>
+                        {NETWORK === "testnet" ? (
+                          <Button variant="outline" size="sm" onClick={() => void fund()} disabled={busy !== ""} aria-busy={busy === "fund" ? "true" : undefined}>
+                            {busy === "fund" ? <Spinner data-icon="inline-start" /> : null}
+                            {t.admin.sponsorFund}
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{t.admin.sponsorFundHint}</span>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => void sweep()} disabled={busy !== ""} aria-busy={busy === "sweep" ? "true" : undefined} data-testid="sweep">
+                          {busy === "sweep" ? <Spinner data-icon="inline-start" /> : null}
+                          {t.admin.sweep}
+                        </Button>
+                      </div>
+                      {sweepNote ? (
+                        <p className="text-xs" role="status" data-testid="sweep-note">
+                          {sweepNote}
+                        </p>
+                      ) : null}
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-8 w-40" />
+                      <Skeleton className="h-4 w-56" />
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card render={<section aria-label={t.admin.anchor} />}>
+                <Collapsible>
+                  <CardHeader>
+                    <CardTitle className="microlabel">{t.admin.anchor}</CardTitle>
+                    <CardDescription className="font-mono text-xs">{anchors ? anchors.active : "…"}</CardDescription>
+                    <CardAction>
+                      <CollapsibleTrigger render={<Button variant="ghost" size="xs" className="text-muted-foreground" />}>
+                        {t.admin.anchorSwitch}
+                        <ChevronDownIcon data-icon="inline-end" />
+                      </CollapsibleTrigger>
+                    </CardAction>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground">{t.admin.anchorHint}</p>
+                      {anchors ? (
+                        <RadioGroup value={anchors.active} onValueChange={(value) => void switchAnchor(String(value))} disabled={busy !== ""} aria-label={t.admin.anchorSwitch} data-testid="anchor-list">
+                          {anchors.anchors.map((a) => (
+                            <Item key={a.homeDomain} variant="outline" render={<label />} className="cursor-pointer items-start">
+                              <ItemMedia>
+                                <RadioGroupItem value={a.homeDomain} disabled={!a.ok} aria-label={`${t.admin.anchorSwitch}: ${a.homeDomain}`} className="mt-0.5" />
+                              </ItemMedia>
+                              <ItemContent>
+                                <ItemTitle className="gap-2">
+                                  {a.orgName ?? a.homeDomain}
+                                  {a.homeDomain === anchors.active ? <Badge variant="info">{t.admin.anchorActive}</Badge> : null}
+                                </ItemTitle>
+                                <ItemDescription className="break-all font-mono text-xs">{a.homeDomain}</ItemDescription>
+                                <ItemDescription className="text-xs">
+                                  {a.ok ? `${a.asset?.code ?? ""}${a.fiatCode ? ` ⇄ ${a.fiatCode}` : ""}${a.limits?.fiat ? ` · ${a.limits.fiat.min ?? "?"}–${a.limits.fiat.max ?? "?"} ${a.fiatCode ?? ""}` : ""} · ${a.treasury ? t.admin.anchorHook : t.admin.anchorNoHook}` : `${t.admin.anchorUnavailable}: ${a.error ?? ""}`}
+                                </ItemDescription>
+                              </ItemContent>
+                            </Item>
+                          ))}
+                        </RadioGroup>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <Skeleton className="h-16 w-full" />
+                          <Skeleton className="h-16 w-full" />
+                        </div>
+                      )}
+                      {anchorNote ? (
+                        <p className="text-sm" role="status">
+                          {anchorNote}
+                        </p>
+                      ) : null}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+
+              <div className="flex items-center justify-between text-xs">
+                <Link href="/booth?n=1" className="rounded-sm text-teal underline-offset-4 hover:underline">
+                  {t.admin.qr} →
+                </Link>
+                <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => setToken("")}>
+                  {t.admin.forget}
+                </Button>
+              </div>
+            </div>
           </div>
         </>
       )}

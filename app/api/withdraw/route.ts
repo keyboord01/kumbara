@@ -16,14 +16,20 @@ export function withdrawErrorResponse(err: unknown): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let body: { contractId?: string; amountUsdc?: string };
+  let body: { contractId?: string; amountUsdc?: string; method?: string; destination?: string };
   try {
     body = (await request.json()) as typeof body;
   } catch {
     return NextResponse.json({ error: { code: "invalid_json", message: "invalid JSON" } }, { status: 400 });
   }
   try {
-    const record = await createWithdrawal({ contractId: String(body.contractId ?? ""), amountUsdc: String(body.amountUsdc ?? ""), ref: boothRef(request) });
+    const record = await createWithdrawal({
+      contractId: String(body.contractId ?? ""),
+      amountUsdc: String(body.amountUsdc ?? ""),
+      ref: boothRef(request),
+      method: body.method === "stellar" ? "stellar" : "iban",
+      destination: typeof body.destination === "string" ? body.destination : undefined,
+    });
     return NextResponse.json(record, { status: 201, headers: { "cache-control": "no-store" } });
   } catch (err) {
     return withdrawErrorResponse(err);

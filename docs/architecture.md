@@ -63,6 +63,8 @@ sequenceDiagram
 
 Anchor or relay outages and an under-funded sponsor are transient: the status stays and the next poll retries (six attempts per step before `failed`). `pnpm demo:deposit` plays the bank for the newest pending deposit so the flow can be rehearsed identically every time; measured in `scripts/e2e-deposit.mjs`, the USDC is in the vault about 60 s after the simulated transfer.
 
+**Deposit to the address.** USDC can also be sent straight to the kumbara's contract address from any Soroban-capable wallet or from another kumbara; a classic `payment` operation cannot name a contract address, so exchanges that only pay G addresses cannot reach it. Such USDC shows on Savings as "in your kumbara, not in the vault yet" with a one-approval "Put it in the vault" action (`vault.deposit` signed with the passkey and relayed, the same call the arrival autopilot makes). That action records a `vault_deposit` event for the public feed and never goes through the deposit pipeline: there is no record, no anchor and no bridge, the transaction hash is the proof. The same action rescues any USDC an interrupted deposit left in the kumbara.
+
 ## Withdrawal pipeline (Gate 3)
 
 `lib/withdraw.server.ts` mirrors the deposit pipeline with the reverse landing account:
@@ -74,6 +76,8 @@ Anchor or relay outages and an under-funded sponsor are transient: the status st
 | `usdc_sent` | Landing balance verified on-chain, pre-authorized classic payment to the treasury with the memo relayed. |
 | `paid` | Waits for the anchor to match the memo, convert and pay out (simulated FAST to the customer's IBAN). |
 | `completed` | Payout reference and TRY amount recorded, cleanup relayed, `withdrawal_completed` counter event. |
+
+**To a Stellar address (method `stellar`).** The withdraw form offers a second destination: any `G…` or `C…` address. The record carries `method` and `destination` and no quote; `created` moves straight to `awaiting_usdc` with no bridge, the browser signs the vault withdrawal and then the USDC transfer to the destination, and `usdc_sent` completes the record with the `withdrawal_completed` event (the transfer hash stands in for the payment). A `G…` destination must already hold the USDC trustline, checked over RPC before the record is created (`no_trustline`); contract addresses need none. The safety limit itself is installed by the first withdrawal of either method (one extra passkey approval, `DEFAULT_LIMIT_USDC` per transaction), not at onboarding, so opening and funding a kumbara take one approval each.
 
 Amounts above the spending limit are refused in the form with a link to the security page, and an on-chain `spending_limit_exceeded` rejection is shown the same way. The vault withdrawal burns just enough shares to pay out at least the requested amount; any excess USDC stays in the kumbara.
 

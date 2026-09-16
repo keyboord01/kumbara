@@ -45,10 +45,10 @@ export default function OnboardPage() {
       // Discoverable credential with user verification: what Firefox's passkey providers, iCloud Keychain and
       // password managers such as 1Password create, and what the passkey-only connect path relies on.
       await createWallet({ userName: "kumbara", fund: false, authenticatorSelection: { residentKey: "required", userVerification: "required" } });
-      // The kumbara exists: show it now. The spending limit installs from the
-      // Savings screen in the background (second passkey approval there).
+      // The kumbara exists: show it now. One approval was enough; the safety
+      // limit is set at the first withdrawal (or earlier from the limit card).
       setStage("done");
-      router.push("/kumbara?setup=limit");
+      router.push("/kumbara");
     } catch (err) {
       const raw = classifyError(err, "relay");
       // Passkey failures carry the browser's WebAuthn capability snapshot in Details, so a report from Firefox or a phone says what was available.

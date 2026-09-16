@@ -15,9 +15,14 @@
  *
  * The spending limit applies to the browser's transfer to the bridge
  * account; the vault withdrawal itself moves nothing out of the kumbara.
+ *
+ * A withdrawal "to a Stellar address" (method "stellar") skips the anchor:
+ * created → awaiting_usdc with no bridge, the browser withdraws from the vault
+ * and transfers the USDC straight to the destination (G… with a USDC
+ * trustline, or any C…), and usdc_sent completes the record.
  */
 import "server-only";
-import { Asset } from "@stellar/stellar-sdk";
+import { Asset, Keypair, rpc, xdr } from "@stellar/stellar-sdk";
 import { SANDBOX_TEST_IBAN, discoverAnchor, type AnchorDiscovery } from "./anchor.server";
 import { SepError, fiatAsset, sep10Authenticate, sep12Register, sep38Price, sep38Quote, sep6Transaction, sep6WithdrawExchange, stellarAsset } from "./sep.server";
 import { networkPassphrase, serverEnv } from "./env.server";
@@ -31,6 +36,8 @@ const MAX_STEP_ATTEMPTS = 6;
 const MAX_WAIT_POLLS = 60;
 
 export type WithdrawalStatus = "created" | "awaiting_usdc" | "usdc_sent" | "paid" | "completed" | "failed";
+/** Where the USDC goes: the anchor pays lira to the IBAN (default), or the USDC is sent to a Stellar address as is. */
+export type WithdrawalMethod = "iban" | "stellar";
 export const FINAL_WITHDRAWAL_STATUSES: WithdrawalStatus[] = ["completed", "failed"];
 
 export interface WithdrawalRecord extends StoredRecord {
@@ -44,8 +51,12 @@ export interface WithdrawalRecord extends StoredRecord {
   /** SEP-6 state: the anchor's transaction id and the bridge account's SEP-10 token. */
   sep6?: { id: string; token: string; tokenExpiresAt: number; quoteId: string; lastStatus?: string };
   amountUsdc: string;
-  /** Lira out and the rate in lira per USDC (SEP-38 states the sell price in USDC per lira; it is inverted here). */
-  quote: { tryOut: string; rate: string; spreadBps: number };
+  /** Records without a method predate the address path and are IBAN withdrawals. */
+  method?: WithdrawalMethod;
+  /** The G… or C… address for the stellar method. */
+  destination?: string;
+  /** Lira out and the rate in lira per USDC (SEP-38 states the sell price in USDC per lira; it is inverted here). Absent for the stellar method. */
+  quote?: { tryOut: string; rate: string; spreadBps: number };
   /** The anchor's receiving account and memo, known after the SEP-6 request (bridge step). */
   treasury?: string;
   memoId?: string;
@@ -96,6 +107,22 @@ function isContractId(value: string): boolean {
   return /^C[A-Z2-7]{55}$/.test(value);
 }
 
+function isStellarAddress(value: string): boolean {
+  return /^[GC][A-Z2-7]{55}$/.test(value);
+}
+
+export function withdrawalMethod(record: Pick<WithdrawalRecord, "method">): WithdrawalMethod {
+  return record.method ?? "iban";
+}
+
+/** A classic account can only receive USDC once it holds the trustline; read the trustline ledger entry over RPC. Contract addresses need none. */
+async function hasUsdcTrustline(account: string, usdc: { code: string; issuer: string }): Promise<boolean> {
+  const server = new rpc.Server(serverEnv.stellarRpcUrl());
+  const key = xdr.LedgerKey.trustline(new xdr.LedgerKeyTrustLine({ accountId: Keypair.fromPublicKey(account).xdrAccountId(), asset: new Asset(usdc.code, usdc.issuer).toTrustLineXDRObject() }));
+  const res = await server.getLedgerEntries(key);
+  return res.entries.length > 0;
+}
+
 /** SEP-38 states a sell price in units of the sold asset per unit bought (USDC per lira); the app shows lira per USDC. */
 function tryPerUsdc(tryAmount: string, usdcAmount: string): string {
   const usdc = Number(usdcAmount);
@@ -139,36 +166,47 @@ export async function quoteWithdrawal(contractId: string, amountUsdc: string, kn
   }
 }
 
-export async function createWithdrawal(input: { contractId: string; amountUsdc: string; ref?: string | null }): Promise<WithdrawalRecord> {
+export async function createWithdrawal(input: { contractId: string; amountUsdc: string; ref?: string | null; method?: WithdrawalMethod; destination?: string | undefined }): Promise<WithdrawalRecord> {
   if (!isContractId(input.contractId)) throw new WithdrawError(400, "invalid_contract", "contractId must be a C… address");
   if (!/^\d+(\.\d{1,7})?$/.test(input.amountUsdc)) throw new WithdrawError(400, "invalid_amount", "amountUsdc must be a decimal with up to 7 digits");
+  const method: WithdrawalMethod = input.method === "stellar" ? "stellar" : "iban";
   const amountStroops = toStroops(input.amountUsdc);
   const amount = fromStroops(amountStroops);
+  if (amountStroops < 10_000_000n) throw new WithdrawError(422, "amount_too_small", "amount must be at least 1 USDC");
   const anchor = await discoverAnchor();
-  const min = withdrawMinimum(anchor);
-  if (Number(amount) < min) throw new WithdrawError(422, "amount_too_small", `amount must be at least ${min} ${anchor.usdc.code}`);
-  if (anchor.limits.withdraw.max !== null && Number(amount) > anchor.limits.withdraw.max) throw new WithdrawError(422, "amount_out_of_range", `amount above the anchor's maximum (${anchor.limits.withdraw.max} ${anchor.usdc.code})`);
+  const destination = (input.destination ?? "").trim();
+  if (method === "stellar") {
+    if (!isStellarAddress(destination)) throw new WithdrawError(400, "invalid_destination", "destination must be a G… or C… Stellar address");
+    if (destination === input.contractId) throw new WithdrawError(400, "invalid_destination", "destination is this kumbara");
+    if (destination.startsWith("G") && !(await hasUsdcTrustline(destination, anchor.usdc))) {
+      throw new WithdrawError(400, "no_trustline", `${destination} holds no ${anchor.usdc.code} trustline, so it cannot receive the transfer`);
+    }
+  } else {
+    const min = withdrawMinimum(anchor);
+    if (Number(amount) < min) throw new WithdrawError(422, "amount_too_small", `amount must be at least ${min} ${anchor.usdc.code}`);
+    if (anchor.limits.withdraw.max !== null && Number(amount) > anchor.limits.withdraw.max) throw new WithdrawError(422, "amount_out_of_range", `amount above the anchor's maximum (${anchor.limits.withdraw.max} ${anchor.usdc.code})`);
+  }
   const position = await readVaultPosition(serverEnv.stellarRpcUrl(), networkPassphrase(), serverEnv.defindexVaultId(), input.contractId);
   if (position.usdc < amountStroops) {
     throw new WithdrawError(422, "insufficient_vault_balance", `the kumbara holds ${fromStroops(position.usdc)} USDC in the vault`);
   }
-  const indicative = await quoteWithdrawal(input.contractId, amount, anchor);
   const now = new Date().toISOString();
-  const record: WithdrawalRecord = {
+  const base: WithdrawalRecord = {
     id: newId("wdr"),
     contractId: input.contractId,
-    customerId: "sep6-pending",
+    customerId: method === "stellar" ? "stellar" : "sep6-pending",
     anchor: { homeDomain: anchor.homeDomain, fiatCode: anchor.fiatCode ?? "TRY" },
     network: serverEnv.stellarNetwork(),
     ref: input.ref ?? null,
     status: "created",
+    method,
     amountUsdc: amount,
-    quote: indicative,
-    payoutIban: SANDBOX_TEST_IBAN,
+    payoutIban: null,
     createdAt: now,
     updatedAt: now,
     history: [{ status: "created", at: now }],
   };
+  const record: WithdrawalRecord = method === "stellar" ? { ...base, destination } : { ...base, quote: await quoteWithdrawal(input.contractId, amount, anchor), payoutIban: SANDBOX_TEST_IBAN };
   await withdrawalStore.save(record);
   return record;
 }
@@ -217,13 +255,17 @@ export async function advanceWithdrawal(id: string): Promise<WithdrawalRecord> {
 }
 
 async function step(record: WithdrawalRecord): Promise<WithdrawalRecord> {
+  const stellar = withdrawalMethod(record) === "stellar";
   switch (record.status) {
     case "created": {
+      // The address path needs no bridge: the browser signs the vault withdrawal and the transfer next.
+      if (stellar) return { ...record, status: "awaiting_usdc" };
       if (!record.anchor) throw new SepError("sep6", 0, "anchor_path_gone", "this withdrawal was opened on the anchor's former Partner API, which no longer exists; start a new withdrawal");
       await assertSponsorReady();
       return buildSep6ReverseBridge(record);
     }
     case "usdc_sent": {
+      if (stellar) return completeStellarWithdrawal(record);
       if (!record.landing) throw new Error("landing plan missing");
       const anchor = await discoverAnchor(record.anchor?.homeDomain);
       const balance = await readTokenBalance(serverEnv.stellarRpcUrl(), networkPassphrase(), anchor.usdc.contractId, record.landing.publicKey);
@@ -242,6 +284,24 @@ async function step(record: WithdrawalRecord): Promise<WithdrawalRecord> {
     default:
       return record;
   }
+}
+
+/** The transfer to the destination is the payout itself: record the counter event and finish. */
+async function completeStellarWithdrawal(record: WithdrawalRecord): Promise<WithdrawalRecord> {
+  await recordEvent({
+    type: "withdrawal_completed",
+    ts: Date.now(),
+    network: serverEnv.stellarNetwork(),
+    projectId: serverEnv.sembolProjectId(),
+    ref: record.ref,
+    contractId: record.contractId,
+    withdrawalId: record.id,
+    vaultTx: record.vaultTxHash ?? null,
+    paymentTx: record.transferTxHash ?? null,
+    usdc: record.amountUsdc,
+    try: null,
+  });
+  return { ...record, status: "completed" };
 }
 
 /**
@@ -279,7 +339,7 @@ async function buildSep6ReverseBridge(record: WithdrawalRecord): Promise<Withdra
     sep6: { id: got.id, token: got.token, tokenExpiresAt: got.tokenExpiresAt, quoteId: got.quoteId },
     treasury: got.accountId,
     memoId: got.memo,
-    quote: { tryOut: got.tryOut, rate: got.price, spreadBps: record.quote.spreadBps },
+    quote: { tryOut: got.tryOut, rate: got.price, spreadBps: record.quote?.spreadBps ?? 0 },
     landing: plan,
     status: "awaiting_usdc",
   };

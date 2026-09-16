@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePasskeyWallet } from "@sembol/passkey-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useLocale } from "@/lib/i18n";
 import { ScreenSkeleton } from "./Skeleton";
 
@@ -12,12 +14,14 @@ export function RequireWallet({ children }: { children: React.ReactNode }) {
   if (status === "initializing") return <ScreenSkeleton />;
   if (!isConnected) {
     return (
-      <div className="card mx-auto flex max-w-md flex-col items-center gap-4 p-8 text-center">
-        <p className="text-sm text-ink-2">{t.savings.notConnected}</p>
-        <Link href="/" className="btn-primary">
-          {t.savings.open}
-        </Link>
-      </div>
+      <Card className="mx-auto max-w-md">
+        <CardContent className="flex flex-col items-center gap-4 py-3 text-center">
+          <p className="text-sm text-ink-2">{t.savings.notConnected}</p>
+          <Button size="xl" render={<Link href="/" />}>
+            {t.savings.open}
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
   return <>{children}</>;

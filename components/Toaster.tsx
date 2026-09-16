@@ -1,6 +1,8 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export type ToastVariant = "info" | "success" | "warning" | "error";
 
@@ -34,7 +36,7 @@ const STYLE: Record<ToastVariant, { bar: string; icon: string }> = {
   info: { bar: "bg-teal", icon: "i" },
   success: { bar: "bg-mint", icon: "✓" },
   warning: { bar: "bg-amber", icon: "!" },
-  error: { bar: "bg-danger", icon: "×" },
+  error: { bar: "bg-destructive", icon: "×" },
 };
 
 /**
@@ -91,18 +93,18 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             aria-live="polite"
             data-testid="toast"
             data-variant={t.variant}
-            className="toast-in card-flat pointer-events-auto flex w-full max-w-xl items-start gap-3 overflow-hidden p-3 pr-2 shadow-[var(--shadow-toast)]"
+            className="toast-in pointer-events-auto flex w-full max-w-xl items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 pr-2 shadow-toast"
           >
             <span className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold text-white ${STYLE[t.variant].bar}`} aria-hidden>
               {STYLE[t.variant].icon}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold leading-5 text-ink">{t.title}</p>
-              {t.body ? <p className="mt-0.5 text-xs leading-4 text-ink-2">{t.body}</p> : null}
+              <p className="text-sm font-semibold leading-5 text-foreground">{t.title}</p>
+              {t.body ? <p className="mt-0.5 text-xs leading-4 text-muted-foreground">{t.body}</p> : null}
             </div>
-            <button type="button" onClick={() => dismiss(t.id)} className="flex h-8 w-8 flex-none items-center justify-center rounded-full text-muted hover:bg-paper-2 hover:text-ink" aria-label="Kapat">
-              ×
-            </button>
+            <Button variant="ghost" size="icon-xs" onClick={() => dismiss(t.id)} aria-label="Kapat" className="flex-none text-muted-foreground">
+              <XIcon />
+            </Button>
           </div>
         ))}
       </div>

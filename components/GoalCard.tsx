@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { usePasskeyWallet } from "@sembol/passkey-react";
+import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
 import { api } from "@/lib/api";
 import { formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
@@ -20,7 +26,7 @@ function Ring({ fraction, label }: { fraction: number; label: string }) {
   const c = 2 * Math.PI * r;
   const done = Math.max(0, Math.min(1, fraction));
   return (
-    <svg viewBox="0 0 84 84" className="h-24 w-24 flex-none" role="img" aria-label={label}>
+    <svg viewBox="0 0 84 84" className="size-24 flex-none" role="img" aria-label={label}>
       <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-paper-3)" strokeWidth="8" />
       <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-teal)" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c}`} strokeDashoffset={`${c * (1 - done)}`} transform="rotate(-90 42 42)" style={{ transition: "stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1)" }} />
       <text x="42" y="47" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--color-ink)" style={{ fontVariantNumeric: "tabular-nums" }}>
@@ -86,71 +92,78 @@ export function GoalCard({ inVault }: { inVault: bigint | null }) {
   const numberLocale = locale === "tr" ? "tr-TR" : "en-US";
 
   return (
-    <section className="card p-5" aria-label={t.goal.title} data-testid="goal-card">
-      <div className="flex items-center justify-between gap-3">
-        <p className="microlabel">{t.goal.title}</p>
+    <Card render={<section aria-label={t.goal.title} />} data-testid="goal-card">
+      <CardHeader>
+        <CardTitle className="microlabel">{t.goal.title}</CardTitle>
         {!editing && profile !== undefined ? (
-          <button type="button" onClick={() => setEditing(true)} className="btn-chip" data-testid="goal-edit">
-            {profile ? t.goal.edit : t.goal.set}
-          </button>
+          <CardAction>
+            <Button variant="outline" size="sm" onClick={() => setEditing(true)} data-testid="goal-edit">
+              {profile ? t.goal.edit : t.goal.set}
+            </Button>
+          </CardAction>
         ) : null}
-      </div>
-      {editing ? (
-        <form
-          className="mt-3 flex flex-col gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            void save();
-          }}
-        >
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="microlabel">{t.goal.nameLabel}</span>
-            <input value={name} onChange={(e) => setName(e.target.value)} maxLength={24} className="field" placeholder={t.goal.namePlaceholder} data-testid="goal-name" autoComplete="off" />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="microlabel">{t.goal.goalLabel}</span>
-            <span className="relative block">
-              <input value={goal} onChange={(e) => setGoal(e.target.value)} type="number" inputMode="decimal" min={0} step="any" className="field tnum pr-16" placeholder="500" data-testid="goal-amount" />
-              <span className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-muted" aria-hidden>
-                USDC
-              </span>
-            </span>
-          </label>
-          <p className="text-xs text-muted">{t.goal.privacy}</p>
-          {error ? (
-            <p className="text-sm text-danger" role="alert">
-              {error}
-            </p>
-          ) : null}
-          <div className="flex gap-2">
-            <button type="submit" disabled={saving || name.trim() === "" || !credentialId} aria-busy={saving ? "true" : "false"} className="btn-primary min-h-11 flex-1 text-sm" data-testid="goal-save">
-              {saving ? <Spinner /> : null}
-              {t.goal.save}
-            </button>
-            <button type="button" onClick={() => setEditing(false)} className="btn-secondary min-h-11 px-4 text-sm">
-              {t.goal.cancel}
-            </button>
-          </div>
-        </form>
-      ) : profile ? (
-        <div className="mt-3 flex items-center gap-4">
-          {profile.goalUsdc ? <Ring fraction={fraction} label={`${Math.round(fraction * 100)}%`} /> : null}
-          <div className="min-w-0">
-            <p className="text-2xl font-bold tracking-tight text-ink" data-testid="goal-name-shown">
-              {profile.name}
-            </p>
-            {profile.goalUsdc ? (
-              <p className="tnum mt-1 text-sm text-ink-2" data-testid="goal-progress">
-                {inVault !== null ? formatUsdc(inVault, locale) : "…"} / {Number(profile.goalUsdc).toLocaleString(numberLocale, { maximumFractionDigits: 2 })} USDC
+      </CardHeader>
+      <CardContent>
+        {editing ? (
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void save();
+            }}
+          >
+            <FieldGroup className="gap-4">
+              <Field>
+                <FieldLabel htmlFor="goal-name" className="microlabel">
+                  {t.goal.nameLabel}
+                </FieldLabel>
+                <Input id="goal-name" value={name} onChange={(e) => setName(e.target.value)} maxLength={24} placeholder={t.goal.namePlaceholder} data-testid="goal-name" autoComplete="off" />
+              </Field>
+              <Field>
+                <FieldLabel htmlFor="goal-amount" className="microlabel">
+                  {t.goal.goalLabel}
+                </FieldLabel>
+                <InputGroup>
+                  <InputGroupInput id="goal-amount" value={goal} onChange={(e) => setGoal(e.target.value)} type="number" inputMode="decimal" min={0} step="any" className="tnum" placeholder="500" data-testid="goal-amount" />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupText className="text-xs font-semibold">USDC</InputGroupText>
+                  </InputGroupAddon>
+                </InputGroup>
+                <FieldDescription className="text-xs">{t.goal.privacy}</FieldDescription>
+                <FieldError>{error}</FieldError>
+              </Field>
+              <div className="flex gap-2">
+                <Button type="submit" disabled={saving || name.trim() === "" || !credentialId} aria-busy={saving ? "true" : undefined} className="flex-1" data-testid="goal-save">
+                  {saving ? <Spinner data-icon="inline-start" /> : null}
+                  {t.goal.save}
+                </Button>
+                <Button type="button" variant="outline" onClick={() => setEditing(false)}>
+                  {t.goal.cancel}
+                </Button>
+              </div>
+            </FieldGroup>
+          </form>
+        ) : profile ? (
+          <div className="flex items-center gap-4">
+            {profile.goalUsdc ? <Ring fraction={fraction} label={`${Math.round(fraction * 100)}%`} /> : null}
+            <div className="min-w-0">
+              <p className="text-2xl font-bold tracking-tight text-foreground" data-testid="goal-name-shown">
+                {profile.name}
               </p>
-            ) : (
-              <p className="mt-1 text-sm text-muted">{t.goal.noGoal}</p>
-            )}
+              {profile.goalUsdc ? (
+                <p className="tnum mt-1 text-sm text-ink-2" data-testid="goal-progress">
+                  {inVault !== null ? formatUsdc(inVault, locale) : "…"} / {Number(profile.goalUsdc).toLocaleString(numberLocale, { maximumFractionDigits: 2 })} USDC
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground">{t.goal.noGoal}</p>
+              )}
+            </div>
           </div>
-        </div>
-      ) : (
-        <p className="mt-2 text-sm text-ink-2">{profile === undefined ? t.savings.loading : t.goal.empty}</p>
-      )}
-    </section>
+        ) : profile === undefined ? (
+          <Skeleton className="h-8 w-40" />
+        ) : (
+          <p className="text-sm text-ink-2">{t.goal.empty}</p>
+        )}
+      </CardContent>
+    </Card>
   );
 }

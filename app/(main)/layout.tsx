@@ -1,23 +1,29 @@
+"use client";
+
+import { cn } from "cn";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
+import { BottomNav, useBottomNavPadding } from "@/components/Nav";
 import { NetworkGuard } from "@/components/NetworkGuard";
 import { OfflineBanner } from "@/components/OfflineBanner";
 
 /**
- * Header, offline notice, content column and the testnet footer for the user
- * screens. NetworkGuard replaces the content when the link, the build and
- * the server disagree on the network or the server answers with Vercel's
- * login page.
+ * Header with the desktop nav, offline notice, content column (one column on
+ * a phone, room for two on a laptop), the testnet footer and the phone tab
+ * bar. NetworkGuard replaces the content when the link, the build and the
+ * server disagree on the network or the server answers with Vercel's login page.
  */
 export default function MainLayout({ children }: { children: React.ReactNode }) {
+  const padding = useBottomNavPadding();
   return (
     <>
       <Header />
       <OfflineBanner />
-      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6">
+      <main className={cn("mx-auto w-full max-w-xl flex-1 px-4 py-6 lg:max-w-5xl lg:px-8", padding)}>
         <NetworkGuard>{children}</NetworkGuard>
       </main>
       <Footer />
+      <BottomNav />
     </>
   );
 }

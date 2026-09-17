@@ -9,6 +9,7 @@ if (!ADMIN) throw new Error("BOOTH_ADMIN_TOKEN is required (pnpm e2e:booth loads
 
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -51,9 +52,11 @@ try {
   if (!/TESTNET/.test(body) || !/Test ağı/.test(body)) throw new Error("booth screen lacks the testnet label");
 
   log("presenter console");
-  await page.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
-  if (page.url().includes("token=")) throw new Error("token still in URL");
+  await page.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
   await page.getByTestId("health-dots").waitFor({ timeout: 20000 });
+  // The page lifts the token out of the address bar as soon as it mounts; check once it has.
+  await page.waitForFunction(() => !window.location.search.includes("token="), null, { timeout: 10000 }).catch(() => undefined);
+  if (page.url().includes("token=")) throw new Error("token still in URL");
   for (let i = 0; i < 10; i += 1) {
     const dots = await page.locator("[data-testid='health-dots'] span[aria-label]").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
     if (dots.length === 4 && dots.every((d) => d === "ok")) {
@@ -72,8 +75,12 @@ try {
     await page.waitForTimeout(2000);
   }
   log("driver:", ((await page.getByTestId("driver").textContent()) ?? "").trim(), "·", ((await page.getByTestId("driver-last").textContent()) ?? "").trim().slice(0, 120));
+  // The queue lists a play button per deposit above the auto-bank threshold; with nothing waiting there is none.
+  const playable = page.getByRole("button", { name: /Bankayı oynat|Play the bank/ });
+  const waiting = await playable.count();
+  log("queue: deposits waiting for a press:", waiting);
   // A refused action shows the server's reason, not a bare status: play the bank with nothing pending.
-  if (!(await page.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).isEnabled())) {
+  if (waiting === 0) {
     const refused = await (await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: "{}" })).json();
     log("play-bank with nothing pending →", JSON.stringify(refused.error));
     if (!refused.error?.code || !refused.error?.message) throw new Error("play-bank refusal carries no code/message");

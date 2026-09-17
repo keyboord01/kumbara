@@ -60,7 +60,7 @@ async function waitStatus(testId, doneRe, maxPolls, onTick) {
 
 async function playBank(reference) {
   const admin = await context.newPage();
-  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
   await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
   await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });
@@ -72,8 +72,8 @@ try {
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   caption("Landing page on Stellar TESTNET: one button, no password, no app, no XLM.");
   await pause(2500);
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
-  caption("Tap 'Kumbaranı aç': the passkey (Face ID, Touch ID or a password manager) creates the key; the relay deploys the smart account.");
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
+  caption("Tap 'Başla': the passkey (Face ID, Touch ID or a password manager) creates the key; the relay deploys the smart account.");
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   caption("Savings screen: the kumbara exists on-chain, TESTNET address with a stellar.expert link.");

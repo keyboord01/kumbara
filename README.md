@@ -6,13 +6,11 @@
 
 Scale Track entry for the Rise In × Stellar Pro Hackathon (Istanbul, 19–20 September 2026) and the traction exhibit for a Stellar Community Fund Build Award (Integration Track) submission.
 
-**Code freeze:** frozen from 16 September 2026 for the hackathon demo (`CODE_FREEZE`); only `hotfix:` commits change application code until then. See `docs/booth-runbook.md`.
-
 ## What Kumbara is
 
 A Next.js web app. A user opens it on their phone, taps their passkey (Face ID, Touch ID or a password manager), and gets an OpenZeppelin smart account on Stellar with the passkey as its only signer. They deposit lira through a SEP-compliant anchor, receive USDC in that account, the USDC goes into a DeFindex vault, and they can withdraw back to lira through the same anchor. Fees are sponsored by Sembol Cloud, so the user never sees XLM.
 
-Kumbara is non-custodial software. It never holds fiat, never holds keys, never takes custody of USDC. The anchor is the regulated party. Deposit, hold, withdraw; no payments, no sending to friends.
+Kumbara is non-custodial software. It never holds fiat, never holds keys, never takes custody of USDC. The anchor is the regulated party. Put money in, hold it, take it out to your own bank account or to a Stellar address you choose; no payments product, no merchant flow.
 
 Live on testnet: **https://kumbara.sembol.xyz** (the earlier `kumbara.vercel.app` address redirects here; passkeys created there do not open on the new domain)
 
@@ -32,7 +30,7 @@ sequenceDiagram
   participant A as TR Mock Anchor
   participant V as DeFindex vault
 
-  U->>K: Tap "Kumbaranı aç"
+  U->>K: Tap "Başla" (Get started)
   K->>U: WebAuthn create (passkey)
   K->>R: { func, auth } deploy smart account (project key, server-side)
   R->>S: fee-bumped createContractV2
@@ -164,4 +162,4 @@ Ahmed ([keyboord01](https://github.com/keyboord01)), author of Sembol and `@semb
 
 ## Regulatory note
 
-Kumbara is non-custodial software: it never holds lira, USDC or keys, and every transfer is authorized by the user's own passkey on their own smart account. The anchor is the licensed party for fiat on- and off-ramping and for KYC. Kumbara has no payments, send or peer-to-peer feature and offers none in Türkiye.
+Kumbara is non-custodial software: it never holds lira, USDC or keys, and every transfer is authorized by the user's own passkey on their own smart account. The anchor is the licensed party for fiat on- and off-ramping and for KYC. Kumbara has no payments product: no merchant flow, no lira transfers between people, no address book. A withdrawal to a Stellar address is the user moving their own USDC out of their own wallet, authorized by their own passkey and bounded by the on-chain limit they set.

@@ -15,6 +15,7 @@ const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chro
 const consoleErrors = [];
 async function freshContext(credential) {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("WebAuthn.enable");
@@ -34,7 +35,7 @@ try {
   log("A: create a kumbara");
   a = await freshContext(null);
   await a.page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
-  await a.page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await a.page.getByRole("button", { name: /Başla|Get started/ }).click();
   await a.page.waitForURL("**/kumbara**", { timeout: 60000 });
   await a.page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   const contract = await contractOf(a.page);

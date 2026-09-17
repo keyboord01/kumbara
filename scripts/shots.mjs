@@ -16,7 +16,7 @@ const shot = async (name) => { await page.waitForTimeout(600); await page.screen
 try {
   await page.goto(`${APP}/?ref=shots&net=testnet`, { waitUntil: "networkidle" });
   await shot("01-home");
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   await shot("02-savings-setup");
@@ -31,7 +31,7 @@ try {
   await shot("05-deposit-waiting");
   if (ADMIN) {
     const admin = await context.newPage();
-    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
     await admin.getByTestId("health-dots").waitFor({ timeout: 20000 });
     await admin.waitForTimeout(6000);
     await admin.screenshot({ path: `${OUT}/08-admin.png`, fullPage: true }); console.log("shot 08-admin");

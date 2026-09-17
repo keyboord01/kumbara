@@ -3,9 +3,22 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toSembolError, usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
+import { cn } from "cn";
+import { ChevronDownIcon, ExternalLinkIcon, ShieldAlertIcon, WifiOffIcon } from "lucide-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
+import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Empty, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { StepTimeoutError, withTimeout } from "@/lib/failures";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL } from "@/lib/config";
@@ -18,6 +31,7 @@ interface Pending {
   amountTry: string;
   createdAt: string;
   reference: string;
+  bankPlayed?: { at: string; by: "auto" | "admin" };
 }
 interface Stuck {
   id: string;
@@ -109,7 +123,9 @@ function isNetworkError(err: unknown): boolean {
 /**
  * Presenter console. Not linked anywhere. The admin token is taken from
  * ?token= (removed from the URL at once) or typed in, kept in component state
- * only, and sent as a bearer header.
+ * only, and sent as a bearer header. It is also exchanged for an http-only
+ * session cookie, so reloading the page mid-demo does not ask for it again;
+ * the cookie is never readable here and never written to storage or the URL.
  */
 export default function BoothAdminPage() {
   const { t, locale } = useLocale();
@@ -118,6 +134,8 @@ export default function BoothAdminPage() {
   const { signAndSubmit } = useSignTransaction();
   const { toast } = useToast();
   const [token, setToken] = useState("");
+  /** Authorised by the session cookie from an earlier visit: the token itself is not in memory. */
+  const [authed, setAuthed] = useState(false);
   const [pending, setPending] = useState<Pending[] | null>(null);
   const [stuck, setStuck] = useState<Stuck[]>([]);
   const [resumed, setResumed] = useState<string | null>(null);
@@ -126,6 +144,10 @@ export default function BoothAdminPage() {
   const [ci, setCi] = useState<CiStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<"" | "play" | "fund" | "seed" | "anchor" | "sweep">("");
+  /** Per-row play in flight, and rows played from here in the last minute (kept on screen until the driver moves them on). */
+  const [playing, setPlaying] = useState<string | null>(null);
+  const [playedRows, setPlayedRows] = useState<Record<string, { row: Pending; at: number }>>({});
+  const [autoBankMaxTry, setAutoBankMaxTry] = useState(250);
   const [sweepNote, setSweepNote] = useState<string | null>(null);
   const [anchors, setAnchors] = useState<AnchorsInfo | null>(null);
   const [anchorNote, setAnchorNote] = useState<string | null>(null);
@@ -146,16 +168,43 @@ export default function BoothAdminPage() {
       setToken(fromUrl);
       url.searchParams.delete("token");
       window.history.replaceState({}, "", url.pathname + url.search);
+      return;
     }
+    // Nothing typed and nothing in the URL: an earlier visit may still be authorised by the session cookie.
+    void fetch("/api/booth/admin/pending", { credentials: "same-origin" })
+      .then((r) => {
+        if (r.ok) setAuthed(true);
+      })
+      .catch(() => undefined);
   }, []);
 
-  const auth = useCallback((init: RequestInit = {}): RequestInit => ({ ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}`, "content-type": "application/json" } }), [token]);
+  // Whichever way the token arrived, hand it to the server once so a reload keeps the presenter signed in.
+  useEffect(() => {
+    if (!token) return;
+    void fetch("/api/booth/admin/session", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) })
+      .then((r) => {
+        if (r.ok) setAuthed(true);
+      })
+      .catch(() => undefined);
+  }, [token]);
+
+  /** The console is usable with a token in memory or with the session cookie alone. */
+  const ready = token !== "" || authed;
+  // The bearer header when the token is in memory; otherwise the http-only cookie carries the request.
+  const auth = useCallback(
+    (init: RequestInit = {}): RequestInit => ({
+      ...init,
+      credentials: "same-origin",
+      headers: { ...(init.headers ?? {}), ...(token ? { authorization: `Bearer ${token}` } : {}), "content-type": "application/json" },
+    }),
+    [token],
+  );
 
   const load = useCallback(async () => {
-    if (!token) return;
+    if (!ready) return;
     try {
       const [p, h, s, c, a] = await Promise.all([
-        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; error?: { message: string } } })),
+        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; autoBankMaxTry?: number; error?: { message: string } } })),
         fetch("/api/health").then((r) => r.json() as Promise<Health>),
         fetch("/api/booth/admin/sponsor", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as Sponsor & { error?: { message: string } } })),
         fetch("/api/ci/status").then((r) => (r.ok ? (r.json() as Promise<CiStatus>) : null)).catch(() => null),
@@ -164,6 +213,7 @@ export default function BoothAdminPage() {
       if (!p.ok) throw new Error(p.body.error?.message ?? "unauthorized");
       setPending(p.body.pending ?? []);
       setStuck(p.body.stuck ?? []);
+      if (typeof p.body.autoBankMaxTry === "number") setAutoBankMaxTry(p.body.autoBankMaxTry);
       setHealth(h);
       setCi(c);
       setAnchors(a);
@@ -181,11 +231,11 @@ export default function BoothAdminPage() {
       setPending(null);
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [token, auth]);
+  }, [ready, auth]);
 
   // The driver: advance every pending deposit and withdrawal server-side, whether or not the visitor's page is open.
   const tick = useCallback(async () => {
-    if (!token || tickInFlight.current) return;
+    if (!ready || tickInFlight.current) return;
     tickInFlight.current = true;
     try {
       const res = await fetch("/api/pipeline/tick", auth({ method: "POST", body: "{}" }));
@@ -202,10 +252,10 @@ export default function BoothAdminPage() {
     } finally {
       tickInFlight.current = false;
     }
-  }, [token, auth]);
+  }, [ready, auth]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     void tick();
     const id = setInterval(() => void tick(), 5_000);
     const clockId = setInterval(() => setClock(Date.now()), 1_000);
@@ -213,11 +263,11 @@ export default function BoothAdminPage() {
       clearInterval(id);
       clearInterval(clockId);
     };
-  }, [token, tick]);
+  }, [ready, tick]);
 
   // Network suspension (laptop lid, Wi-Fi drop, tab throttled): resume at once when the browser is back, and say so.
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     const resume = () => {
       void load();
       void tick();
@@ -234,7 +284,7 @@ export default function BoothAdminPage() {
       window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [token, load, tick]);
+  }, [ready, load, tick]);
 
   useEffect(() => {
     if (!reconnected) return;
@@ -244,11 +294,11 @@ export default function BoothAdminPage() {
   }, [reconnected, toast, t]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     void load();
     const id = setInterval(() => void load(), 10_000);
     return () => clearInterval(id);
-  }, [token, load]);
+  }, [ready, load]);
 
   const switchAnchor = async (homeDomain: string) => {
     setBusy("anchor");
@@ -267,15 +317,18 @@ export default function BoothAdminPage() {
     }
   };
 
-  const play = async () => {
+  // Play the bank for one queued deposit; the row stays on screen (marked played) until the driver moves the record on.
+  const play = async (row: Pending) => {
     setBusy("play");
+    setPlaying(row.id);
     setError(null);
     setResult(null);
     try {
-      const res = await fetch("/api/booth/admin/play-bank", auth({ method: "POST", body: "{}" }));
+      const res = await fetch("/api/booth/admin/play-bank", auth({ method: "POST", body: JSON.stringify({ depositId: row.id }) }));
       const body = (await res.json()) as PlayResult & ApiErrorBody;
       if (!res.ok) throw new Error(reason(res, body));
       setResult(body);
+      setPlayedRows((rows) => ({ ...rows, [row.id]: { row: { ...row, bankPlayed: { at: new Date().toISOString(), by: "admin" } }, at: Date.now() } }));
       toast({ title: t.toast.bankPlayed, body: `₺${body.amountTry} · ${body.reference} · ${body.transferStatus}`, variant: "success", key: "bank" });
       await load();
     } catch (err) {
@@ -283,8 +336,13 @@ export default function BoothAdminPage() {
       setError(message);
       toast({ title: t.admin.reasonLabel, body: message, variant: "error", key: "reason" });
     } finally {
+      setPlaying(null);
       setBusy("");
     }
+  };
+
+  const playAll = async (rows: Pending[]) => {
+    for (const row of rows) await play(row);
   };
 
   const resume = async (depositId: string) => {
@@ -427,280 +485,432 @@ export default function BoothAdminPage() {
     return () => clearTimeout(kick);
   }, [seedDepositStatus, seedContract, kit, info, address, runSeedAutopilot]);
 
-  const newest = pending?.[0] ?? null;
   const deps = health && "anchor" in health.dependencies ? health.dependencies : null;
+  const intl = locale === "tr" ? "tr-TR" : "en-US";
+  const driverOn = driver.on && !offline;
+  const seedRunning = busy === "seed" || (seed !== null && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap");
+  // The queue: what the server lists, plus rows played from here in the last minute that the driver has not moved on yet.
+  const queue: Pending[] = (() => {
+    const listed = pending ?? [];
+    const ids = new Set(listed.map((r) => r.id));
+    const kept = Object.values(playedRows)
+      .filter((p) => !ids.has(p.row.id) && clock - p.at < 60_000)
+      .map((p) => p.row);
+    return [...listed.map((r) => playedRows[r.id]?.row ?? r), ...kept];
+  })();
+  const isAuto = (row: Pending) => autoBankMaxTry > 0 && Number(row.amountTry) <= autoBankMaxTry;
+  const manualRows = queue.filter((row) => !isAuto(row) && !row.bankPlayed);
+  const ageOf = (row: Pending) => t.admin.age.replace("{s}", String(Math.max(0, Math.round((clock - Date.parse(row.createdAt)) / 1000))));
+  const driverLine = driver.last
+    ? `${t.admin.driverLast}: ${Math.max(0, Math.round((clock - driver.lastAt) / 1000))} s · ${
+        driver.last.skipped
+          ? t.admin.driverSkipped
+          : (() => {
+              const moved = [...driver.last.deposits, ...driver.last.withdrawals].filter((i) => i.to !== i.from);
+              return moved.length ? `${moved.length} ${t.admin.driverAdvanced} (${moved.map((i) => `${i.id.slice(0, 8)}: ${i.from} → ${i.to}`).join(", ")})` : t.admin.driverIdle;
+            })()
+      } · ${driver.last.elapsedMs} ms`
+    : driver.error
+      ? `${t.admin.reasonLabel}: ${driver.error}`
+      : "…";
 
   return (
-    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">{t.admin.title}</h1>
-        <NetworkBadge />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 px-4 py-6 lg:max-w-5xl lg:px-8">
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight">{t.admin.title}</h1>
+          <NetworkBadge />
+        </div>
+        <p className="text-sm text-ink-2">{t.admin.lead.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</p>
       </div>
-      <p className="text-sm text-ink-2">{t.admin.lead}</p>
 
-      {!token && (
-        <form
-          className="card flex flex-col gap-3 p-5"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const value = (new FormData(e.currentTarget).get("token") as string | null)?.trim() ?? "";
-            if (value) setToken(value);
-          }}
+      {!ready && (
+        <Card
+          className="lg:max-w-xl"
+          render={
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                const value = (new FormData(e.currentTarget).get("token") as string | null)?.trim() ?? "";
+                if (value) setToken(value);
+              }}
+            />
+          }
         >
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="microlabel">{t.admin.tokenLabel}</span>
-            <input name="token" type="password" autoComplete="off" className="field font-mono" />
-          </label>
-          <button type="submit" className="btn-secondary">
-            {t.admin.tokenSubmit}
-          </button>
-        </form>
+          <CardContent>
+            <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="admin-token" className="microlabel">
+                  {t.admin.tokenLabel}
+                </FieldLabel>
+                <Input id="admin-token" name="token" type="password" autoComplete="off" className="font-mono" />
+              </Field>
+            </FieldGroup>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" variant="outline">
+              {t.admin.tokenSubmit}
+            </Button>
+          </CardFooter>
+        </Card>
       )}
 
-      {token && (
+      {ready && (
         <>
           {ci?.status === "failed" ? (
-            <div role="alert" data-testid="ci-banner" className="rounded-xl border border-danger/40 bg-danger/10 p-4 text-sm">
-              <p className="font-semibold text-danger">{t.admin.ciFailed}</p>
-              <p className="mt-1 text-ink-2">
-                {t.admin.ciFailedHint.replace("{step}", ci.step ?? "?")}
-                {ci.at ? ` · ${new Date(ci.at).toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}` : ""}
-              </p>
-              {ci.runUrl ? (
-                <a href={ci.runUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-teal underline">
-                  {t.admin.ciRun} ↗
-                </a>
-              ) : null}
-            </div>
+            <Alert variant="destructive" data-testid="ci-banner">
+              <ShieldAlertIcon />
+              <AlertTitle>{t.admin.ciFailed}</AlertTitle>
+              <AlertDescription>
+                <p>
+                  {t.admin.ciFailedHint.replace("{step}", ci.step ?? "?")}
+                  {ci.at ? ` · ${new Date(ci.at).toLocaleString(intl)}` : ""}
+                </p>
+                {ci.runUrl ? (
+                  <a href={ci.runUrl} target="_blank" rel="noreferrer" className="w-fit rounded-sm text-teal underline underline-offset-4">
+                    {t.admin.ciRun} ↗
+                  </a>
+                ) : null}
+              </AlertDescription>
+            </Alert>
           ) : ci?.status === "ok" ? (
-            <p className="text-xs text-mint" data-testid="ci-banner">
+            <p className="text-xs text-mint-2" data-testid="ci-banner">
               ✓ {t.admin.ciOk}
-              {ci.at ? ` · ${new Date(ci.at).toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}` : ""}
+              {ci.at ? ` · ${new Date(ci.at).toLocaleString(intl)}` : ""}
             </p>
           ) : null}
           {offline ? (
-            <div role="alert" data-testid="reconnect-banner" className="rounded-xl border border-amber/40 bg-amber/10 p-3 text-sm text-ink">
-              {t.admin.reconnecting}
-            </div>
+            <Alert data-testid="reconnect-banner" className="border-amber/40 bg-amber/10">
+              <WifiOffIcon className="text-amber" />
+              <AlertTitle>{t.admin.reconnecting}</AlertTitle>
+            </Alert>
           ) : reconnected ? (
-            <p role="status" data-testid="reconnected" className="rounded-xl bg-mint/10 p-3 text-sm text-mint">
-              {t.admin.reconnected}
-            </p>
+            <Alert role="status" data-testid="reconnected" className="border-mint/30 bg-mint/10">
+              <AlertTitle className="text-mint-2">{t.admin.reconnected}</AlertTitle>
+            </Alert>
           ) : null}
-          <section className="card p-5" aria-label={t.admin.driver}>
-            <div className="flex items-center justify-between gap-3">
-              <p className="microlabel">{t.admin.driver}</p>
-              <span data-testid="driver" data-on={driver.on && !offline ? "true" : "false"} className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${driver.on && !offline ? "bg-mint/15 text-mint" : "bg-danger/10 text-danger"}`}>
-                {driver.on && !offline ? t.admin.driverOn : t.admin.driverOff}
-              </span>
-            </div>
-            <p className="mt-1 text-xs text-muted">{t.admin.driverHint}</p>
-            <p className="tnum mt-2 text-xs text-ink-2" data-testid="driver-last">
-              {driver.last
-                ? `${t.admin.driverLast}: ${Math.max(0, Math.round((clock - driver.lastAt) / 1000))} s · ${driver.last.skipped ? t.admin.driverSkipped : (() => {
-                    const moved = [...driver.last.deposits, ...driver.last.withdrawals].filter((i) => i.to !== i.from);
-                    return moved.length ? `${moved.length} ${t.admin.driverAdvanced} (${moved.map((i) => `${i.id.slice(0, 8)}: ${i.from} → ${i.to}`).join(", ")})` : t.admin.driverIdle;
-                  })()} · ${driver.last.elapsedMs} ms`
-                : driver.error
-                  ? `${t.admin.reasonLabel}: ${driver.error}`
-                  : "…"}
-            </p>
-          </section>
 
-          <section className="card flex flex-col gap-4 p-5" aria-live="polite" aria-label={t.admin.pending}>
-            <div>
-              <p className="microlabel">{t.admin.newest}</p>
-              {pending === null ? (
-                <p className="mt-1 text-sm text-muted">{t.savings.loading}</p>
-              ) : newest ? (
-                <div className="mt-1">
-                  <p className="font-mono text-2xl font-bold tracking-tight text-ink">{newest.reference}</p>
-                  <p className="tnum mt-1 text-sm text-ink-2">
-                    ₺{newest.amountTry} · {newest.contractId.slice(0, 6)}…{newest.contractId.slice(-4)} · {new Date(newest.createdAt).toLocaleTimeString()}
-                  </p>
-                  {pending.length > 1 && (
-                    <p className="text-xs text-muted">
-                      +{pending.length - 1} {t.admin.more}
-                    </p>
+          {/* Status strip: connections, the driver, the sponsor. One row, wraps on a phone. */}
+          <Card size="sm" render={<section aria-label={t.admin.statusStrip} />}>
+            <CardContent className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-center gap-2">
+                <ul className="flex flex-wrap gap-2" data-testid="health-dots" aria-label={t.admin.health}>
+                  {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
+                    const dep = deps?.[name];
+                    return (
+                      <li key={name}>
+                        <Badge variant={dep ? (dep.ok ? "success" : "destructive") : "secondary"} className="h-7 gap-2 px-3 text-sm text-foreground" title={dep?.detail ?? ""}>
+                          <span role="img" className={cn("size-2.5 rounded-full", dep ? (dep.ok ? "bg-mint" : "bg-destructive") : "bg-input")} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                          {t.admin.healthNames[name]}
+                          {dep ? <span className="tnum text-[11px] font-normal text-muted-foreground">{dep.ms} ms</span> : <Spinner className="size-3 text-muted-foreground" />}
+                        </Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <Badge variant={driverOn ? "success" : "destructive"} className="h-7 px-3 text-sm" data-testid="driver" data-on={driverOn ? "true" : "false"} title={t.admin.driverHint}>
+                  {driverOn ? t.admin.driverOn : t.admin.driverOff}
+                </Badge>
+                {sponsor ? (
+                  <Badge variant={sponsor.ok ? "success" : "destructive"} className="h-7 px-3 text-sm" title={sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow}>
+                    <span className="tnum font-bold" data-testid="sponsor-balance">
+                      {sponsor.availableXlm.toLocaleString(intl, { maximumFractionDigits: 2 })} XLM
+                    </span>
+                  </Badge>
+                ) : (
+                  <Skeleton className="h-7 w-28" />
+                )}
+              </div>
+              <p className="tnum text-xs text-ink-2" data-testid="driver-last">
+                {driverLine}
+              </p>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-5 lg:grid-cols-[3fr_2fr] lg:items-start">
+            {/* Each column is its own stack, so the short tools column never stretches the queue beside it. */}
+            <div className="flex flex-col gap-4">
+              <Card render={<section aria-live="polite" aria-label={t.admin.queue} />}>
+                <CardHeader>
+                  <CardTitle>{t.admin.queue}</CardTitle>
+                  <CardDescription className="text-xs">{t.admin.queueHint.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</CardDescription>
+                  {manualRows.length >= 2 ? (
+                    <CardAction>
+                      <Button variant="outline" size="sm" onClick={() => void playAll(manualRows)} disabled={busy !== ""}>
+                        {t.admin.playAll}
+                      </Button>
+                    </CardAction>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                  {pending === null ? (
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-14 w-full" />
+                      <Skeleton className="h-14 w-full" />
+                    </div>
+                  ) : queue.length === 0 ? (
+                    <Empty className="py-6">
+                      <EmptyHeader>
+                        <EmptyTitle>{t.admin.queueEmpty}</EmptyTitle>
+                      </EmptyHeader>
+                    </Empty>
+                  ) : (
+                    <ItemGroup className="gap-2">
+                      {queue.map((row) => {
+                        const auto = isAuto(row);
+                        const played = Boolean(row.bankPlayed);
+                        return (
+                          <Item key={row.id} variant="outline" size="sm" data-testid="queue-item" data-auto={auto ? "true" : "false"}>
+                            <ItemContent>
+                              <ItemTitle className="font-mono text-lg font-bold tracking-tight">{row.reference}</ItemTitle>
+                              <ItemDescription className="tnum text-xs">
+                                ₺{row.amountTry} · {ageOf(row)} · {row.contractId.slice(0, 6)}…{row.contractId.slice(-4)}
+                              </ItemDescription>
+                            </ItemContent>
+                            <ItemActions>
+                              {played ? (
+                                <Badge variant="success">{row.bankPlayed?.by === "auto" ? t.admin.auto : t.admin.played.replace(/:$/, "")}</Badge>
+                              ) : auto ? (
+                                <Badge variant="info" title={t.admin.autoSoon}>
+                                  {t.admin.autoSoon}
+                                </Badge>
+                              ) : (
+                                <Badge variant="warning">{t.admin.manual}</Badge>
+                              )}
+                              {!played && !auto ? (
+                                <Button size="sm" onClick={() => void play(row)} disabled={busy !== ""} aria-busy={playing === row.id ? "true" : undefined}>
+                                  {playing === row.id ? <Spinner data-icon="inline-start" /> : null}
+                                  {t.admin.play}
+                                </Button>
+                              ) : null}
+                            </ItemActions>
+                          </Item>
+                        );
+                      })}
+                    </ItemGroup>
                   )}
-                </div>
-              ) : (
-                <p className="mt-1 text-sm text-muted">{t.admin.none}</p>
+                  {result && (
+                    <Alert role="status" className="border-mint/30 bg-mint/10">
+                      <AlertDescription className="text-mint-2">
+                        {t.admin.played} ₺{result.amountTry} · {result.reference} · {result.transferStatus}
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </CardContent>
+              </Card>
+
+              {error && (
+                <Alert variant="destructive" data-testid="admin-error">
+                  <ShieldAlertIcon />
+                  <AlertTitle>{t.admin.reasonLabel}</AlertTitle>
+                  <AlertDescription>{error}</AlertDescription>
+                </Alert>
+              )}
+
+              {stuck.length > 0 && (
+                <Card render={<section aria-label={t.admin.stuck} />}>
+                  <CardHeader>
+                    <CardTitle className="microlabel">{t.admin.stuck}</CardTitle>
+                  </CardHeader>
+                  <CardContent className="flex flex-col gap-3">
+                    <ItemGroup className="gap-2">
+                      {stuck.map((d) => (
+                        <Item key={d.id} variant="muted" size="sm">
+                          <ItemContent>
+                            <ItemTitle className="tnum">
+                              ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : d.status === "failed" ? t.failures.kinds.amount_mismatch.title : t.deposit.steps.onramp_pending}
+                            </ItemTitle>
+                            <ItemDescription className="font-mono text-xs">
+                              {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.anchorTxId ?? ""}
+                            </ItemDescription>
+                            {d.landing ? (
+                              <ItemDescription className="text-xs text-ink-2">
+                                {t.failures.landingLabel}:{" "}
+                                <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-teal underline underline-offset-4">
+                                  {d.landing.slice(0, 8)}…{d.landing.slice(-6)}
+                                </a>{" "}
+                                · {t.admin.paid} {d.paidUsdc ?? "?"} / {d.usdc ?? "?"} USDC
+                              </ItemDescription>
+                            ) : null}
+                          </ItemContent>
+                          {(d.status === "abandoned" || d.status === "failed") && (
+                            <ItemActions>
+                              <Button variant="outline" size="sm" onClick={() => void resume(d.id)} disabled={busy !== ""}>
+                                {t.admin.resume}
+                              </Button>
+                            </ItemActions>
+                          )}
+                        </Item>
+                      ))}
+                    </ItemGroup>
+                    {resumed && (
+                      <p className="text-sm text-mint-2" role="status">
+                        {t.admin.resumed}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
-            <button type="button" onClick={() => void play()} disabled={busy !== "" || !newest} aria-busy={busy === "play" ? "true" : "false"} className="btn-primary w-full text-lg">
-              {busy === "play" ? <Spinner /> : null}
-              {t.admin.play}
-            </button>
-            {result && (
-              <p className="rounded-xl bg-mint/10 p-3 text-sm text-mint" role="status">
-                {t.admin.played} ₺{result.amountTry} · {result.reference} · {result.transferStatus}
-              </p>
-            )}
-          </section>
 
-          <section className="card p-5" aria-label={t.admin.health}>
-            <p className="microlabel">{t.admin.health}</p>
-            <ul className="mt-3 flex flex-wrap gap-2 text-sm" data-testid="health-dots">
-              {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
-                const dep = deps?.[name];
-                return (
-                  <li key={name} className={`chip justify-between border ${dep ? (dep.ok ? "border-mint/30 bg-mint/10 text-ink" : "border-danger/30 bg-danger/10 text-ink") : "border-line bg-paper-2 text-muted"}`} title={dep?.detail ?? ""}>
-                    <span className="flex items-center gap-2">
-                      <span role="img" className={`h-2.5 w-2.5 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line-2"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
-                      {t.admin.healthNames[name]}
-                    </span>
-                    {dep ? <span className="tnum text-[11px] font-normal text-muted">{dep.ms} ms</span> : <Spinner className="h-3 w-3 text-muted" />}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+            {/* Tools: the seed, the sponsor, the anchor. */}
+            <div className="flex flex-col gap-4">
+              <p className="microlabel">{t.admin.tools}</p>
 
-          <section className="card p-5" aria-label={t.admin.anchor}>
-            <p className="microlabel">{t.admin.anchor}</p>
-            <p className="mt-1 text-xs text-muted">{t.admin.anchorHint}</p>
-            {anchors ? (
-              <ul className="mt-3 flex flex-col gap-2" data-testid="anchor-list">
-                {anchors.anchors.map((a) => (
-                  <li key={a.homeDomain} className="rounded-xl border border-line p-3">
-                    <label className="flex cursor-pointer items-start gap-3">
-                      <input type="radio" name="anchor" className="mt-1" checked={a.homeDomain === anchors.active} disabled={busy !== "" || !a.ok} onChange={() => void switchAnchor(a.homeDomain)} aria-label={`${t.admin.anchorSwitch}: ${a.homeDomain}`} />
-                      <span className="min-w-0 flex-1">
-                        <span className="block font-semibold">
-                          {a.orgName ?? a.homeDomain}
-                          {a.homeDomain === anchors.active ? <span className="ml-2 rounded-full bg-paper-2 px-2 py-0.5 text-xs font-medium text-teal">{t.admin.anchorActive}</span> : null}
-                        </span>
-                        <span className="block break-all font-mono text-xs text-muted">{a.homeDomain}</span>
-                        <span className="block text-xs text-muted">
-                          {a.ok ? `${a.asset?.code ?? ""}${a.fiatCode ? ` ⇄ ${a.fiatCode}` : ""}${a.limits?.fiat ? ` · ${a.limits.fiat.min ?? "?"}–${a.limits.fiat.max ?? "?"} ${a.fiatCode ?? ""}` : ""} · ${a.treasury ? t.admin.anchorHook : t.admin.anchorNoHook}` : `${t.admin.anchorUnavailable}: ${a.error ?? ""}`}
-                        </span>
-                      </span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-sm text-muted">{t.savings.loading}</p>
-            )}
-            {anchorNote ? <p className="mt-2 text-sm" role="status">{anchorNote}</p> : null}
-          </section>
-
-          <section className="card p-5" aria-label={t.admin.sponsor}>
-            <p className="microlabel">{t.admin.sponsor}</p>
-            {sponsor ? (
-              <div className="mt-2 text-sm">
-                <p className={`tnum text-2xl font-bold ${sponsor.ok ? "text-mint" : "text-danger"}`} data-testid="sponsor-balance">
-                  {sponsor.availableXlm.toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 2 })} XLM
-                </p>
-                <p className={sponsor.ok ? "text-mint" : "text-danger"}>
-                  {sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow} · min {sponsor.minXlm} · max {sponsor.maxXlm}
-                </p>
-                <p className="tnum text-xs text-muted" data-testid="sponsor-reserves">
-                  {t.admin.sponsorHeld
-                    .replace("{held}", sponsor.balanceXlm.toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 2 }))
-                    .replace("{count}", String(sponsor.sponsoring))}
-                </p>
-                <p className="mt-1 break-all font-mono text-xs text-muted">{sponsor.publicKey}</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <a href={`${EXPLORER_BASE}/account/${sponsor.publicKey}`} target="_blank" rel="noreferrer" className="btn-chip">
-                    stellar.expert · {NETWORK_LABEL}
-                  </a>
-                  {NETWORK === "testnet" ? (
-                    <button type="button" onClick={() => void fund()} disabled={busy !== ""} aria-busy={busy === "fund" ? "true" : "false"} className="btn-chip">
-                      {busy === "fund" ? <Spinner /> : null}
-                      {t.admin.sponsorFund}
-                    </button>
-                  ) : (
-                    <span className="text-xs text-muted">{t.admin.sponsorFundHint}</span>
+              <Card render={<section aria-label={t.admin.seed} />}>
+                <CardHeader>
+                  <CardTitle className="microlabel">{t.admin.seed}</CardTitle>
+                  <CardDescription className="text-xs text-ink-2">{t.admin.seedHint}</CardDescription>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3">
+                  <Button variant="outline" onClick={() => void seedDemo()} disabled={busy !== "" || !info || (seed !== null && seed.stage !== "done" && seed.stage !== "error")} aria-busy={seedRunning ? "true" : undefined}>
+                    {seedRunning ? <Spinner data-icon="inline-start" /> : null}
+                    {seedRunning ? t.admin.seedRunning : t.admin.seed}
+                  </Button>
+                  {seed && (
+                    <Alert role="status" data-testid="seed-status" className="bg-muted">
+                      <AlertTitle className="font-mono text-xs font-normal">{seed.contractId || "…"}</AlertTitle>
+                      <AlertDescription className="text-foreground">
+                        <p>{seed.stage === "done" ? t.admin.seedDone : seed.stage === "error" ? (seed.message ?? t.errors.generic) : seed.deposit ? t.deposit.steps[(seed.deposit.status as keyof typeof t.deposit.steps) ?? "awaiting_transfer"] : t.admin.seedRunning}</p>
+                        {seed.stage === "needs_tap" && (
+                          <Button size="sm" className="w-fit" onClick={() => void runSeedAutopilot()}>
+                            {t.admin.seedTap}
+                          </Button>
+                        )}
+                        {seed.stage === "done" && (
+                          <Button size="sm" className="w-fit" render={<Link href="/kumbara" />}>
+                            {t.nav.savings} →
+                          </Button>
+                        )}
+                      </AlertDescription>
+                    </Alert>
                   )}
-                  <button type="button" onClick={() => void sweep()} disabled={busy !== ""} aria-busy={busy === "sweep" ? "true" : "false"} className="btn-chip" data-testid="sweep">
-                    {busy === "sweep" ? <Spinner /> : null}
-                    {t.admin.sweep}
-                  </button>
-                </div>
-                {sweepNote ? <p className="mt-2 text-xs" role="status" data-testid="sweep-note">{sweepNote}</p> : null}
-              </div>
-            ) : (
-              <p className="mt-2 text-sm text-muted">{t.savings.loading}</p>
-            )}
-          </section>
+                </CardContent>
+              </Card>
 
-
-          {stuck.length > 0 && (
-            <section className="card flex flex-col gap-3 p-5" aria-label={t.admin.stuck}>
-              <p className="microlabel">{t.admin.stuck}</p>
-              <ul className="flex flex-col gap-2 text-sm">
-                {stuck.map((d) => (
-                  <li key={d.id} className="flex items-center justify-between gap-3 rounded-xl bg-paper-2 p-3">
-                    <div>
-                      <p className="tnum font-semibold">
-                        ₺{d.amountTry} → {d.usdc ?? "?"} USDC · {d.status === "abandoned" ? t.deposit.steps.abandoned : d.status === "failed" ? t.failures.kinds.amount_mismatch.title : t.deposit.steps.onramp_pending}
-                      </p>
-                      <p className="font-mono text-xs text-muted">
-                        {d.id} · {d.contractId.slice(0, 6)}…{d.contractId.slice(-4)} · {d.anchorTxId ?? ""}
-                      </p>
-                      {d.landing ? (
-                        <p className="mt-1 text-xs text-ink-2">
-                          {t.failures.landingLabel}: <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-teal underline">{d.landing.slice(0, 8)}…{d.landing.slice(-6)}</a> · {t.admin.paid} {d.paidUsdc ?? "?"} / {d.usdc ?? "?"} USDC
+              <Card render={<section aria-label={t.admin.sponsor} />}>
+                <CardHeader>
+                  <CardTitle className="microlabel">{t.admin.sponsor}</CardTitle>
+                  {sponsor ? (
+                    <CardAction>
+                      <span className={cn("text-xs font-semibold", sponsor.ok ? "text-mint-2" : "text-destructive")}>{sponsor.ok ? t.admin.sponsorOk : t.admin.sponsorLow}</span>
+                    </CardAction>
+                  ) : null}
+                </CardHeader>
+                <CardContent className="flex flex-col gap-3 text-sm">
+                  {sponsor ? (
+                    <>
+                      <div className="flex flex-col gap-1">
+                        <p className={cn("tnum text-xl font-bold", sponsor.ok ? "text-mint-2" : "text-destructive")}>
+                          {sponsor.availableXlm.toLocaleString(intl, { maximumFractionDigits: 2 })} XLM <span className="text-xs font-normal text-muted-foreground">· min {sponsor.minXlm} · max {sponsor.maxXlm}</span>
+                        </p>
+                        <p className="tnum text-xs text-muted-foreground" data-testid="sponsor-reserves">
+                          {t.admin.sponsorHeld.replace("{held}", sponsor.balanceXlm.toLocaleString(intl, { maximumFractionDigits: 2 })).replace("{count}", String(sponsor.sponsoring))}
+                        </p>
+                        <p className="break-all font-mono text-xs text-muted-foreground">{sponsor.publicKey}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <Button variant="outline" size="sm" render={<a href={`${EXPLORER_BASE}/account/${sponsor.publicKey}`} target="_blank" rel="noreferrer" />}>
+                          stellar.expert · {NETWORK_LABEL}
+                          <ExternalLinkIcon data-icon="inline-end" />
+                        </Button>
+                        {NETWORK === "testnet" ? (
+                          <Button variant="outline" size="sm" onClick={() => void fund()} disabled={busy !== ""} aria-busy={busy === "fund" ? "true" : undefined}>
+                            {busy === "fund" ? <Spinner data-icon="inline-start" /> : null}
+                            {t.admin.sponsorFund}
+                          </Button>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">{t.admin.sponsorFundHint}</span>
+                        )}
+                        <Button variant="outline" size="sm" onClick={() => void sweep()} disabled={busy !== ""} aria-busy={busy === "sweep" ? "true" : undefined} data-testid="sweep">
+                          {busy === "sweep" ? <Spinner data-icon="inline-start" /> : null}
+                          {t.admin.sweep}
+                        </Button>
+                      </div>
+                      {sweepNote ? (
+                        <p className="text-xs" role="status" data-testid="sweep-note">
+                          {sweepNote}
                         </p>
                       ) : null}
+                    </>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      <Skeleton className="h-8 w-40" />
+                      <Skeleton className="h-4 w-56" />
                     </div>
-                    {(d.status === "abandoned" || d.status === "failed") && (
-                      <button type="button" onClick={() => void resume(d.id)} disabled={busy !== ""} className="btn-chip">
-                        {t.admin.resume}
-                      </button>
-                    )}
-                  </li>
-                ))}
-              </ul>
-              {resumed && (
-                <p className="text-sm text-mint" role="status">
-                  {t.admin.resumed}
-                </p>
-              )}
-            </section>
-          )}
+                  )}
+                </CardContent>
+              </Card>
 
-          <section className="card flex flex-col gap-3 p-5" aria-label={t.admin.seed}>
-            <p className="microlabel">{t.admin.seed}</p>
-            <p className="text-sm text-ink-2">{t.admin.seedHint}</p>
-            <button type="button" onClick={() => void seedDemo()} disabled={busy !== "" || !info || (seed !== null && seed.stage !== "done" && seed.stage !== "error")} aria-busy={busy === "seed" || (seed && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap") ? "true" : "false"} className="btn-secondary">
-              {busy === "seed" || (seed && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap") ? <Spinner /> : null}
-              {busy === "seed" || (seed && seed.stage !== "done" && seed.stage !== "error" && seed.stage !== "needs_tap") ? t.admin.seedRunning : t.admin.seed}
-            </button>
-            {seed && (
-              <div className="rounded-xl bg-paper-2 p-3 text-sm" role="status" data-testid="seed-status">
-                <p className="font-mono text-xs">{seed.contractId || "…"}</p>
-                <p className="mt-1">
-                  {seed.stage === "done" ? t.admin.seedDone : seed.stage === "error" ? (seed.message ?? t.errors.generic) : seed.deposit ? t.deposit.steps[(seed.deposit.status as keyof typeof t.deposit.steps) ?? "awaiting_transfer"] : t.admin.seedRunning}
-                </p>
-                {seed.stage === "needs_tap" && (
-                  <button type="button" onClick={() => void runSeedAutopilot()} className="btn-primary mt-2 min-h-9 px-3 text-xs">
-                    {t.admin.seedTap}
-                  </button>
-                )}
-                {seed.stage === "done" && (
-                  <Link href="/kumbara" className="btn-primary mt-2 min-h-9 px-3 text-xs">
-                    {t.nav.savings} →
-                  </Link>
-                )}
+              <Card render={<section aria-label={t.admin.anchor} />}>
+                <Collapsible>
+                  <CardHeader>
+                    <CardTitle className="microlabel">{t.admin.anchor}</CardTitle>
+                    <CardDescription className="font-mono text-xs">{anchors ? anchors.active : "…"}</CardDescription>
+                    <CardAction>
+                      <CollapsibleTrigger render={<Button variant="ghost" size="xs" className="text-muted-foreground" />}>
+                        {t.admin.anchorSwitch}
+                        <ChevronDownIcon data-icon="inline-end" />
+                      </CollapsibleTrigger>
+                    </CardAction>
+                  </CardHeader>
+                  <CollapsibleContent>
+                    <CardContent className="flex flex-col gap-2">
+                      <p className="text-xs text-muted-foreground">{t.admin.anchorHint}</p>
+                      {anchors ? (
+                        <RadioGroup value={anchors.active} onValueChange={(value) => void switchAnchor(String(value))} disabled={busy !== ""} aria-label={t.admin.anchorSwitch} data-testid="anchor-list">
+                          {anchors.anchors.map((a) => (
+                            <Item key={a.homeDomain} variant="outline" render={<label />} className="cursor-pointer items-start">
+                              <ItemMedia>
+                                <RadioGroupItem value={a.homeDomain} disabled={!a.ok} aria-label={`${t.admin.anchorSwitch}: ${a.homeDomain}`} className="mt-0.5" />
+                              </ItemMedia>
+                              <ItemContent>
+                                <ItemTitle className="gap-2">
+                                  {a.orgName ?? a.homeDomain}
+                                  {a.homeDomain === anchors.active ? <Badge variant="info">{t.admin.anchorActive}</Badge> : null}
+                                </ItemTitle>
+                                <ItemDescription className="break-all font-mono text-xs">{a.homeDomain}</ItemDescription>
+                                <ItemDescription className="text-xs">
+                                  {a.ok ? `${a.asset?.code ?? ""}${a.fiatCode ? ` ⇄ ${a.fiatCode}` : ""}${a.limits?.fiat ? ` · ${a.limits.fiat.min ?? "?"}–${a.limits.fiat.max ?? "?"} ${a.fiatCode ?? ""}` : ""} · ${a.treasury ? t.admin.anchorHook : t.admin.anchorNoHook}` : `${t.admin.anchorUnavailable}: ${a.error ?? ""}`}
+                                </ItemDescription>
+                              </ItemContent>
+                            </Item>
+                          ))}
+                        </RadioGroup>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          <Skeleton className="h-16 w-full" />
+                          <Skeleton className="h-16 w-full" />
+                        </div>
+                      )}
+                      {anchorNote ? (
+                        <p className="text-sm" role="status">
+                          {anchorNote}
+                        </p>
+                      ) : null}
+                    </CardContent>
+                  </CollapsibleContent>
+                </Collapsible>
+              </Card>
+
+              <div className="flex items-center justify-between text-xs">
+                <Link href="/booth?n=1" className="rounded-sm text-teal underline-offset-4 hover:underline">
+                  {t.admin.qr} →
+                </Link>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setToken("");
+                    setAuthed(false);
+                    void fetch("/api/booth/admin/session", { method: "DELETE", credentials: "same-origin" }).catch(() => undefined);
+                  }}
+                >
+                  {t.admin.forget}
+                </Button>
               </div>
-            )}
-          </section>
-
-          {error && (
-            <p className="rounded-xl border border-danger/30 bg-danger/5 p-3 text-sm text-danger" role="alert" data-testid="admin-error">
-              {t.admin.reasonLabel}: {error}
-            </p>
-          )}
-          <div className="flex items-center justify-between text-xs">
-            <Link href="/booth?n=1" className="text-teal hover:underline">
-              {t.admin.qr} →
-            </Link>
-            <button type="button" onClick={() => setToken("")} className="text-muted hover:underline">
-              {t.admin.forget}
-            </button>
+            </div>
           </div>
         </>
       )}

@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { usePasskeyWallet } from "@sembol/passkey-react";
+import { CheckIcon, CopyIcon, Share2Icon } from "lucide-react";
+import { Skeleton } from "@/components/Skeleton";
 import { useToast } from "@/components/Toaster";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
 import { api } from "@/lib/api";
 import { useLocale } from "@/lib/i18n";
 
@@ -53,31 +57,40 @@ export function InviteCard() {
   };
 
   return (
-    <section className="card p-5" aria-label={t.invite.title} data-testid="invite-card">
-      <p className="microlabel">{t.invite.title}</p>
-      <p className="mt-1 text-sm text-ink-2">{t.invite.lead}</p>
-      {invite ? (
-        <>
-          <p className="mt-3 break-all rounded-xl bg-paper-2 p-3 font-mono text-xs text-ink" data-testid="invite-link">
-            {invite.link}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" onClick={copy} className="btn-chip" data-testid="invite-copy">
-              {copied ? "✓" : t.deposit.copy}
-            </button>
-            {canShare ? (
-              <button type="button" onClick={() => void share()} className="btn-chip">
-                {t.invite.share}
-              </button>
-            ) : null}
-          </div>
-          <p className="tnum mt-3 text-sm font-semibold text-ink" data-testid="invite-count">
-            {t.invite.count.replace("{n}", String(invite.count))}
-          </p>
-        </>
-      ) : (
-        <p className="mt-3 text-sm text-muted">{t.savings.loading}</p>
-      )}
-    </section>
+    <Card render={<section aria-label={t.invite.title} />} data-testid="invite-card">
+      <CardHeader>
+        <p className="microlabel">{t.invite.title}</p>
+        <CardDescription className="text-ink-2">{t.invite.lead}</CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3">
+        {invite ? (
+          <>
+            <p className="break-all rounded-lg bg-muted p-3 font-mono text-xs text-foreground" data-testid="invite-link">
+              {invite.link}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="outline" size="sm" onClick={copy} data-testid="invite-copy">
+                {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
+                {t.deposit.copy}
+              </Button>
+              {canShare ? (
+                <Button variant="outline" size="sm" onClick={() => void share()}>
+                  <Share2Icon data-icon="inline-start" />
+                  {t.invite.share}
+                </Button>
+              ) : null}
+            </div>
+            <p className="tnum text-sm font-semibold text-foreground" data-testid="invite-count">
+              {t.invite.count.replace("{n}", String(invite.count))}
+            </p>
+          </>
+        ) : (
+          <>
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-4 w-40" />
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }

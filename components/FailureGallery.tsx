@@ -47,7 +47,7 @@ export function FailureGallery() {
     <div className="flex flex-col gap-5 py-2">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">{t.failures.label}</h1>
-        <p className="mt-1 text-sm text-muted">{t.failures.previewNote}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{t.failures.previewNote}</p>
       </div>
       {kinds.map((k) => (
         <div key={k} data-testid={`gallery-${k}`}>

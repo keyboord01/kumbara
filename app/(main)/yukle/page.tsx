@@ -2,15 +2,26 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePasskeyWallet, useSignTransaction } from "@sembol/passkey-react";
+import { usePasskeyWallet, useSignTransaction, useWalletAddress } from "@sembol/passkey-react";
+import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
+import QRCode from "qrcode";
+import { cn } from "cn";
 import { FailureScreen } from "@/components/FailureScreen";
-import { ScreenSkeleton } from "@/components/Skeleton";
+import { ScreenSkeleton, Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { Stepper, type StepperStep } from "@/components/Stepper";
 import { useToast } from "@/components/Toaster";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { ResumeNotice } from "@/components/ResumeNotice";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
+import { Separator } from "@/components/ui/separator";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { api } from "@/lib/api";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
@@ -51,6 +62,7 @@ const STEP_TIMEOUT_MS = 120_000;
 /** Form failures where "try again" would only repeat the same amount. */
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 /** Steps the server (and the booth driver) takes on its own; the page can be closed during these. */
+const PREVIEW_STEPS: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"];
 const SERVER_STEPS = new Set(["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded"]);
 /** Typical wall-clock seconds per step, from the production round trips of 9–10 September (bank to vault 33–42 s in all). */
 const TYPICAL_SECONDS: Partial<Record<string, number>> = { transfer_received: 8, onramp_pending: 8, onramp_paid: 10, forwarded: 6, in_wallet: 14 };
@@ -59,9 +71,9 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
   return (
-    <button
-      type="button"
-      className="btn-chip"
+    <Button
+      variant="outline"
+      size="sm"
       aria-label={`${label}: ${value}`}
       onClick={() => {
         void navigator.clipboard?.writeText(value).then(() => {
@@ -71,15 +83,75 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
         });
       }}
     >
-      {copied ? "✓" : label}
-    </button>
+      {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
+      {label}
+    </Button>
+  );
+}
+
+type DepositMethod = "iban" | "address";
+
+/**
+ * The other way in: USDC sent straight to the kumbara's contract address from
+ * a Soroban-capable wallet or another kumbara. Nothing to submit here; once it
+ * lands, Savings offers to put it in the vault.
+ */
+function AddressDeposit() {
+  const { t } = useLocale();
+  const { address, explorerUrl } = useWalletAddress();
+  const [svg, setSvg] = useState("");
+  useEffect(() => {
+    if (!address) return;
+    QRCode.toString(address, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#12313a", light: "#ffffff" } })
+      .then(setSvg)
+      .catch(() => setSvg(""));
+  }, [address]);
+  if (!address) return null;
+  return (
+    <div className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:items-start">
+      <Card>
+        <CardHeader>
+          <CardTitle>{t.deposit.addressTitle}</CardTitle>
+          <CardDescription className="text-ink-2">{t.deposit.addressLead}</CardDescription>
+          <CardAction>
+            <Badge variant="info">{t.deposit.addressAsset}</Badge>
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <div className="flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+            {svg ? <Card size="sm" className="w-full max-w-[180px] flex-none px-(--card-spacing)" role="img" aria-label={address} dangerouslySetInnerHTML={{ __html: svg }} /> : <Skeleton className="size-[180px]" />}
+            <div className="flex min-w-0 flex-1 flex-col gap-3">
+              <p className="break-all font-mono text-sm text-foreground" data-testid="deposit-address">
+                {address}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <CopyButton value={address} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+                {explorerUrl ? (
+                  <Button variant="outline" size="sm" render={<a href={explorerUrl} target="_blank" rel="noreferrer" />}>
+                    stellar.expert · {NETWORK_LABEL}
+                    <ExternalLinkIcon data-icon="inline-end" />
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <aside className="flex flex-col gap-4 lg:sticky lg:top-24" aria-label={t.deposit.addressTitle}>
+        <Alert className="border-amber/40 bg-amber/5">
+          <AlertDescription className="text-ink-2">{t.deposit.addressCaveat}</AlertDescription>
+        </Alert>
+        <p className="text-sm text-ink-2">{t.deposit.addressThen}</p>
+      </aside>
+    </div>
   );
 }
 
 function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
-    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-teal hover:underline">
-      {label} · {NETWORK_LABEL} ↗
+    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-teal hover:underline">
+      {label} · {NETWORK_LABEL}
+      <ExternalLinkIcon className="size-3.5" aria-hidden />
     </a>
   );
 }
@@ -92,6 +164,7 @@ function Deposit() {
   const { toast } = useToast();
   const [view, setView] = useState<"loading" | "form" | "waiting">("loading");
   const [amount, setAmount] = useState("100");
+  const [method, setMethod] = useState<DepositMethod>("iban");
   const [record, setRecord] = useState<DepositRecord | null>(null);
   const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -286,64 +359,127 @@ function Deposit() {
   if (view === "loading") return <ScreenSkeleton />;
 
   if (view === "form") {
+    const invalid = amount !== "" && !amountValid;
     return (
       <div className="flex flex-col gap-5 py-2">
         <div className="flex items-baseline justify-between">
           <h1 className="text-3xl font-bold tracking-tight">{t.deposit.title}</h1>
-          <Link href="/kumbara" className="text-sm text-teal hover:underline">
+          <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
             {t.deposit.backToSavings}
           </Link>
         </div>
+        {/* Lira over the bank, or USDC straight to the kumbara's address. */}
+        <div className="flex flex-col gap-2">
+          <p className="microlabel text-[11px]">{t.deposit.method.label}</p>
+          <ToggleGroup
+            variant="segment"
+            size="lg"
+            spacing={0.5}
+            value={[method]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (next === "iban" || next === "address") setMethod(next);
+            }}
+            aria-label={t.deposit.method.label}
+            data-testid="deposit-method"
+          >
+            <ToggleGroupItem value="iban" data-testid="deposit-method-iban">
+              {t.deposit.method.iban}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="address" data-testid="deposit-method-address">
+              {t.deposit.method.address}
+            </ToggleGroupItem>
+          </ToggleGroup>
+        </div>
+        {method === "address" ? (
+          <AddressDeposit />
+        ) : (
         <form
-          className="card flex flex-col gap-4 p-5"
+          className="grid gap-4 lg:grid-cols-[3fr_2fr] lg:grid-rows-[auto_auto_auto_1fr] lg:items-start lg:[grid-template-areas:'form_side'_'notes_side'_'actions_side'_'._side']"
           onSubmit={(e) => {
             e.preventDefault();
             if (amountValid) void start();
           }}
         >
-          <label className="flex flex-col gap-2">
-            <span className="font-semibold">{t.deposit.lead}</span>
-            <span className="microlabel">{t.deposit.amountLabel}</span>
-            <span className="relative block">
-              <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted" aria-hidden>
-                ₺
-              </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min={minAmount}
-                max={maxAmount ?? undefined}
-                step="any"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="field tnum pl-10 text-2xl font-semibold"
-                aria-describedby="deposit-limits"
-                aria-invalid={amount !== "" && !amountValid ? "true" : "false"}
-              />
-            </span>
-          </label>
-          <div className="flex flex-wrap gap-2" role="group" aria-label={t.deposit.amountLabel}>
-            {t.deposit.quick.map((q) => (
-              <button key={q} type="button" onClick={() => setAmount(String(q))} aria-pressed={amount === String(q)} className={`btn-chip ${amount === String(q) ? "border-teal bg-teal/10 text-teal" : ""}`}>
-                ₺{q.toLocaleString(locale === "tr" ? "tr-TR" : "en-US")}
-              </button>
-            ))}
+          <Card className="lg:[grid-area:form]">
+            <CardHeader>
+              <CardTitle>{t.deposit.lead}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <FieldGroup className="gap-3">
+                <Field data-invalid={invalid ? true : undefined}>
+                  <FieldLabel htmlFor="deposit-amount" className="microlabel text-[11px] font-normal">
+                    {t.deposit.amountLabel}
+                  </FieldLabel>
+                  <InputGroup className="h-14">
+                    <InputGroupAddon align="inline-start">
+                      <InputGroupText className="text-2xl font-semibold">₺</InputGroupText>
+                    </InputGroupAddon>
+                    <InputGroupInput
+                      id="deposit-amount"
+                      type="number"
+                      inputMode="decimal"
+                      min={minAmount}
+                      max={maxAmount ?? undefined}
+                      step="any"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      className="tnum text-2xl font-semibold"
+                      aria-describedby="deposit-limits"
+                      aria-invalid={invalid ? "true" : "false"}
+                    />
+                  </InputGroup>
+                  <ToggleGroup
+                    variant="segment"
+                    size="lg"
+                    spacing={0.5}
+                    value={[amount]}
+                    onValueChange={(value) => {
+                      const next = value[0];
+                      if (typeof next === "string") setAmount(next);
+                    }}
+                    aria-label={t.deposit.amountLabel}
+                    className="flex-wrap"
+                  >
+                    {t.deposit.quick.map((q) => (
+                      <ToggleGroupItem key={q} value={String(q)} className="tnum">
+                        ₺{q.toLocaleString(numberLocale)}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                  <FieldDescription id="deposit-limits" className="text-xs">
+                    {(maxAmount === null ? t.deposit.limitsMin : t.deposit.limits).replace("{min}", minAmount.toLocaleString(numberLocale)).replace("{max}", (maxAmount ?? 0).toLocaleString(numberLocale))}
+                  </FieldDescription>
+                </Field>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+          <div className="flex flex-col gap-4 empty:hidden lg:[grid-area:notes]">
+            {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) ? <p className="text-sm text-amber">{t.deposit.limitWarning}</p> : null}
+            {overTreasury && treasuryUsdc !== null ? (
+              <Alert className="border-amber/40 bg-amber/5">
+                <AlertDescription className="text-ink-2">{t.deposit.treasuryCap.replace("{usdc}", Math.floor(treasuryUsdc).toLocaleString(numberLocale))}</AlertDescription>
+              </Alert>
+            ) : null}
+            {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
           </div>
-          <p id="deposit-limits" className="text-xs text-muted">
-            {(maxAmount === null ? t.deposit.limitsMin : t.deposit.limits).replace("{min}", minAmount.toLocaleString(numberLocale)).replace("{max}", (maxAmount ?? 0).toLocaleString(numberLocale))}
-          </p>
-          {amountValid && amountNumber / 40 > Number(DEFAULT_LIMIT_USDC) ? <p className="text-sm text-amber">{t.deposit.limitWarning}</p> : null}
-          {overTreasury && treasuryUsdc !== null ? (
-            <p className="rounded-xl border border-amber/40 bg-amber/5 p-3 text-sm text-ink-2" role="alert">
-              {t.deposit.treasuryCap.replace("{usdc}", Math.floor(treasuryUsdc).toLocaleString(locale === "tr" ? "tr-TR" : "en-US"))}
-            </p>
-          ) : null}
-          {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
-          <button type="submit" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : "false"} className="btn-primary w-full text-lg">
-            {submitting ? <Spinner /> : null}
+          <Button type="submit" size="xl" className="w-full lg:[grid-area:actions]" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
+            {submitting ? <Spinner data-icon="inline-start" /> : null}
             {submitting ? t.deposit.preparing : t.deposit.continue}
-          </button>
+          </Button>
+          {/* What happens next: the same steps the status card will show, idle. Last on a phone, beside the form on a laptop. */}
+          <aside className="flex flex-col gap-4 max-lg:order-last lg:sticky lg:top-24 lg:[grid-area:side]" aria-label={t.deposit.statusTitle}>
+            <Card size="sm">
+              <CardHeader>
+                <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Stepper steps={PREVIEW_STEPS.map((step): StepperStep => ({ key: step, label: t.deposit.steps[step], owner: step === "in_vault" ? undefined : step === "in_wallet" ? "you" : "us", state: "idle" }))} />
+              </CardContent>
+            </Card>
+          </aside>
         </form>
+        )}
       </div>
     );
   }
@@ -366,15 +502,20 @@ function Deposit() {
       : null;
   const parked = failed?.kind === "amount_mismatch" || failed?.kind === "usdc_not_received";
 
+  const done = FINAL.includes(record.status);
+  const needsYou = record.status === "in_wallet";
   return (
-    <div className="flex flex-col gap-5 py-2">
+    <div className={cn("flex flex-col gap-5 py-2", done && "mx-auto w-full lg:max-w-2xl")}>
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.deposit.title}</h1>
-        <Link href="/kumbara" className="text-sm text-teal hover:underline">
+        <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
           {t.deposit.backToSavings}
         </Link>
       </div>
 
+      {/* Two columns on a laptop: what the visitor acts on, then the status beside it; one centred column once the deposit is final. */}
+      <div className={cn("grid gap-5", !done && "lg:grid-cols-[3fr_2fr] lg:items-start")}>
+      <div className="flex flex-col gap-5">
       {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="deposit" /> : null}
       {pollFailure ? <FailureScreen failure={pollFailure} primary={null} /> : null}
 
@@ -394,62 +535,89 @@ function Deposit() {
         />
       ) : null}
 
-      <section className="card p-5" aria-label={t.deposit.quoteTitle}>
-        <div className="flex items-center justify-between">
-          <p className="microlabel">{t.deposit.quoteTitle}</p>
-          <NetworkBadge />
-        </div>
-        <p className="tnum mt-2 text-3xl font-bold">
-          {formatUsdc(quote.usdcOut, locale)} USDC
-        </p>
-        <p className="tnum mt-1 text-sm text-ink-2">
-          {formatTry(Number(tryShown), locale)} · {t.deposit.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({record.indicative.spreadBps} bps {t.deposit.spread})
-        </p>
-        {!record.firmQuote ? <p className="mt-1 text-xs text-muted">{t.deposit.indicative}</p> : null}
-      </section>
+      <Card render={<section aria-label={t.deposit.quoteTitle} />}>
+        <CardHeader>
+          <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.quoteTitle}</CardTitle>
+          <CardAction>
+            <NetworkBadge />
+          </CardAction>
+        </CardHeader>
+        <CardContent>
+          <p className="tnum text-3xl font-bold">{formatUsdc(quote.usdcOut, locale)} USDC</p>
+          <p className="tnum mt-1 text-sm text-ink-2">
+            {formatTry(Number(tryShown), locale)} · {t.deposit.rateLine} {Number(quote.rate).toLocaleString(numberLocale, { maximumFractionDigits: 4 })} ₺/USDC ({record.indicative.spreadBps} bps {t.deposit.spread})
+          </p>
+          {!record.firmQuote ? <p className="mt-1 text-xs text-muted-foreground">{t.deposit.indicative}</p> : null}
+        </CardContent>
+      </Card>
 
       {record.status === "awaiting_transfer" ? (
-        <section className="card p-5" aria-label={t.deposit.transferTitle}>
-          <p className="microlabel">{t.deposit.transferTitle}</p>
-          <dl className="mt-3 flex flex-col gap-3 text-sm">
-            <div className="flex items-start justify-between gap-3">
-              <dt className="text-muted">{t.deposit.bank}</dt>
-              <dd className="text-right font-medium">{record.instructions.bankName}</dd>
-              {!record.instructions.iban ? <dd className="col-span-2 text-sm text-muted" role="status">{t.deposit.instructionsPending}</dd> : null}
-            </div>
-            <div className="rounded-xl bg-paper-2 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="text-muted">{t.deposit.iban}</dt>
-                <CopyButton value={record.instructions.iban} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+        <Card render={<section aria-label={t.deposit.transferTitle} />}>
+          <CardHeader>
+            <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.transferTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <dl className="flex flex-col gap-3 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-muted-foreground">{t.deposit.bank}</dt>
+                <dd className="text-right font-medium">{record.instructions.bankName}</dd>
+                {!record.instructions.iban ? <dd className="col-span-2 text-sm text-muted-foreground" role="status">{t.deposit.instructionsPending}</dd> : null}
               </div>
-              <dd className="tnum mt-1 font-mono text-sm font-semibold tracking-wide text-ink" data-testid="deposit-iban">{record.instructions.ibanFormatted}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <dt className="text-muted">{t.deposit.recipient}</dt>
-              <dd className="text-right font-medium">{record.instructions.accountHolder}</dd>
-            </div>
-            <div className="flex items-start justify-between gap-3">
-              <dt className="text-muted">{t.deposit.amount}</dt>
-              <dd className="tnum text-right font-medium">{formatTry(Number(record.amountTry), locale)}</dd>
-            </div>
-            <div className="rounded-xl border border-teal/30 bg-teal/5 p-3">
-              <div className="flex items-center justify-between gap-3">
-                <dt className="font-semibold text-teal">{t.deposit.description}</dt>
-                <CopyButton value={record.instructions.reference} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+              <div className="rounded-lg bg-muted p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="text-muted-foreground">{t.deposit.iban}</dt>
+                  <CopyButton value={record.instructions.iban} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+                </div>
+                <dd className="tnum mt-1 font-mono text-sm font-semibold tracking-wide text-foreground" data-testid="deposit-iban">{record.instructions.ibanFormatted}</dd>
               </div>
-              <dd className="mt-1 font-mono text-2xl font-bold tracking-wide text-ink" data-testid="deposit-reference">
-                {record.instructions.reference}
-              </dd>
-            </div>
-          </dl>
-          <p className="mt-3 text-xs text-ink-2">{t.deposit.descriptionHint}</p>
-          <p className="mt-2 text-xs text-muted">{t.deposit.sandbox}</p>
-        </section>
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-muted-foreground">{t.deposit.recipient}</dt>
+                <dd className="text-right font-medium">{record.instructions.accountHolder}</dd>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <dt className="text-muted-foreground">{t.deposit.amount}</dt>
+                <dd className="tnum text-right font-medium">{formatTry(Number(record.amountTry), locale)}</dd>
+              </div>
+              <div className="rounded-lg border border-teal/30 bg-teal/5 p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <dt className="font-semibold text-teal">{t.deposit.description}</dt>
+                  <CopyButton value={record.instructions.reference} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+                </div>
+                <dd className="mt-1 font-mono text-2xl font-bold tracking-wide text-foreground" data-testid="deposit-reference">
+                  {record.instructions.reference}
+                </dd>
+              </div>
+            </dl>
+            <p className="text-xs text-ink-2">{t.deposit.descriptionHint}</p>
+            <p className="text-xs text-muted-foreground">{t.deposit.sandbox}</p>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <section className="card p-5" aria-label={t.deposit.statusTitle}>
-        <p className="microlabel">{t.deposit.statusTitle}</p>
-        <div className="mt-3">
+      {record.status === "onramp_pending" && anchorWaiting ? (
+        <Card size="sm" render={<section aria-label={t.deposit.abandonTitle} />} className="border-amber/40 bg-amber/5">
+          <CardHeader>
+            <CardTitle>{t.deposit.abandonTitle}</CardTitle>
+            <CardDescription className="text-ink-2">{t.deposit.abandonBody}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full" onClick={() => void cancel()} disabled={cancelling} aria-busy={cancelling ? "true" : undefined}>
+              {cancelling ? <Spinner data-icon="inline-start" /> : null}
+              {cancelling ? t.savings.loading : t.deposit.abandon}
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
+      </div>
+
+      {/* The status column: sticky on a laptop, first on a phone while a step needs the visitor. */}
+      <div className={cn("flex flex-col gap-5", needsYou && "max-lg:order-first", !done && "lg:sticky lg:top-24")}>
+      <Card render={<section aria-label={t.deposit.statusTitle} />}>
+        <CardHeader>
+          <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
           <Stepper
             testId="deposit-status"
             steps={STEP_ORDER.filter((s) => ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"].includes(s)).map((s): StepperStep => {
@@ -459,88 +627,83 @@ function Deposit() {
               return { key: s, label: t.deposit.steps[s], owner: s === "in_vault" ? undefined : s === "in_wallet" ? "you" : "us", state, since: state === "current" ? record.updatedAt : undefined, typicalSeconds: state === "current" ? TYPICAL_SECONDS[record.status] : undefined };
             })}
           />
-        </div>
-        <p className="mt-4 border-t border-line pt-3 text-sm font-semibold text-ink" role="status" aria-live="polite" data-testid="deposit-current">
-          {t.deposit.steps[record.status]}
-        </p>
-        {SERVER_STEPS.has(record.status) ? (
-          <p className="mt-1 text-sm text-teal" data-testid="close-hint">
-            {t.deposit.closeHint}
-          </p>
-        ) : record.status === "in_wallet" ? (
-          <p className="mt-1 text-sm text-amber" data-testid="needs-you">
-            {t.deposit.needsYou}
-          </p>
-        ) : null}
-        {quoteRefreshing ? (
-          <p className="mt-1 text-sm text-amber" role="status">
-            {t.failures.quoteRefreshing}
-          </p>
-        ) : null}
-        {record.status === "in_wallet" && autopilot === "signing" ? (
-          <p className="mt-2 flex items-center gap-2 text-sm text-ink-2" role="status">
-            <Spinner className="text-teal" />
-            {t.deposit.autopilotSigning}
-          </p>
-        ) : null}
-        {record.status === "in_wallet" && autopilot === "needs_tap" ? (
-          autopilotFailure ? (
-            <FailureScreen
-              failure={autopilotFailure}
-              compact
-              className="mt-3"
-              primary={autopilotFailure.kind === "limit_exceeded" ? undefined : { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() }}
-              secondary={autopilotFailure.kind === "limit_exceeded" ? { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() } : null}
-            />
-          ) : (
-            <div className="mt-3 rounded-xl border border-amber/40 bg-amber/5 p-3" data-testid="arrived">
-              <p className="text-base font-semibold text-ink">{t.deposit.arrivedTitle}</p>
-              <p className="mt-1 text-sm text-ink-2">{t.deposit.autopilotNeedsTap}</p>
-              <button type="button" onClick={() => void runAutopilot()} className="btn-primary mt-3 min-h-10 px-4 text-sm">
-                {t.deposit.autopilotButton}
-              </button>
-            </div>
-          )
-        ) : null}
-        {record.anchorTxHash || record.forwardTxHash || record.vaultTxHash ? (
-          <div className="mt-4 flex flex-col gap-1">
-            {record.anchorTxHash ? <TxLink hash={record.anchorTxHash} label={t.deposit.links.anchor} /> : null}
-            {record.forwardTxHash ? <TxLink hash={record.forwardTxHash} label={t.deposit.links.forward} /> : null}
-            {record.vaultTxHash ? <TxLink hash={record.vaultTxHash} label={t.deposit.links.vault} /> : null}
+          <Separator />
+          <div className="flex flex-col gap-1">
+            <p className="text-sm font-semibold text-foreground" role="status" aria-live="polite" data-testid="deposit-current">
+              {t.deposit.steps[record.status]}
+            </p>
+            {SERVER_STEPS.has(record.status) ? (
+              <p className="text-sm text-teal" data-testid="close-hint">
+                {t.deposit.closeHint}
+              </p>
+            ) : record.status === "in_wallet" ? (
+              <p className="text-sm text-amber" data-testid="needs-you">
+                {t.deposit.needsYou}
+              </p>
+            ) : null}
+            {quoteRefreshing ? (
+              <p className="text-sm text-amber" role="status">
+                {t.failures.quoteRefreshing}
+              </p>
+            ) : null}
+            {record.status === "in_wallet" && autopilot === "signing" ? (
+              <p className="mt-1 flex items-center gap-2 text-sm text-ink-2" role="status">
+                <Spinner className="text-teal" />
+                {t.deposit.autopilotSigning}
+              </p>
+            ) : null}
           </div>
-        ) : null}
-      </section>
+          {record.status === "in_wallet" && autopilot === "needs_tap" ? (
+            autopilotFailure ? (
+              <FailureScreen
+                failure={autopilotFailure}
+                compact
+                primary={autopilotFailure.kind === "limit_exceeded" ? undefined : { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() }}
+                secondary={autopilotFailure.kind === "limit_exceeded" ? { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() } : null}
+              />
+            ) : (
+              <Alert role="status" data-testid="arrived" className="border-amber/40 bg-amber/5">
+                <AlertTitle className="text-base font-semibold">{t.deposit.arrivedTitle}</AlertTitle>
+                <AlertDescription className="text-ink-2">{t.deposit.autopilotNeedsTap}</AlertDescription>
+                <Button onClick={() => void runAutopilot()} className="mt-2 w-fit">
+                  {t.deposit.autopilotButton}
+                </Button>
+              </Alert>
+            )
+          ) : null}
+          {record.anchorTxHash || record.forwardTxHash || record.vaultTxHash ? (
+            <div className="flex flex-col gap-1">
+              {record.anchorTxHash ? <TxLink hash={record.anchorTxHash} label={t.deposit.links.anchor} /> : null}
+              {record.forwardTxHash ? <TxLink hash={record.forwardTxHash} label={t.deposit.links.forward} /> : null}
+              {record.vaultTxHash ? <TxLink hash={record.vaultTxHash} label={t.deposit.links.vault} /> : null}
+            </div>
+          ) : null}
+        </CardContent>
+      </Card>
+      </div>
 
-      {record.status === "onramp_pending" && anchorWaiting ? (
-        <section className="card border-amber/40 bg-amber/5 p-4" aria-label={t.deposit.abandonTitle}>
-          <p className="font-semibold text-ink">{t.deposit.abandonTitle}</p>
-          <p className="mt-1 text-sm text-ink-2">{t.deposit.abandonBody}</p>
-          <button type="button" onClick={() => void cancel()} disabled={cancelling} className="btn-secondary mt-3 w-full">
-            {cancelling ? t.savings.loading : t.deposit.abandon}
-          </button>
-        </section>
-      ) : null}
-      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 lg:col-span-2">
         {record.status === "in_vault" ? (
-          <Link href="/kumbara" className="btn-primary w-full">
+          <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
             {t.deposit.backToSavings}
-          </Link>
+          </Button>
         ) : null}
         {record.status === "abandoned" ? <p className="text-center text-sm text-ink-2">{t.deposit.abandoned}</p> : null}
         {FINAL.includes(record.status) && record.status !== "failed" ? (
-          <button type="button" onClick={reset} className="btn-secondary w-full">
+          <Button variant="outline" className="w-full" onClick={reset}>
             {t.deposit.newDeposit}
-          </button>
+          </Button>
         ) : null}
         {record.status === "awaiting_transfer" && !timedOut ? (
           <>
-            <button type="button" onClick={() => void cancel()} disabled={cancelling} className="btn-secondary w-full">
+            <Button variant="outline" className="w-full" onClick={() => void cancel()} disabled={cancelling} aria-busy={cancelling ? "true" : undefined}>
+              {cancelling ? <Spinner data-icon="inline-start" /> : null}
               {cancelling ? t.savings.loading : t.deposit.cancel}
-            </button>
-            <p className="text-center text-xs text-muted">{t.deposit.cancelHint}</p>
+            </Button>
+            <p className="text-center text-xs text-muted-foreground">{t.deposit.cancelHint}</p>
           </>
         ) : null}
+      </div>
       </div>
     </div>
   );

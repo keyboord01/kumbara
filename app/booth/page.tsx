@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
+import { Card } from "@/components/ui/card";
 import { NETWORK, SITE_URL } from "@/lib/config";
 import { useLocale } from "@/lib/i18n";
 
@@ -30,7 +31,7 @@ function Booth() {
 
   useEffect(() => {
     if (!url) return;
-    QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#12313a", light: "#fbf7f0" } })
+    QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#12313a", light: "#ffffff" } })
       .then(setSvg)
       .catch(() => setSvg(""));
   }, [url]);
@@ -61,18 +62,19 @@ function Booth() {
   return (
     <div className="m-auto flex w-full max-w-lg flex-col items-center gap-6 px-6 py-10 text-center">
       <p className="text-3xl font-bold tracking-tight text-teal">{t.booth.title}</p>
-      <div className="w-full max-w-sm rounded-3xl bg-white p-4 shadow-sm" aria-label={url} dangerouslySetInnerHTML={{ __html: svg }} />
+      {/* The QR is the first svg on the page; the booth check waits for it. */}
+      <Card size="sm" className="w-full max-w-sm px-(--card-spacing)" role="img" aria-label={url} dangerouslySetInnerHTML={{ __html: svg }} />
       <p className="microlabel">
         {t.network.testnet} · {ref}
       </p>
-      <p className="break-all font-mono text-xs text-muted">{url}</p>
-      <div className="mt-2">
-        <p className="tnum text-7xl font-bold leading-none text-ink" data-testid="booth-counter">
+      <p className="break-all font-mono text-xs text-muted-foreground">{url}</p>
+      <div className="mt-2 flex flex-col gap-2">
+        <p className="tnum text-7xl font-bold leading-none text-foreground" data-testid="booth-counter">
           {metrics ? metrics.accounts.sinceStart : "–"}
         </p>
-        <p className="mt-2 text-sm text-ink-2">{t.booth.counter}</p>
+        <p className="text-sm text-ink-2">{t.booth.counter}</p>
       </div>
-      <p className="mt-auto text-xs text-muted">{t.footer}</p>
+      <p className="mt-auto text-xs text-muted-foreground">{t.footer}</p>
     </div>
   );
 }

@@ -13,6 +13,7 @@ const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chro
 const consoleErrors = [];
 async function fresh() {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
   const page = await context.newPage();
   const cdp = await context.newCDPSession(page);
   await cdp.send("WebAuthn.enable");
@@ -25,7 +26,7 @@ async function fresh() {
 }
 async function onboard(page, query) {
   await page.goto(`${APP}/?${query}&net=testnet`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   return (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();

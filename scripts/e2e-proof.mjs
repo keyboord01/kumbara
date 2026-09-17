@@ -10,6 +10,7 @@ const t0 = Date.now();
 const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`, ...a);
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -35,13 +36,13 @@ async function readProof(timeoutMs = 60000) {
 try {
   log("onboard");
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
-  log("✓ spending limit installed");
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
+  log("✓ deposit enabled (the safety limit is set at the first withdrawal)");
 
   log("Savings → Kanıt");
   await page.getByTestId("proof-link").click();
@@ -50,7 +51,7 @@ try {
   log("  TR:", tr.signers, "|", tr.kumbara, "|", tr.limit);
   if (!/^İmzacılar: 1, senin passkey'in\.$/.test(tr.signers)) throw new Error(`signers line: ${tr.signers}`);
   if (!/^Kumbara: yok\.$/.test(tr.kumbara)) throw new Error(`kumbara line: ${tr.kumbara}`);
-  if (!/^Limit: işlem başına [\d.,]+ USDC\.$/.test(tr.limit)) throw new Error(`limit line: ${tr.limit}`);
+  if (!/^Limit: (işlem başına [\d.,]+ USDC|kurulmamış)\.$/.test(tr.limit)) throw new Error(`limit line: ${tr.limit}`);
   const links = await page.locator("[data-testid='proof-links'] a").evaluateAll((as) => as.map((a) => a.getAttribute("href")));
   log("  links:", links.length, links.map((l) => l.replace("https://stellar.expert/explorer/", "")).join(" "));
   if (links.length < 3 || links.some((l) => !l.includes("/testnet/contract/"))) throw new Error("expected three testnet contract links");
@@ -64,7 +65,7 @@ try {
   log("  EN:", en.signers, "|", en.kumbara, "|", en.limit);
   if (!/^Signers: 1, your passkey\.$/.test(en.signers)) throw new Error(`EN signers line: ${en.signers}`);
   if (!/^Kumbara: none\.$/.test(en.kumbara)) throw new Error(`EN kumbara line: ${en.kumbara}`);
-  if (!/^Limit: [\d.,]+ USDC per transaction\.$/.test(en.limit)) throw new Error(`EN limit line: ${en.limit}`);
+  if (!/^Limit: ([\d.,]+ USDC per transaction|not set)\.$/.test(en.limit)) throw new Error(`EN limit line: ${en.limit}`);
   console.log("\nE2E PROOF OK. console errors:", consoleErrors.length ? consoleErrors : "none");
   console.log("CONTRACT=" + contract);
 } catch (err) {

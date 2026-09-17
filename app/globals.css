@@ -1,10 +1,16 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 /*
  * Kumbara palette: warm cream paper, deep teal ink, coral for the one action
- * that matters on each screen. Mobile first; system fonts only. Everything
- * below is the design constraint set: one type scale, one radius set, one
- * motion budget, 44 px targets, focus that is always visible.
+ * that matters on each screen. Mobile first; system fonts only. One type
+ * scale, one radius set, one motion budget, 44 px targets, focus that is
+ * always visible. The shadcn primitives in components/ui carry the buttons,
+ * cards, fields, badges and tables; the utilities below are the few things
+ * they do not cover (tabular numbers, microlabels, the step pulse).
  */
 @theme {
   --color-paper: #fbf7f0;
@@ -14,7 +20,6 @@
   --color-line-2: #d3cab6;
   --color-ink: #12313a;
   --color-ink-2: #3f5b63;
-  --color-muted: #5a6b71;
   --color-teal: #0f6b6b;
   --color-teal-2: #0b5555;
   --color-coral: #e5533d;
@@ -22,6 +27,7 @@
   --color-mint: #1f9d6a;
   --color-amber: #7a4f0f;
   --color-danger: #b42318;
+  --color-mint-2: #167a52;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --radius-card: 20px;
@@ -31,165 +37,154 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-html {
-  background: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  text-size-adjust: 100%;
+/*
+ * shadcn semantic tokens, mapped onto the palette above: every primitive in
+ * components/ui renders on-brand and screens use the semantic names
+ * (bg-background, bg-card, text-muted-foreground, border-border, ring-ring).
+ * The named colours stay for the brand (teal), status (mint, amber, danger)
+ * and charts. Light only, by design: warm paper is the product.
+ */
+:root {
+  --background: #fbf7f0;
+  --foreground: #12313a;
+  --card: #ffffff;
+  --card-foreground: #12313a;
+  --popover: #ffffff;
+  --popover-foreground: #12313a;
+  --primary: #e5533d;
+  --primary-hover: #c9432f;
+  --primary-foreground: #ffffff;
+  --secondary: #f3ede2;
+  --secondary-foreground: #12313a;
+  --muted: #f3ede2;
+  --muted-foreground: #5a6b71;
+  --accent: #ebe3d3;
+  --accent-foreground: #12313a;
+  --destructive: #b42318;
+  --border: #e3dccd;
+  --input: #d3cab6;
+  --ring: #0f6b6b;
+  --chart-1: #0f6b6b;
+  --chart-2: #e5533d;
+  --chart-3: #1f9d6a;
+  --chart-4: #7a4f0f;
+  --chart-5: #3f5b63;
+  /* 14 px controls; the multipliers below give 20 px cards at rounded-xl. */
+  --radius: 0.875rem;
+  --sidebar: #f3ede2;
+  --sidebar-foreground: #12313a;
+  --sidebar-primary: #0f6b6b;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ebe3d3;
+  --sidebar-accent-foreground: #12313a;
+  --sidebar-border: #e3dccd;
+  --sidebar-ring: #0f6b6b;
+  /* Sembol component theming: match the palette. */
+  --sembol-accent: #0f6b6b;
+  --sembol-accent-hover: #0b5555;
+  --sembol-radius: 14px;
 }
 
-body {
-  min-height: 100dvh;
-  margin: 0;
-  padding-bottom: env(safe-area-inset-bottom);
+@theme inline {
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Type scale: display 34, title 26, heading 20, body 16, small 14, micro 11. Headings wrap on balance. */
-h1 {
-  text-wrap: balance;
-}
-h2,
-h3 {
-  text-wrap: balance;
-}
-
-/* Focus is part of the design, never removed. */
-:focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--color-teal) 55%, transparent);
-  outline-offset: 2px;
-  border-radius: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
   }
-}
-
-@utility card {
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-  box-shadow: var(--shadow-card);
-}
-
-@utility card-flat {
-  background: #fff;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-card);
-}
-
-@utility btn-primary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 999px;
-  background: var(--color-coral);
-  color: #fff;
-  font-weight: 600;
-  min-height: 3.25rem;
-  padding: 0 1.5rem;
-  transition:
-    background 120ms ease,
-    transform 120ms ease,
-    opacity 120ms ease;
-  &:hover {
-    background: var(--color-coral-2);
-  }
-  &:active {
-    transform: translateY(1px);
-  }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-    transform: none;
-  }
-  &[aria-busy="true"] {
-    cursor: progress;
-    opacity: 0.85;
-  }
-}
-
-@utility btn-secondary {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-line-2);
-  background: #fff;
-  color: var(--color-ink);
-  font-weight: 600;
-  min-height: 2.75rem;
-  padding: 0 1.25rem;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease,
-    opacity 120ms ease;
-  &:hover {
-    border-color: var(--color-teal);
+  html {
     background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-size-adjust: 100%;
   }
-  &:disabled {
-    opacity: 0.55;
+  body {
+    @apply bg-background text-foreground;
+    min-height: 100dvh;
+    margin: 0;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  /* Type scale: display 34, title 26, heading 20, body 16, small 14, micro 11. Headings wrap on balance. */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  /* Anything you can click says so: Tailwind's reset gives buttons the default arrow. */
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="switch"],
+  [role="checkbox"],
+  summary,
+  a[href],
+  label:has(> input[type="radio"]),
+  label:has(> input[type="checkbox"]) {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
     cursor: not-allowed;
   }
-  &[aria-busy="true"] {
+  [aria-busy="true"] {
     cursor: progress;
   }
-}
 
-/* Quiet, chip-sized secondary action: copy, refresh, explorer links. */
-@utility btn-chip {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  min-height: 2.5rem;
-  padding: 0 0.875rem;
-  border-radius: 999px;
-  border: 1px solid var(--color-line-2);
-  background: #fff;
-  color: var(--color-ink);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  transition:
-    border-color 120ms ease,
-    background 120ms ease;
-  &:hover {
-    border-color: var(--color-teal);
-    background: var(--color-paper);
+  /* Focus is part of the design, never removed. Primitives bring their own ring; this covers links and native controls. */
+  :focus-visible {
+    outline: 3px solid color-mix(in srgb, var(--color-teal) 55%, transparent);
+    outline-offset: 2px;
   }
-  &:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-  }
-}
-
-/* The one text field style: amount inputs and the admin token. */
-@utility field {
-  width: 100%;
-  border-radius: var(--radius-control);
-  border: 1px solid var(--color-line-2);
-  background: var(--color-paper);
-  color: var(--color-ink);
-  padding: 0.75rem 1rem;
-  outline: none;
-  transition:
-    border-color 120ms ease,
-    box-shadow 120ms ease;
-  &:focus {
-    border-color: var(--color-teal);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-teal) 15%, transparent);
-  }
-  &[aria-invalid="true"] {
-    border-color: var(--color-danger);
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
 
@@ -202,37 +197,7 @@ h3 {
   font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--color-muted);
-}
-
-/* Status chips: one shape, the colour says the state. */
-@utility chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  border-radius: 999px;
-  padding: 0.125rem 0.625rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.25rem;
-  white-space: nowrap;
-}
-
-/* Loading placeholder: a soft shimmer on paper, never a spinner for content that has a shape. */
-@utility skeleton {
-  position: relative;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--color-paper-2);
-  color: transparent;
-  &::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.7) 50%, transparent 100%);
-    transform: translateX(-100%);
-    animation: kumbara-shimmer 1.4s infinite;
-  }
+  color: var(--muted-foreground);
 }
 
 @keyframes kumbara-shimmer {
@@ -251,12 +216,6 @@ h3 {
   }
 }
 
-@keyframes kumbara-spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
 @keyframes kumbara-toast-in {
   from {
     opacity: 0;
@@ -268,29 +227,11 @@ h3 {
   }
 }
 
-/* The current step's dot breathes; the spinner is the same ring everywhere. */
+/* The current step's dot breathes. */
 @utility step-current {
   animation: kumbara-pulse 1.8s var(--ease-out) infinite;
 }
 
-@utility spinner {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  border-radius: 999px;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  animation: kumbara-spin 0.8s linear infinite;
-  flex: none;
-}
-
 @utility toast-in {
   animation: kumbara-toast-in 220ms var(--ease-out);
-}
-
-/* Sembol component theming: match the Kumbara palette. */
-:root {
-  --sembol-accent: #0f6b6b;
-  --sembol-accent-hover: #0b5555;
-  --sembol-radius: 14px;
 }

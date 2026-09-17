@@ -2,6 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
+import { Spinner } from "@/components/Spinner";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
 import { RUNBOOK_SECTION, isPresenterState, type Failure } from "@/lib/failures";
 import { useLocale, type FailureCopy } from "@/lib/i18n";
@@ -30,18 +35,20 @@ function fill(text: string, values: Record<string, string> | undefined): string 
 }
 
 function ActionButton({ action, primary }: { action: FailureAction; primary: boolean }) {
-  const cls = `${primary ? "btn-primary" : "btn-secondary"} w-full`;
+  const variant = primary ? "default" : "outline";
+  const size = primary ? "xl" : "default";
   if (action.href) {
     return (
-      <Link href={action.href} className={cls}>
+      <Button variant={variant} size={size} className="w-full" render={<Link href={action.href} />}>
         {action.label}
-      </Link>
+      </Button>
     );
   }
   return (
-    <button type="button" onClick={action.onClick} disabled={action.busy} className={cls}>
+    <Button variant={variant} size={size} className="w-full" onClick={action.onClick} disabled={action.busy} aria-busy={action.busy ? "true" : undefined}>
+      {action.busy ? <Spinner data-icon="inline-start" /> : null}
       {action.label}
-    </button>
+    </Button>
   );
 }
 
@@ -68,59 +75,67 @@ export function FailureScreen({ failure, primary, onRetry, secondary, compact = 
             : null
         : null;
   return (
-    <section
-      role="alert"
-      aria-live="polite"
+    <Card
+      render={<section role="alert" aria-live="polite" />}
+      size={compact ? "sm" : "default"}
       data-testid="failure-screen"
       data-kind={failure.kind}
-      className={`card border-danger/30 ${compact ? "p-4" : "p-5"} ${className}`}
+      className={`border-destructive/30 ${className}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <p className="microlabel text-danger">{presenter ? t.failures.presenterLabel : t.failures.label}</p>
-        <span className="microlabel">{NETWORK_LABEL}</span>
-      </div>
-      <h2 className={`${compact ? "text-lg" : "text-2xl"} mt-2 font-bold leading-tight tracking-tight text-ink`}>{copy.title}</h2>
-      <p className="mt-2 text-sm leading-relaxed text-ink-2">{fill(copy.body, failure.values)}</p>
+      <CardHeader>
+        <p className="microlabel text-destructive">{presenter ? t.failures.presenterLabel : t.failures.label}</p>
+        <CardAction>
+          <span className="microlabel">{NETWORK_LABEL}</span>
+        </CardAction>
+        <CardTitle className={`${compact ? "text-lg" : "text-2xl"} font-bold leading-tight tracking-tight`}>{copy.title}</CardTitle>
+        <CardDescription className="leading-relaxed text-ink-2">{fill(copy.body, failure.values)}</CardDescription>
+      </CardHeader>
 
-      {failure.landingAddress && (
-        <div className="mt-3 rounded-xl bg-paper-2 p-3">
-          <p className="microlabel">{t.failures.landingLabel}</p>
-          <p className="mt-1 break-all font-mono text-xs text-ink" data-testid="failure-landing">
-            {failure.landingAddress}
-          </p>
-          <a href={`${EXPLORER_BASE}/account/${failure.landingAddress}`} target="_blank" rel="noreferrer" className="mt-2 inline-block text-sm text-teal hover:underline">
-            stellar.expert · {NETWORK_LABEL} ↗
-          </a>
-          <p className="mt-2 text-xs text-ink-2">{t.failures.fundsSafe}</p>
-        </div>
-      )}
+      {failure.landingAddress || runbook || failure.detail ? (
+        <CardContent className="flex flex-col gap-3">
+          {failure.landingAddress ? (
+            <div className="rounded-lg bg-muted p-3">
+              <p className="microlabel">{t.failures.landingLabel}</p>
+              <p className="mt-1 break-all font-mono text-xs text-foreground" data-testid="failure-landing">
+                {failure.landingAddress}
+              </p>
+              <Button variant="link" size="xs" className="mt-2" render={<a href={`${EXPLORER_BASE}/account/${failure.landingAddress}`} target="_blank" rel="noreferrer" />}>
+                stellar.expert · {NETWORK_LABEL}
+                <ExternalLinkIcon data-icon="inline-end" />
+              </Button>
+              <p className="mt-2 text-xs text-ink-2">{t.failures.fundsSafe}</p>
+            </div>
+          ) : null}
 
-      {(action || secondary) && (
-        <div className="mt-4 flex flex-col gap-2">
-          {action && <ActionButton action={action} primary />}
-          {secondary && <ActionButton action={secondary} primary={false} />}
-        </div>
-      )}
+          {runbook ? (
+            <p className="text-xs text-muted-foreground">
+              {t.failures.runbookLabel} <span className="font-mono">docs/booth-runbook.md → “{runbook}”</span>
+            </p>
+          ) : null}
 
-      {runbook && (
-        <p className="mt-3 text-xs text-muted">
-          {t.failures.runbookLabel} <span className="font-mono">docs/booth-runbook.md → “{runbook}”</span>
-        </p>
-      )}
+          {failure.detail ? (
+            <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-2">
+              <CollapsibleTrigger render={<Button variant="link" size="xs" className="w-fit text-muted-foreground" />}>
+                {open ? t.failures.hideDetails : t.failures.details}
+                <ChevronDownIcon data-icon="inline-end" className={open ? "rotate-180 transition-transform" : "transition-transform"} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <pre className="max-h-40 overflow-auto rounded-lg bg-muted p-2 font-mono text-[11px] break-all whitespace-pre-wrap text-ink-2" data-testid="failure-detail">
+                  {failure.code ? `${failure.code}\n` : ""}
+                  {failure.detail}
+                </pre>
+              </CollapsibleContent>
+            </Collapsible>
+          ) : null}
+        </CardContent>
+      ) : null}
 
-      {failure.detail && (
-        <div className="mt-3">
-          <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="text-xs text-muted underline-offset-2 hover:underline">
-            {open ? t.failures.hideDetails : t.failures.details}
-          </button>
-          {open && (
-            <pre className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-lg bg-paper-2 p-2 font-mono text-[11px] text-ink-2" data-testid="failure-detail">
-              {failure.code ? `${failure.code}\n` : ""}
-              {failure.detail}
-            </pre>
-          )}
-        </div>
-      )}
-    </section>
+      {action || secondary ? (
+        <CardFooter className="flex-col items-stretch gap-2">
+          {action ? <ActionButton action={action} primary /> : null}
+          {secondary ? <ActionButton action={secondary} primary={false} /> : null}
+        </CardFooter>
+      ) : null}
+    </Card>
   );
 }

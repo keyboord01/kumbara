@@ -2,9 +2,13 @@
 
 import Link from "next/link";
 import { describeLedgerPeriod, usePasskeyWallet, useSigners, useSpendingPolicy } from "@sembol/passkey-react";
+import { ArrowRightIcon, ExternalLinkIcon } from "lucide-react";
 import { NetworkBadge } from "@/components/NetworkBadge";
 import { RequireWallet } from "@/components/RequireWallet";
 import { Skeleton } from "@/components/Skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@/components/ui/item";
 import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
@@ -12,9 +16,10 @@ import { useAnchorInfo } from "@/lib/useAnchorInfo";
 
 function ExplorerLink({ href, label }: { href: string; label: string }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className="btn-chip">
-      {label} · {NETWORK_LABEL} ↗
-    </a>
+    <Button variant="outline" size="sm" render={<a href={href} target="_blank" rel="noreferrer" />}>
+      {label} · {NETWORK_LABEL}
+      <ExternalLinkIcon data-icon="inline-end" />
+    </Button>
   );
 }
 
@@ -48,72 +53,89 @@ function Proof() {
   const limitLine = policyLoading ? null : policy ? (policy.periodLedgers === 1 ? t.proof.limitPerTx.replace("{amount}", formatUsdc(policy.limit, locale)) : t.proof.limitPerWindow.replace("{amount}", formatUsdc(policy.limit, locale)).replace("{window}", describeLedgerPeriod(policy.periodLedgers))) : t.proof.limitNone;
 
   return (
-    <div className="flex flex-col gap-5 py-2">
-      <div className="flex items-baseline justify-between">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5 py-2 lg:max-w-2xl">
+      <div className="flex items-baseline justify-between gap-3">
         <h1 className="text-3xl font-bold tracking-tight">{t.proof.title}</h1>
-        <Link href="/kumbara" className="text-sm text-teal hover:underline">
+        <Button variant="link" size="xs" render={<Link href="/kumbara" />}>
           {t.security.back}
-        </Link>
+        </Button>
       </div>
       <p className="text-sm leading-relaxed text-ink-2">{t.proof.lead}</p>
 
-      <section className="card p-5" aria-label={t.proof.title}>
-        <div className="flex items-center justify-between">
-          <p className="microlabel">{t.proof.onChain}</p>
-          <NetworkBadge />
-        </div>
-        <ul className="mt-3 flex flex-col gap-3">
-          <li className="rounded-xl bg-paper-2 p-3">
-            <p className="text-base font-semibold text-ink" data-testid="proof-signers">
-              {signersLine ?? <Skeleton className="h-5 w-64" />}
-            </p>
-            <p className="mt-1 text-xs text-ink-2">{t.proof.signersHint}</p>
-            {!signersLoading && signers.length > 0 ? (
-              <ul className="mt-2 flex flex-col gap-1 font-mono text-xs text-muted">
-                {signers.map((s) => (
-                  <li key={s.key}>
-                    {s.kind} · {s.display}
-                    {s.isActive ? ` · ${t.proof.thisDevice}` : ""}
-                    {s.nickname ? ` · ${s.nickname}` : ""}
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </li>
-          <li className="rounded-xl bg-paper-2 p-3">
-            <p className="text-base font-semibold text-ink" data-testid="proof-kumbara">
-              {signersLoading ? <Skeleton className="h-5 w-40" /> : `${t.proof.kumbara}: ${others.length === 0 ? t.proof.none : t.proof.otherSigners.replace("{n}", String(others.length))}.`}
-            </p>
-            <p className="mt-1 text-xs text-ink-2">{t.proof.kumbaraHint}</p>
-          </li>
-          <li className="rounded-xl bg-paper-2 p-3">
-            <p className="text-base font-semibold text-ink" data-testid="proof-limit">
-              {limitLine ?? <Skeleton className="h-5 w-56" />}
-            </p>
-            <p className="mt-1 text-xs text-ink-2">{t.proof.limitHint}</p>
-          </li>
-        </ul>
-        <div className="mt-4 flex flex-wrap gap-2" data-testid="proof-links">
-          {address ? <ExplorerLink href={`${EXPLORER_BASE}/contract/${address}`} label={t.proof.linkAccount} /> : null}
-          <ExplorerLink href={`${EXPLORER_BASE}/contract/${sembolConfig.spendingLimitPolicyAddress}`} label={t.proof.linkPolicy} />
-          <ExplorerLink href={`${EXPLORER_BASE}/contract/${sembolConfig.webauthnVerifierAddress}`} label={t.proof.linkVerifier} />
-        </div>
-        <p className="mt-3 break-all font-mono text-[11px] text-muted">
-          {t.proof.wasm}: {sembolConfig.accountWasmHash}
-        </p>
-      </section>
+      <Card render={<section aria-label={t.proof.title} />}>
+        <CardHeader>
+          <CardTitle className="microlabel">{t.proof.onChain}</CardTitle>
+          <CardAction>
+            <NetworkBadge />
+          </CardAction>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <ItemGroup className="gap-3">
+            <Item variant="muted" role="listitem">
+              <ItemContent>
+                <ItemTitle className="text-base text-foreground" data-testid="proof-signers">
+                  {signersLine ?? <Skeleton className="h-5 w-64" />}
+                </ItemTitle>
+                <ItemDescription className="text-xs text-ink-2">{t.proof.signersHint}</ItemDescription>
+                {!signersLoading && signers.length > 0 ? (
+                  <ul className="mt-1 flex flex-col gap-1 font-mono text-xs text-muted-foreground">
+                    {signers.map((s) => (
+                      <li key={s.key}>
+                        {s.kind} · {s.display}
+                        {s.isActive ? ` · ${t.proof.thisDevice}` : ""}
+                        {s.nickname ? ` · ${s.nickname}` : ""}
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </ItemContent>
+            </Item>
+            <Item variant="muted" role="listitem">
+              <ItemContent>
+                <ItemTitle className="text-base text-foreground" data-testid="proof-kumbara">
+                  {signersLoading ? <Skeleton className="h-5 w-40" /> : `${t.proof.kumbara}: ${others.length === 0 ? t.proof.none : t.proof.otherSigners.replace("{n}", String(others.length))}.`}
+                </ItemTitle>
+                <ItemDescription className="text-xs text-ink-2">{t.proof.kumbaraHint}</ItemDescription>
+              </ItemContent>
+            </Item>
+            <Item variant="muted" role="listitem">
+              <ItemContent>
+                <ItemTitle className="text-base text-foreground" data-testid="proof-limit">
+                  {limitLine ?? <Skeleton className="h-5 w-56" />}
+                </ItemTitle>
+                <ItemDescription className="text-xs text-ink-2">{t.proof.limitHint}</ItemDescription>
+              </ItemContent>
+            </Item>
+          </ItemGroup>
+          <div className="flex flex-wrap gap-2" data-testid="proof-links">
+            {address ? <ExplorerLink href={`${EXPLORER_BASE}/contract/${address}`} label={t.proof.linkAccount} /> : null}
+            <ExplorerLink href={`${EXPLORER_BASE}/contract/${sembolConfig.spendingLimitPolicyAddress}`} label={t.proof.linkPolicy} />
+            <ExplorerLink href={`${EXPLORER_BASE}/contract/${sembolConfig.webauthnVerifierAddress}`} label={t.proof.linkVerifier} />
+          </div>
+          <p className="font-mono text-[11px] break-all text-muted-foreground">
+            {t.proof.wasm}: {sembolConfig.accountWasmHash}
+          </p>
+        </CardContent>
+      </Card>
 
-      <section className="card p-5" aria-label={t.proof.meansTitle}>
-        <p className="microlabel">{t.proof.meansTitle}</p>
-        <ul className="mt-2 flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed text-ink-2">
-          {t.proof.means.map((line) => (
-            <li key={line}>{line}</li>
-          ))}
-        </ul>
-        <Link href="/kumbara/guvenlik" className="mt-4 inline-block text-sm text-teal hover:underline">
-          {t.savings.manage} →
-        </Link>
-      </section>
+      <Card render={<section aria-label={t.proof.meansTitle} />}>
+        <CardHeader>
+          <CardTitle className="microlabel">{t.proof.meansTitle}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ul className="flex list-disc flex-col gap-1.5 pl-5 text-sm leading-relaxed text-ink-2">
+            {t.proof.means.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </CardContent>
+        <CardFooter>
+          <Button variant="link" size="xs" render={<Link href="/kumbara/guvenlik" />}>
+            {t.savings.manage}
+            <ArrowRightIcon data-icon="inline-end" />
+          </Button>
+        </CardFooter>
+      </Card>
     </div>
   );
 }

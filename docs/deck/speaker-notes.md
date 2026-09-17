@@ -24,9 +24,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 3b · Try it now (hackathon variant)
 
-**TR.** Şimdi deneyin: kodu okutun, Open your kumbara'ya dokunun (uygulama İngilizce açılır; üstten Türkçe'ye geçilir), Face ID ya da Touch ID. Hesabınız açıldı. Deposit deyin, yüz yazın; bankayı ben oynatıyorum, bir dakikaya USDC kasada. Withdraw deyin, lira IBAN'a döner. Kurulum yok, kelime yok, XLM yok. Test ağı, gerçek para değil. Sayaç arkamda.
+**TR.** Şimdi deneyin: kodu okutun, Get started'a dokunun (uygulama İngilizce açılır; üstten Türkçe'ye geçilir), Face ID ya da Touch ID. Hesabınız açıldı. Deposit deyin, yüz yazın; bankayı ben oynatıyorum, bir dakikaya USDC kasada. Withdraw deyin, lira IBAN'a döner. Kurulum yok, kelime yok, XLM yok. Test ağı, gerçek para değil. Sayaç arkamda.
 
-**EN.** Try it now: scan, tap Open your kumbara, Face ID or Touch ID. Your account exists. Tap Deposit, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Withdraw and the lira comes back to the IBAN. The app opens in English; Türkçe is one tap away at the top. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
+**EN.** Try it now: scan, tap Get started, Face ID or Touch ID. Your account exists. Tap Deposit, enter one hundred; I play the bank, and in about a minute the USDC is in the vault. Tap Withdraw and the lira comes back to the IBAN. The app opens in English; Türkçe is one tap away at the top. No install, no words, no XLM. Testnet, not real money. The counter is behind me.
 
 ## 4 · Why it is better
 
@@ -36,9 +36,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 5 · How it works
 
-**TR.** Beş hamle: passkey akıllı hesabı açar, limit zincire yazılır, anchor IBAN verir, geçici hesap USDC'yi iletir, bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir. Para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: ilet, sonra kapan. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor.
+**TR.** Beş hamle: passkey akıllı hesabı açar, ilk çekimde limit zincire yazılır, anchor IBAN verir, geçici hesap USDC'yi iletir, bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir. Para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: ilet, sonra kapan. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor.
 
-**EN.** Five moves: a passkey opens the smart account, the limit is written on-chain, the anchor issues an IBAN, a temporary account forwards the USDC, one approval into the vault. The bridge: the anchor can only pay a normal Stellar account. We create a temporary account whose only two transactions are signed before any money arrives: forward, then close. Nobody, including us, can redirect it. No custody, no trust in us.
+**EN.** Five moves: a passkey opens the smart account, the limit is written on-chain at the first withdrawal, the anchor issues an IBAN, a temporary account forwards the USDC, one approval into the vault. The bridge: the anchor can only pay a normal Stellar account. We create a temporary account whose only two transactions are signed before any money arrives: forward, then close. Nobody, including us, can redirect it. No custody, no trust in us.
 
 ## 6 · Where else it works
 
@@ -54,9 +54,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 8 · Regulatory posture
 
-**TR.** Kumbara emanet almaz: lira, USDC ya da anahtar tutmaz. Lisanslı anchor parayı tutar, KYC yapar, kendi IBAN'ına öder. Ödeme özelliği yok. Kapı: anchor'ın yazılı görüşü, birinci dilimde. Türkiye geçemezse pilot listedeki en üst pazarda açılır.
+**TR.** Kumbara emanet almaz: lira, USDC ya da anahtar tutmaz. Lisanslı anchor parayı tutar, KYC yapar, kendi IBAN'ına öder. Para kendi banka hesabına ya da kendi seçtiğin bir Stellar adresine çıkar; ödeme ürünü yok, rehber yok. Kapı: anchor'ın yazılı görüşü, birinci dilimde. Türkiye geçemezse pilot listedeki en üst pazarda açılır.
 
-**EN.** Kumbara is non-custodial: it never holds lira, USDC or keys. The licensed anchor holds the fiat, does KYC, pays your own IBAN. No payments feature. The gate: the anchor's written position, in Tranche 1. If Türkiye fails, the pilot launches in the top-ranked market.
+**EN.** Kumbara is non-custodial: it never holds lira, USDC or keys. The licensed anchor holds the fiat, does KYC, pays your own IBAN. Money leaves to your own bank account or to a Stellar address you choose; there is no payments product, no merchant flow and no address book. The gate: the anchor's written position, in Tranche 1. If Türkiye fails, the pilot launches in the top-ranked market.
 
 ## 9 · Team
 

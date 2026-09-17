@@ -6,6 +6,7 @@ import { chromium } from "playwright";
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -32,8 +33,8 @@ try {
   const footer = await page.locator("footer").textContent();
   if (!footer?.includes("Test ağı")) throw new Error("testnet footer missing");
 
-  log("tap 'Kumbaranı aç'");
-  const cta = page.getByRole("button", { name: /Kumbaranı aç/ });
+  log("tap 'Başla'");
+  const cta = page.getByRole("button", { name: /Başla|Get started/ });
   await cta.waitFor({ timeout: 30000 });
   await cta.click();
   const tapAt = Date.now();
@@ -43,11 +44,11 @@ try {
   log(`savings screen visible ${toSavings.toFixed(1)}s after tap (target < 20 s)`);
   if (toSavings > 40) throw new Error(`savings screen took ${toSavings.toFixed(1)}s`);
 
-  // The spending limit installs in the background from Savings; Deposit waits on it.
-  await page.getByText(/Güvenlik kuralı kuruluyor/).first().waitFor({ timeout: 20000 });
-  const depositDisabled = await page.getByRole("button", { name: "Yükle" }).isDisabled().catch(() => false);
-  log("limit setup status shown; deposit disabled:", depositDisabled);
-  if (!depositDisabled) throw new Error("deposit button should be disabled while the limit installs");
+  // One approval opened the kumbara: Deposit is available at once; the safety limit is set at the first withdrawal.
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 15000 });
+  const deferred = ((await page.getByTestId("limit-card").textContent()) ?? "").replace(/\s+/g, " ");
+  log("limit card before it is set:", deferred.slice(0, 80));
+  if (!/Kurulmadı|Not set/.test(deferred)) throw new Error(`the safety limit should start unset, saw: ${deferred.slice(0, 80)}`);
   const addr = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", addr);
   if (!addr?.startsWith("C")) throw new Error("no contract address rendered");
@@ -57,7 +58,9 @@ try {
   const badge = await page.locator("[aria-label='TESTNET']").count();
   log("TESTNET badges on screen:", badge);
 
-  // Limit card shows the default per-transaction cap once the rule is installed.
+  // "Set it now" installs the limit early (one passkey approval); the card then shows the per-transaction cap.
+  await page.getByTestId("limit-set-now").click();
+  await page.getByText(/Güvenlik kuralı kuruluyor/).first().waitFor({ timeout: 20000 });
   let limitText = "";
   const limitAt = Date.now();
   for (let i = 0; i < 30; i += 1) {
@@ -67,7 +70,7 @@ try {
   }
   log(`limit card after ${((Date.now() - limitAt) / 1000).toFixed(1)}s:`, limitText.replace(/\s+/g, " ").slice(0, 120));
   if (!/1\.000,00|1,000\.00/.test(limitText)) throw new Error("spending limit not shown");
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 15000 });
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 15000 });
   log("✓ deposit enabled after the limit installed");
   const vault = (await page.locator("section[aria-label='Kasa']").textContent()) ?? "";
   log("vault card:", vault.replace(/\s+/g, " ").slice(0, 160));

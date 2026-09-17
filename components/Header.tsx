@@ -2,34 +2,41 @@
 
 import Link from "next/link";
 import { usePasskeyWallet } from "@sembol/passkey-react";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocale } from "@/lib/i18n";
+import { HeaderNav } from "./Nav";
 import { NetworkBadge } from "./NetworkBadge";
 
 export function Header() {
   const { locale, setLocale, t } = useLocale();
   const { isConnected } = usePasskeyWallet();
   return (
-    <header className="sticky top-0 z-10 border-b border-line bg-paper/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-3">
-        <Link href={isConnected ? "/kumbara" : "/"} className="flex min-w-0 items-baseline gap-2">
+    <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
+      <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-3 lg:max-w-5xl">
+        <Link href={isConnected ? "/kumbara" : "/"} className="flex min-w-0 items-baseline gap-2 rounded-md">
           <span className="text-lg font-bold tracking-tight text-teal">{t.brand}</span>
-          <span className="hidden whitespace-nowrap text-xs text-muted min-[400px]:inline">{t.bySembol}</span>
+          <span className="hidden whitespace-nowrap text-xs text-muted-foreground min-[400px]:inline">{t.bySembol}</span>
         </Link>
+        <HeaderNav />
         <div className="flex items-center gap-2">
           <NetworkBadge />
-          <div className="flex overflow-hidden rounded-full border border-line text-xs font-semibold" role="group" aria-label="Language">
+          <ToggleGroup
+            variant="segment"
+            size="xs"
+            spacing={0.5}
+            value={[locale]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (next === "tr" || next === "en") setLocale(next);
+            }}
+            aria-label="Language"
+          >
             {(["tr", "en"] as const).map((l) => (
-              <button
-                key={l}
-                type="button"
-                onClick={() => setLocale(l)}
-                aria-pressed={locale === l}
-                className={`px-2.5 py-1 uppercase ${locale === l ? "bg-teal text-white" : "bg-white text-ink-2"}`}
-              >
+              <ToggleGroupItem key={l} value={l} aria-label={l}>
                 {l}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
       </div>
     </header>

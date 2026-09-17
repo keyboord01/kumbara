@@ -17,7 +17,15 @@ const AUTOFUND = process.env.E2E_EXPECT === "autofund";
 // E2E_LEAVE_AFTER_IBAN=1: the booth flow. The visitor leaves the page after the IBAN step, the presenter console
 // (its driver ticks every 5 s) carries the deposit to the wallet on its own, the visitor comes back and taps once.
 const LEAVE_AFTER_IBAN = process.env.E2E_LEAVE_AFTER_IBAN === "1";
-const AMOUNT = process.env.E2E_DEPOSIT_AMOUNT?.trim() || "100";
+// E2E_AUTOBANK=1: nobody plays the bank. A ₺100 deposit sits at or below BOOTH_AUTO_BANK_MAX_TRY (default 250), so the
+// driver (this script ticks it, as the presenter console would) plays the sandbox bank by itself; the record says so.
+const AUTOBANK = process.env.E2E_AUTOBANK === "1";
+// Manual-play modes deposit above the driver's auto-bank threshold, or the driver would play the bank first and the
+// presenter's press would be refused as already paid; the autobank mode deposits below it on purpose.
+const AMOUNT = process.env.E2E_DEPOSIT_AMOUNT?.trim() || (AUTOBANK ? "100" : "300");
+// The queue row for one reference (the console lists every waiting deposit, each with its own button).
+const queueRow = (admin, reference) => admin.locator("[data-testid='queue-item']").filter({ hasText: reference });
+const playButton = (admin, reference) => queueRow(admin, reference).getByRole("button", { name: /Bankayı oynat|Play the bank/ });
 const adminHeaders = { authorization: `Bearer ${ADMIN_TOKEN}`, "content-type": "application/json" };
 let previousAnchor = null;
 async function switchAnchor(homeDomain) {
@@ -56,7 +64,7 @@ async function runBoothFlow(reference) {
 
   log("presenter console opens; its driver ticks every 5 s");
   const admin = await context.newPage();
-  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN_TOKEN)}`, { waitUntil: "networkidle" });
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN_TOKEN)}`, { waitUntil: "domcontentloaded" });
   await admin.getByTestId("driver").waitFor({ timeout: 20000 });
   for (let i = 0; i < 10; i += 1) {
     if ((await admin.getByTestId("driver").getAttribute("data-on")) === "true") break;
@@ -65,15 +73,18 @@ async function runBoothFlow(reference) {
   }
   log("  driver chip:", ((await admin.getByTestId("driver").textContent()) ?? "").trim());
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
-  await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
+  await playButton(admin, reference).click();
   await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
   const bankAt = Date.now();
-  log("  bank played:", ((await admin.locator("[role=status]").first().textContent()) ?? "").trim());
-  // The second press must be refused with the server's reason (already paid), rendered in the console.
-  await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click().catch(() => undefined);
-  const refused = await admin.getByTestId("admin-error").textContent({ timeout: 15000 }).catch(() => "");
-  log("  second press:", (refused ?? "").trim().slice(0, 160));
-  if (!refused || !/already_paid|no_pending_deposit|anchor_rejected|\b(404|409|502)\b/.test(refused)) throw new Error(`second press did not show a server reason: ${refused}`);
+  log("  bank played:", ((await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().textContent()) ?? "").trim());
+  // A played row offers no button any more: pressing it again only ever earned an "already paid" refusal, which was a
+  // trap for the presenter. The refusal itself still has to carry the server's reason, so assert it on the API the
+  // console calls. (The console's rendering of a refusal is covered by e2e-booth, which plays with nothing pending.)
+  if ((await playButton(admin, reference).count()) !== 0) throw new Error("a played row still offers the play button");
+  const refusedRes = await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ depositId: mine.id }) });
+  const refusedBody = await refusedRes.json();
+  log("  second play refused:", refusedRes.status, JSON.stringify(refusedBody.error ?? {}).slice(0, 160));
+  if (refusedBody.error?.code !== "already_paid" || !refusedBody.error?.message) throw new Error(`second play was not refused with already_paid: ${JSON.stringify(refusedBody)}`);
 
   // Nobody polls for the visitor: only the console's ticks move the record. Watch it through the read-only admin route.
   let status = "";
@@ -115,8 +126,49 @@ async function runBoothFlow(reference) {
   await admin.close();
 }
 
+// Autobank: the visitor stays on the timeline; this script ticks the driver every 3 s (the presenter console would),
+// and the driver plays the bank for a deposit at or below the threshold. Nobody presses anything on the console.
+async function runAutobankFlow(reference) {
+  const pendingList = await (await fetch(`${APP}/api/booth/admin/pending`, { headers: adminHeaders })).json();
+  const mine = (pendingList.pending ?? []).find((d) => d.reference === reference);
+  if (!mine) throw new Error("deposit not listed for the presenter");
+  const maxTry = Number(pendingList.autoBankMaxTry ?? 0);
+  log(`driver auto-bank threshold: ₺${maxTry}; this deposit: ₺${AMOUNT}`);
+  if (!(Number(AMOUNT) <= maxTry)) throw new Error(`BOOTH_AUTO_BANK_MAX_TRY (${maxTry}) must be at least ${AMOUNT} for this check`);
+  const startedAt = Date.now();
+  let last = "";
+  let played = null;
+  for (let i = 0; i < 100; i += 1) {
+    const tick = await fetch(`${APP}/api/pipeline/tick`, { method: "POST", headers: adminHeaders, body: "{}" }).then((r) => r.json()).catch(() => null);
+    const note = tick?.deposits?.find((d) => d.id === mine.id)?.note;
+    if (note && !played && /auto_bank:played/.test(note)) {
+      played = Date.now();
+      log(`  driver played the bank ${((played - startedAt) / 1000).toFixed(1)}s after the IBAN step (tick note: ${note})`);
+    }
+    const current = ((await page.getByTestId("deposit-current").textContent()) ?? "").trim();
+    if (current !== last) {
+      log("  status:", current);
+      last = current;
+    }
+    if (/Tamam\. USDC kasada\./.test(current)) break;
+    if (/Olmadı/.test(current)) throw new Error(`deposit failed: ${(await page.locator("[role=alert]").allTextContents()).join(" | ")}`);
+    const tap = page.getByRole("button", { name: /Kasaya koy/ });
+    if (await tap.isVisible().catch(() => false)) {
+      log("  autopilot needs a tap; tapping");
+      await tap.click();
+    }
+    await page.waitForTimeout(3000);
+  }
+  if (!/Tamam\. USDC kasada\./.test(last)) throw new Error(`deposit did not complete without a presenter; last status: ${last}`);
+  const rec = await (await fetch(`${APP}/api/booth/admin/record?deposit=${mine.id}`, { headers: adminHeaders })).json();
+  log("  record bankPlayed:", JSON.stringify(rec.bankPlayed ?? null));
+  if (rec.bankPlayed?.by !== "auto") throw new Error(`the record should say the driver played the bank (bankPlayed.by = auto), saw ${JSON.stringify(rec.bankPlayed ?? null)}`);
+  log(`✓ ₺${AMOUNT} completed with nobody on the console: USDC in the vault ${((Date.now() - startedAt) / 1000).toFixed(1)}s after the IBAN step`);
+}
+
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
@@ -142,18 +194,18 @@ try {
   else await ensureDefaultAnchor();
   log("onboard");
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   const tapAt = Date.now();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   log(`savings visible ${((Date.now() - tapAt) / 1000).toFixed(1)}s after tap`);
   const contract = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", contract);
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
   log("✓ spending limit installed, deposit enabled");
 
   log(`deposit ${AMOUNT} ${E2E_ANCHOR ? `on ${E2E_ANCHOR}` : ""}`);
-  await page.locator("a[href='/yukle']").click();
+  await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").click();
   // The link can be re-rendered under the click while the limit card settles; make sure the deposit page is actually open.
   await page.waitForURL("**/yukle", { timeout: 15000 }).catch(async () => {
     log("  deposit link click did not navigate; opening /yukle directly");
@@ -203,6 +255,15 @@ try {
     process.exit(0);
   }
 
+  if (AUTOBANK) {
+    await runAutobankFlow(reference);
+    await restoreAnchor();
+    console.log("\nE2E DEPOSIT OK (the driver played the bank by itself). console errors:", consoleErrors.length ? consoleErrors : "none");
+    console.log("CONTRACT=" + contract);
+    await browser.close();
+    process.exit(0);
+  }
+
   // Resumability: reopening the app mid-deposit must return to the same timeline from stored state.
   await page.reload({ waitUntil: "networkidle" });
   await page.getByTestId("resume-notice").waitFor({ timeout: 30000 });
@@ -221,12 +282,14 @@ try {
   } else if (adminToken) {
     log("play the bank from the presenter page (/booth/admin)");
     const admin = await context.newPage();
-    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(adminToken)}`, { waitUntil: "networkidle" });
+    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(adminToken)}`, { waitUntil: "domcontentloaded" });
+    // The page lifts the token out of the address bar when it mounts; check once it has.
+    await admin.waitForFunction(() => !window.location.search.includes("token="), null, { timeout: 15000 }).catch(() => undefined);
     if (admin.url().includes("token=")) throw new Error("admin token was not removed from the URL");
     await admin.getByText(reference).first().waitFor({ timeout: 20000 });
-    await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
+    await playButton(admin, reference).click();
     await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
-    log("  admin page:", ((await admin.locator("[role=status]").first().textContent()) ?? "").trim());
+    log("  admin page:", ((await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().textContent()) ?? "").trim());
     await admin.close();
   } else {
     throw new Error("BOOTH_ADMIN_TOKEN is required: the presenter API plays the bank through the anchor's SEP-6 sandbox hook");

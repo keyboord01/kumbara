@@ -4,6 +4,12 @@ export function formatUsdc(raw: bigint | number | string | null | undefined, loc
   return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
 }
 
+/** A 7-decimal on-chain amount (stroops) for reading: two decimals, locale grouping. Used for XLM; USDC has its own helper above. */
+export function formatStroops(raw: bigint | null | undefined, locale: "tr" | "en" = "tr"): string {
+  if (raw === null || raw === undefined) return "–";
+  return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(raw) / 1e7);
+}
+
 export function formatTry(value: number | null | undefined, locale: "tr" | "en" = "tr"): string {
   if (value === null || value === undefined || Number.isNaN(value)) return "–";
   return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US", { style: "currency", currency: "TRY", maximumFractionDigits: 2 }).format(value);

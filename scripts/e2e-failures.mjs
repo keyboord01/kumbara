@@ -7,6 +7,7 @@ import { chromium } from "playwright";
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const browser = await chromium.launch({ channel: process.env.PW_CHANNEL ?? "chrome", headless: true });
 const context = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "tr"); } catch { /* storage off */ } });
 const page = await context.newPage();
 const consoleErrors = [];
 page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`));
@@ -20,12 +21,12 @@ try {
   await guard.waitFor({ timeout: 20000 });
   const guardText = ((await guard.textContent()) ?? "").replace(/\s+/g, " ");
   if (!/MAINNET/.test(guardText) || !/TESTNET/.test(guardText)) throw new Error(`wrong-network screen does not name both networks: ${guardText.slice(0, 160)}`);
-  if ((await page.getByRole("button", { name: /Kumbaranı aç/ }).count()) !== 0) throw new Error("onboarding button still rendered behind the wrong-network block");
+  if ((await page.getByRole("button", { name: /Başla|Get started/ }).count()) !== 0) throw new Error("onboarding button still rendered behind the wrong-network block");
   log("✓ wrong-network block replaces the app and names both networks");
 
   log("offline banner");
   await page.goto(`${APP}/`, { waitUntil: "networkidle" });
-  await page.getByRole("button", { name: /Kumbaranı aç/ }).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /Başla|Get started/ }).waitFor({ timeout: 30000 });
   await context.setOffline(true);
   await page.evaluate(() => window.dispatchEvent(new Event("offline")));
   await page.getByTestId("offline-banner").waitFor({ timeout: 10000 });

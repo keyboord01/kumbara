@@ -5,7 +5,7 @@ Recorded 2026-09-05T23:05:19.537Z against https://kumbara.sembol.xyz (Stellar TE
 | Time | What happens |
 | --- | --- |
 | 00:01 | Landing page on Stellar TESTNET: one button, no password, no app, no XLM. |
-| 00:03 | Tap 'Kumbaranı aç': the passkey (Face ID) creates the key; the relay deploys the smart account. |
+| 00:03 | Tap 'Başla': the passkey (Face ID) creates the key; the relay deploys the smart account. |
 | 00:13 | Savings screen: the kumbara exists on-chain, TESTNET address with a stellar.expert link. |
 | 00:27 | Spending limit (1,000 USDC per transaction) installed in the background; Deposit unlocks. |
 | 00:29 | Deposit: 100 TRY, indicative USDC quote from the anchor. |

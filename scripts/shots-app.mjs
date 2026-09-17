@@ -29,27 +29,41 @@ const shot = async (name) => {
 try {
   await page.goto(`${APP}/?ref=e2e&net=testnet`, { waitUntil: "networkidle" });
   await page.getByRole("button", { name: LANG, exact: true }).click();
-  await page.getByRole("button", { name: /Kumbaranı aç|Open your kumbara/ }).waitFor({ timeout: 30000 });
+  await page.getByRole("button", { name: /Başla|Get started/ }).waitFor({ timeout: 30000 });
   await shot("onboard");
 
-  await page.getByRole("button", { name: /Kumbaranı aç|Open your kumbara/ }).click();
+  await page.getByRole("button", { name: /Başla|Get started/ }).click();
   await page.waitForURL("**/kumbara**", { timeout: 60000 });
   await page.getByText(/Kumbara adresi|Kumbara address/).first().waitFor({ timeout: 30000 });
-  await page.locator("a[href='/yukle']").waitFor({ timeout: 90000 });
+  await page.locator("main section a[href='/yukle']").waitFor({ timeout: 90000 });
   await page.waitForTimeout(2000);
   await shot("savings");
 
-  await page.locator("a[href='/yukle']").click();
+  await page.locator("main section a[href='/yukle']").click();
   await page.waitForURL("**/yukle", { timeout: 15000 });
   const input = page.locator("input[type=number]");
   await input.waitFor({ timeout: 20000 });
-  await input.fill("100");
+  await input.fill("100"); // under BOOTH_AUTO_BANK_MAX_TRY: the driver plays the bank itself
   await page.getByRole("button", { name: /Devam|Continue/ }).click();
   await page.getByTestId("deposit-reference").waitFor({ timeout: 30000 });
   await shot("deposit");
-  // Leave nothing pending for the presenter's list: cancel the deposit before the transfer.
-  await page.getByRole("button", { name: /Vazgeç|Cancel/ }).first().click().catch(() => undefined);
-  await page.waitForTimeout(1500);
+
+  // The withdraw screen is only worth a picture with money in the vault, so finish this deposit: the driver
+  // plays the bank for it by itself (it is under the auto threshold), then one approval puts it in the vault.
+  log("finishing the deposit so the withdraw screen has a balance");
+  // Nobody is on the presenter console during a screenshot run, so this script drives the pipeline itself;
+  // the bank is played by the driver because the amount is under the auto threshold.
+  const ADMIN = process.env.BOOTH_ADMIN_TOKEN?.trim();
+  if (!ADMIN) throw new Error("BOOTH_ADMIN_TOKEN is required to finish the deposit for the withdraw screenshot");
+  for (let i = 0; i < 100; i += 1) {
+    const status = ((await page.getByTestId("deposit-current").textContent().catch(() => "")) ?? "").trim();
+    if (/Tamam\. USDC kasada\.|Done\. USDC is in the vault\./.test(status)) break;
+    await fetch(`${APP}/api/pipeline/tick`, { method: "POST", headers: { authorization: `Bearer ${ADMIN}` } }).catch(() => undefined);
+    const tap = page.getByRole("button", { name: /Kasaya koy|Put it in the vault/ });
+    if (await tap.isVisible().catch(() => false)) await tap.click();
+    if (i === 99) throw new Error(`the deposit never reached the vault: ${status}`);
+    await page.waitForTimeout(3000);
+  }
 
   await page.goto(`${APP}/cek`, { waitUntil: "networkidle" });
   const wInput = page.locator("input[type=number]");

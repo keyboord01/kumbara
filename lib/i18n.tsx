@@ -13,45 +13,53 @@ export const dict = {
     network: { testnet: "TESTNET", mainnet: "MAINNET" },
     footer: "Test ağı. Gerçek lira hareket etmez.",
     footerMainnet: "Ana ağ. Gerçek USDC hareket eder.",
-    nav: { savings: "Kumbaram", deposit: "Yükle", withdraw: "Çek", security: "Güvenlik" },
+    nav: { savings: "Kumbaram", deposit: "Yükle", withdraw: "Çek", security: "Güvenlik", proof: "Kanıt", label: "Kumbara" },
     onboard: {
-      title: "Liranı USDC olarak biriktir.",
-      lead: "Kumbara, passkey ile (Face ID, Touch ID ya da parola yöneticin) açılan, anahtarı yalnızca sende olan bir USDC kumbarasıdır. Şifre yok, uygulama yok, XLM yok.",
-      cta: "Kumbaranı aç",
-      existing: "Kumbarana git",
+      title: "Dolar biriktir. Tek dokunuş.",
+      lead: "Kumbara passkey'inle açılır: Face ID, Touch ID ya da parola yöneticin. Anahtar yalnızca sende. Tohum kelime yok, uygulama yok, XLM yok.",
+      cta: "Başla",
+      existing: "Kumbarama git",
       phasePasskey: "Passkey onayı bekleniyor…",
       phaseDeploy: "Kumbaran Stellar'da oluşturuluyor…",
       phaseLimit: "Harcama limiti kuruluyor (ikinci onay)…",
       done: "Kumbaran hazır.",
       address: "Kumbara adresi",
       explorer: "stellar.expert'te gör",
-      limitNote: "Varsayılan harcama limiti işlem başına 1.000 USDC. Güvenlik sayfasından değiştirebilirsin.",
+      limitNote: "Lira ya da USDC yükle. İstediğinde bankana ya da bir Stellar adresine geri çek.",
       errorTitle: "Olmadı.",
       retry: "Tekrar dene",
       haveOne: "Kumbaram zaten var",
       connecting: "Passkey ile bağlanılıyor…",
       lostPasskey: "Passkey'imi bulamıyorum",
-      steps: ["Passkey ile aç (Face ID, Touch ID)", "Lira yükle, USDC olsun", "USDC DeFindex'te getiri kazanabilir", "İstediğinde liraya geri çek"],
+      steps: ["Passkey ile aç", "Lira ya da USDC yükle", "USDC olarak DeFindex kasasında durur", "Bankana ya da bir Stellar adresine geri çek"],
     },
     savings: {
       title: "Kumbaram",
       inVault: "Kumbarada",
-      waiting: "Beklemede (henüz kasada değil)",
+      waiting: "Kumbaranda, henüz kasada değil",
+      putInVault: "Kasaya koy",
+      putInVaultHint: "Tek passkey onayıyla kasaya geçer.",
+      putInVaultDone: "Kasada.",
+      xlmLine: "{amount} XLM da burada.",
+      xlmHint: "Kumbara USDC biriktirir; XLM burada durur, ağ ücretlerini relay öder.",
       tryEquiv: "≈",
       rateSource: { reflector: "Reflector kuru", anchor: "Anchor kuru" },
       vault: "Kasa",
-      yieldLine: "USDC'n DeFindex'te getiri kazanabilir.",
+      yieldLine: "USDC'n DeFindex kasasında durur.",
       noYield: "Test ağındaki kasada getiri oluşmaz.",
-      risk: "Getiri garanti değildir. DeFindex stratejileri ve akıllı sözleşmeler risk taşır; kaybı göze alamayacağın parayı koyma.",
+      risk: "Getiri vaadi yok. Akıllı sözleşmeler risk taşır; kaybı göze alamayacağın parayı koyma.",
       recovery: "Kurtarma",
       recoveryOk: "Yedek anahtar var",
       recoveryMissing: "Yedek anahtar yok",
       proofLink: "Kanıt: zincirin söyledikleri",
       recoveryHint: "Telefonu kaybedersen kumbaraya erişmek için bir yedek ekle.",
-      limit: "Harcama limiti",
+      limit: "Güvenlik limiti",
       limitPerTx: "işlem başına",
       limitPer: "her",
       limitNone: "Limit yok",
+      limitDeferred: "Kurulmadı",
+      limitDeferredHint: "İstersen işlem başına 1.000 USDC'lik bir güvenlik limiti kur. Tek passkey onayı; sonra her çekim iki onay.",
+      limitSetNow: "Şimdi kur",
       limitSetup: "Güvenlik kuralı kuruluyor…",
       limitSetupHint: "Passkey ile ikinci bir onay istenir. Yükleme bu kural kurulunca açılır.",
       limitSetupFailed: "Harcama limiti kurulamadı.",
@@ -64,7 +72,7 @@ export const dict = {
       refresh: "Yenile",
       loading: "Yükleniyor…",
       notConnected: "Bağlı kumbara yok.",
-      open: "Kumbaranı aç",
+      open: "Başla",
       ledgers: "ledger",
     },
     proof: {
@@ -121,16 +129,22 @@ export const dict = {
     security: {
       title: "Güvenlik",
       signers: "İmzacılar",
-      signersHint: "Kumbarayı onaylayabilen her anahtar. Telefonun kaybolursa kumbaran kaybolmasın diye ikinci bir cihaz ya da yedek anahtar ekle.",
+      signersHint: "Onay verebilen her anahtar. Telefonun kaybolursa kumbaran kaybolmasın diye ikinci bir cihaz ya da yedek anahtar ekle.",
       recovery: "Kurtarma",
-      recoveryHint: "Şimdi bir kurtarma anahtarı kaydet. Yeni bir cihazdan girmek için açılış sayfasındaki Kurtar'ı kullan.",
+      recoveryHint: "Şimdi bir yedek ekle. Yeni bir cihazdan girmek için ilk ekrandaki Kurtar'ı kullan.",
       limit: "Harcama limiti",
-      limitHint: "Kumbaradan çıkan her USDC transferi (kasaya yatırma dahil) bu limite tabidir. Zincir üstünde uygulanır.",
+      limitHint: "Kumbaradan çıkan her USDC transferini sınırlar, kasaya yatırma dahil. Zincir üstünde uygulanır.",
       back: "Kumbarama dön",
     },
     deposit: {
       title: "Yükle",
-      lead: "Ne kadar lira yüklemek istersin?",
+      lead: "Ne kadar lira?",
+      method: { label: "Nasıl yüklemek istersin?", iban: "Havale / FAST", address: "Cüzdandan USDC" },
+      addressTitle: "Kumbarana USDC gönder",
+      addressLead: "Sözleşme adresine ödeme yapabilen herhangi bir Stellar cüzdanından ya da başka bir kumbaradan.",
+      addressCaveat: "Yalnızca G adreslerine ödeyen borsalar henüz ulaşamaz.",
+      addressAsset: "USDC · Stellar test ağı",
+      addressThen: "Ulaşınca kumbara ekranında \"Kasaya koy\"a bas.",
       amountLabel: "Tutar (₺)",
       quick: [100, 250, 500, 1000],
       limits: "Anchor sınırı: en az ₺{min}, en çok ₺{max}.",
@@ -190,7 +204,23 @@ export const dict = {
     },
     withdraw: {
       title: "Çek",
-      lead: "Ne kadar USDC'yi liraya çevirmek istersin?",
+      lead: "Ne kadar USDC?",
+      method: { label: "Nereye gitsin?", iban: "Bankama (lira)", address: "Bir Stellar adresine (USDC)" },
+      destinationLabel: "Stellar adresi",
+      destinationHint: "G ya da C ile başlar. G adresinde USDC trustline'ı olmalı.",
+      destinationInvalid: "Bu bir Stellar adresi değil.",
+      destinationNoTrustline: "Bu adres henüz USDC alamıyor: USDC trustline'ı yok.",
+      addressSteps: {
+        created: "Hazırlanıyor",
+        awaiting_usdc: "Kasadan çekiliyor ve gönderiliyor (iki passkey onayı)",
+        usdc_sent: "Gönderildi.",
+        completed: "Tamam. USDC adrese gönderildi.",
+        failed: "Olmadı.",
+      },
+      stepLimit: "Güvenlik limitin kuruluyor…",
+      tapLimit: "Güvenlik limitini kur (passkey)",
+      sentTo: "Gönderildi",
+      addressLinks: { transfer: "Adrese transfer" },
       amountLabel: "Tutar (USDC)",
       available: "Kasada",
       all: "Tümünü çek",
@@ -245,7 +275,17 @@ export const dict = {
       anchorNoHook: "banka simülasyonu yok: lira gerçekten gelmeli",
       anchorUnavailable: "stellar.toml okunamadı",
       title: "Stant yönetimi",
-      lead: "Sunucu için: en yeni bekleyen yükleme için bankayı oynatır (pnpm demo:deposit ile aynı). Bu sayfa herkese açık değildir.",
+      lead: "Sürücü ₺{max}'ye kadar olan yüklemelerde bankayı kendi oynatır. Büyükleri burada seni bekler. Herkese açık değil.",
+      queue: "Bankayı bekleyenler",
+      queueEmpty: "Bekleyen yok.",
+      auto: "otomatik",
+      queueHint: "₺{max} ve altı kendiliğinden oynatılır. Üstü senin onayını bekler.",
+      manual: "onayın gerek",
+      autoSoon: "sonraki tikte otomatik",
+      playAll: "Limit üstündekilerin hepsini oynat",
+      age: "{s} sn",
+      tools: "Araçlar",
+      statusStrip: "Durum",
       tokenLabel: "Yönetici anahtarı",
       tokenSubmit: "Giriş",
       newest: "En yeni bekleyen yükleme",
@@ -443,11 +483,11 @@ export const dict = {
     network: { testnet: "TESTNET", mainnet: "MAINNET" },
     footer: "Testnet. No real lira moves.",
     footerMainnet: "Mainnet. Real USDC moves.",
-    nav: { savings: "My kumbara", deposit: "Deposit", withdraw: "Withdraw", security: "Security" },
+    nav: { savings: "My kumbara", deposit: "Deposit", withdraw: "Withdraw", security: "Security", proof: "Proof", label: "Kumbara" },
     onboard: {
-      title: "Put lira away as USDC.",
-      lead: "Kumbara is a USDC piggy bank that opens with a passkey: Face ID, Touch ID or your password manager. Only you hold the key. No password, no app, no XLM.",
-      cta: "Open your kumbara",
+      title: "Save in dollars. One tap.",
+      lead: "Kumbara opens with your passkey: Face ID, Touch ID or a password manager. Only you hold the key. No seed phrase, no app, no XLM.",
+      cta: "Get started",
       existing: "Go to your kumbara",
       phasePasskey: "Waiting for your passkey…",
       phaseDeploy: "Creating your kumbara on Stellar…",
@@ -455,33 +495,41 @@ export const dict = {
       done: "Your kumbara is ready.",
       address: "Kumbara address",
       explorer: "View on stellar.expert",
-      limitNote: "The default spending limit is 1,000 USDC per transaction. Change it on the security page.",
+      limitNote: "Put lira or USDC in. Take it out to your bank or to a Stellar address whenever you like.",
       errorTitle: "That did not work.",
       retry: "Try again",
       haveOne: "I already have a kumbara",
       connecting: "Connecting with your passkey…",
       lostPasskey: "I can't find my passkey",
-      steps: ["Open with a passkey (Face ID, Touch ID)", "Deposit lira, receive USDC", "USDC can earn yield through DeFindex", "Withdraw back to lira whenever you like"],
+      steps: ["Open with a passkey", "Put lira or USDC in", "It sits as USDC in a DeFindex vault", "Take it out to your bank or a Stellar address"],
     },
     savings: {
       title: "My kumbara",
       inVault: "In the kumbara",
-      waiting: "Waiting (not in the vault yet)",
+      waiting: "In your kumbara, not in the vault yet",
+      putInVault: "Put it in the vault",
+      putInVaultHint: "One passkey approval moves it into the vault.",
+      putInVaultDone: "In the vault.",
+      xlmLine: "You also hold {amount} XLM here.",
+      xlmHint: "Kumbara saves in USDC; the XLM just sits here, and the relay pays the network fees.",
       tryEquiv: "≈",
       rateSource: { reflector: "Reflector rate", anchor: "Anchor rate" },
       vault: "Vault",
-      yieldLine: "Your USDC can earn yield through DeFindex.",
+      yieldLine: "Your USDC sits in a DeFindex vault.",
       noYield: "No yield accrues on the testnet vault.",
-      risk: "Yield is not guaranteed. DeFindex strategies and smart contracts carry risk; do not put in money you cannot afford to lose.",
+      risk: "No return is promised. Smart contracts carry risk; do not put in money you cannot afford to lose.",
       recovery: "Recovery",
       recoveryOk: "Backup key enrolled",
       recoveryMissing: "No backup key",
       proofLink: "Proof: what the chain says",
       recoveryHint: "Add a backup so a lost phone is not a lost kumbara.",
-      limit: "Spending limit",
+      limit: "Safety limit",
       limitPerTx: "per transaction",
       limitPer: "per",
       limitNone: "No limit",
+      limitDeferred: "Not set",
+      limitDeferredHint: "Add a 1,000 USDC per-transaction safety limit if you want one. One passkey approval, once.",
+      limitSetNow: "Set it now",
       limitSetup: "Setting up your spending limit…",
       limitSetupHint: "Your passkey will ask for a second approval. Deposits open once the rule is installed.",
       limitSetupFailed: "The spending limit could not be installed.",
@@ -494,12 +542,12 @@ export const dict = {
       refresh: "Refresh",
       loading: "Loading…",
       notConnected: "No kumbara connected.",
-      open: "Open your kumbara",
+      open: "Get started",
       ledgers: "ledgers",
     },
     proof: {
       title: "Proof",
-      lead: "What the chain says about this kumbara, read live. You do not have to trust us: every line links to the explorer.",
+      lead: "What the chain says about this kumbara, read live. Every line links to the explorer.",
       onChain: "Read from the chain",
       signers: "Signers",
       yourPasskey: "your passkey",
@@ -551,16 +599,22 @@ export const dict = {
     security: {
       title: "Security",
       signers: "Signers",
-      signersHint: "Every key that can approve the kumbara. Add a second device or a backup key so a lost phone is not a lost kumbara.",
+      signersHint: "Every key that can approve. Add a second device or a backup key so a lost phone is not a lost kumbara.",
       recovery: "Recovery",
-      recoveryHint: "Enroll a recovery credential now. To get back in from a new device, use Recover on the landing page.",
+      recoveryHint: "Add a backup now. From a new device, use Recover on the first screen.",
       limit: "Spending limit",
-      limitHint: "Every USDC transfer leaving the kumbara (vault deposits included) is subject to this limit. Enforced on-chain.",
+      limitHint: "Caps every USDC transfer that leaves the kumbara, vault deposits included. Enforced on chain.",
       back: "Back to my kumbara",
     },
     deposit: {
       title: "Deposit",
-      lead: "How much lira do you want to deposit?",
+      lead: "How much lira?",
+      method: { label: "How do you want to deposit?", iban: "Bank transfer", address: "USDC from a wallet" },
+      addressTitle: "Send USDC to your kumbara",
+      addressLead: "From any Stellar wallet or app that can pay a contract address, or from another kumbara.",
+      addressCaveat: "Exchanges that only pay G addresses cannot reach it yet.",
+      addressAsset: "USDC · Stellar testnet",
+      addressThen: "When it arrives, press \"Put it in the vault\" on your kumbara screen.",
       amountLabel: "Amount (₺)",
       quick: [100, 250, 500, 1000],
       limits: "Anchor limits: at least ₺{min}, at most ₺{max}.",
@@ -570,7 +624,7 @@ export const dict = {
       quoteTitle: "USDC you will receive",
       rateLine: "Rate",
       spread: "spread included",
-      indicative: "Indicative rate. The final rate is locked for 120 seconds when your lira arrives.",
+      indicative: "Indicative. The final rate locks for 120 seconds when your lira arrives.",
       continue: "Continue",
       transferTitle: "Bank transfer details",
       bank: "Bank",
@@ -578,7 +632,7 @@ export const dict = {
       recipient: "Recipient",
       amount: "Amount",
       description: "Description",
-      descriptionHint: "Put only this reference in the description. It is how your kumbara is matched.",
+      descriptionHint: "Put only this reference in the description; it matches the transfer to your kumbara.",
       copy: "Copy",
       copied: "Copied",
       sandbox: "Testnet: the bank transfer is simulated by the server (pnpm demo:deposit).",
@@ -600,13 +654,13 @@ export const dict = {
       autopilotSigning: "Waiting for your passkey…",
       closeHint: "You can close this; we'll continue.",
       needsYou: "This step needs your passkey.",
-      arrivedTitle: "USDC arrived — tap to put it in your kumbara.",
+      arrivedTitle: "USDC arrived. Tap to put it in the vault.",
       stepTagUs: "us",
       stepTagYou: "passkey",
       links: { anchor: "Anchor payment", forward: "Transfer to kumbara", vault: "Vault deposit" },
       backToSavings: "Back to my kumbara",
       newDeposit: "New deposit",
-      cancelHint: "If you have not sent the transfer, you can simply leave this screen.",
+      cancelHint: "Not sent the transfer? Just leave this screen.",
       resumeTitle: "Deposit in progress",
       limitWarning: "This amount may exceed the spending limit (1,000 USDC per transaction); the vault deposit could be rejected.",
       treasuryCap: "The testnet anchor's treasury holds about {usdc} USDC right now; larger deposits wait at the anchor. Enter a smaller amount.",
@@ -620,7 +674,23 @@ export const dict = {
     },
     withdraw: {
       title: "Withdraw",
-      lead: "How much USDC do you want back as lira?",
+      lead: "How much USDC?",
+      method: { label: "Where should it go?", iban: "To my bank (lira)", address: "To a Stellar address (USDC)" },
+      destinationLabel: "Stellar address",
+      destinationHint: "Starts with G or C. A G address must already hold USDC (a trustline).",
+      destinationInvalid: "That is not a Stellar address.",
+      destinationNoTrustline: "This address cannot receive USDC yet: it has no USDC trustline.",
+      addressSteps: {
+        created: "Preparing",
+        awaiting_usdc: "Withdrawing from the vault and sending (two passkey approvals)",
+        usdc_sent: "Sent.",
+        completed: "Done. USDC sent to the address.",
+        failed: "That did not work.",
+      },
+      stepLimit: "Setting your safety limit…",
+      tapLimit: "Set the safety limit (passkey)",
+      sentTo: "Sent to",
+      addressLinks: { transfer: "Transfer to the address" },
       amountLabel: "Amount (USDC)",
       available: "In the vault",
       all: "Withdraw all",
@@ -628,9 +698,9 @@ export const dict = {
       quoteTitle: "Lira you will receive",
       rateLine: "Sell rate",
       spread: "spread included",
-      indicative: "Indicative rate. The anchor converts at a rate locked for 30 minutes once the USDC arrives.",
+      indicative: "Indicative. The anchor locks the rate for 30 minutes once the USDC arrives.",
       payoutTo: "Payout",
-      payoutHint: "The anchor sends the lira to your IBAN by FAST (simulated on testnet).",
+      payoutHint: "The anchor sends lira to your IBAN by FAST (simulated on testnet).",
       limitBlocked: "This amount exceeds the spending limit",
       limitLink: "Change the limit on the security page",
       continue: "Continue",
@@ -675,7 +745,17 @@ export const dict = {
       anchorNoHook: "no bank simulation: the lira has to arrive for real",
       anchorUnavailable: "stellar.toml unreachable",
       title: "Booth admin",
-      lead: "For the presenter: plays the bank for the newest pending deposit (same as pnpm demo:deposit). This page is not public.",
+      lead: "The driver plays the bank for deposits up to ₺{max} by itself. Larger ones wait here for you. Not public.",
+      queue: "Waiting for the bank",
+      queueEmpty: "Nothing waiting.",
+      auto: "auto",
+      queueHint: "Up to ₺{max} plays by itself. Above that it waits for your press.",
+      manual: "needs you",
+      autoSoon: "auto on the next tick",
+      playAll: "Play all above the limit",
+      age: "{s} s",
+      tools: "Tools",
+      statusStrip: "Status",
       tokenLabel: "Admin token",
       tokenSubmit: "Enter",
       newest: "Newest pending deposit",
@@ -899,22 +979,25 @@ function subscribe(callback: () => void): () => void {
   };
 }
 
+/** English unless Turkish was chosen (toggle or `?lang=tr` on a link); the choice sticks per browser. */
 function readStoredLocale(): Locale {
   try {
-    return window.localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "tr";
+    return window.localStorage.getItem(STORAGE_KEY) === "tr" ? "tr" : "en";
   } catch {
-    return "tr";
+    return "en";
   }
 }
 
-export function LocaleProvider({ children }: { children: ReactNode }) {
-  // The stored preference is an external store: server snapshot "tr", client
-  // snapshot from localStorage, updates via a window event.
-  const locale = useSyncExternalStore(subscribe, readStoredLocale, () => "tr" as Locale);
+/** `?lang=tr|en` on any link (the booth QR, a share) selects and persists the language once. */
+function readLinkLocale(): Locale | null {
+  const raw = new URLSearchParams(window.location.search).get("lang")?.toLowerCase();
+  return raw === "tr" || raw === "en" ? raw : null;
+}
 
-  useEffect(() => {
-    document.documentElement.lang = locale;
-  }, [locale]);
+export function LocaleProvider({ children }: { children: ReactNode }) {
+  // The stored preference is an external store: server snapshot "en", client
+  // snapshot from localStorage, updates via a window event.
+  const locale = useSyncExternalStore(subscribe, readStoredLocale, () => "en" as Locale);
 
   const setLocale = useCallback((next: Locale) => {
     try {
@@ -924,6 +1007,15 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }
     window.dispatchEvent(new Event(LANG_EVENT));
   }, []);
+
+  useEffect(() => {
+    const linked = readLinkLocale();
+    if (linked && linked !== readStoredLocale()) setLocale(linked);
+  }, [setLocale]);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
 
   const value = useMemo<LocaleContextValue>(() => ({ locale, t: dict[locale] as Dict, setLocale }), [locale, setLocale]);
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

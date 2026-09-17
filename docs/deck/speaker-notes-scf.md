@@ -28,9 +28,9 @@ Read aloud. TR first, then EN. The slides carry one idea each; these notes carry
 
 ## 5 · How it works
 
-**TR.** Beş hamle: passkey akıllı hesabı açar, relay ücreti öder; limit zincire yazılır; anchor IBAN verir; geçici hesap USDC'yi iletir; bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir, akıllı hesaba değil. Bu yüzden para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: USDC'yi kumbarana ilet, sonra kendini kapat. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor. Üç karma ekranda; on denemede on tam eşleşme.
+**TR.** Beş hamle: passkey akıllı hesabı açar, relay ücreti öder; ilk çekimde limit zincire yazılır; anchor IBAN verir; geçici hesap USDC'yi iletir; bir onayla kasa. Köprü: anchor yalnızca normal bir Stellar hesabına ödeyebilir, akıllı hesaba değil. Bu yüzden para gelmeden önce yalnızca iki işlemi imzalanmış geçici bir hesap yaratırız: USDC'yi kumbarana ilet, sonra kendini kapat. Biz dahil kimse yönünü değiştiremez. Emanet yok, bize güven gerekmiyor. Üç karma ekranda; on denemede on tam eşleşme.
 
-**EN.** Five moves: a passkey opens the smart account and the relay pays the fees; the limit is written on-chain; the anchor issues an IBAN; a temporary account forwards the USDC; one approval into the vault. The bridge: the anchor can only pay a normal Stellar account, not a smart account. So we create a temporary account whose only two possible transactions are signed before any money arrives: forward the USDC to your kumbara, then close itself. Nobody, including us, can ever redirect it. No custody, no trust in us. Three hashes on the slide; ten exact matches in ten runs.
+**EN.** Five moves: a passkey opens the smart account and the relay pays the fees; the limit is written on-chain at the first withdrawal; the anchor issues an IBAN; a temporary account forwards the USDC; one approval into the vault. The bridge: the anchor can only pay a normal Stellar account, not a smart account. So we create a temporary account whose only two possible transactions are signed before any money arrives: forward the USDC to your kumbara, then close itself. Nobody, including us, can ever redirect it. No custody, no trust in us. Three hashes on the slide; ten exact matches in ten runs.
 
 ## 6 · Where it works
 
@@ -46,9 +46,9 @@ Read aloud. TR first, then EN. The slides carry one idea each; these notes carry
 
 ## 8 · Regulation
 
-**TR.** Emanet almayan yazılım; düzenlemeye tabi taraf anchor. Lira, USDC ya da anahtar tutmayız. Anchor fiat parayı tutar ve KYC yapar; biz anchor'ın KYC'si üzerine kurarız, kendimiz KYC yürütmeyiz. Gönderme yok, P2P yok, işyeri akışı yok. İşlem başına limit zincirde, ek limitler anchor tarafında. Ana ağdan önce anchor, emanet almayan bir uygulamaya hizmet verebileceğini yazılı olarak teyit eder. Teyit yoksa açılış yok.
+**TR.** Emanet almayan yazılım; düzenlemeye tabi taraf anchor. Lira, USDC ya da anahtar tutmayız. Anchor fiat parayı tutar ve KYC yapar; biz anchor'ın KYC'si üzerine kurarız, kendimiz KYC yürütmeyiz. Para ya kendi banka hesabına ya da kendi seçtiğin bir Stellar adresine çıkar; ödeme ürünü yok, işyeri akışı yok, rehber yok. İşlem başına limit zincirde, ek limitler anchor tarafında. Ana ağdan önce anchor, emanet almayan bir uygulamaya hizmet verebileceğini yazılı olarak teyit eder. Teyit yoksa açılış yok.
 
-**EN.** Non-custodial software; the anchor is the regulated party. We never hold lira, USDC or keys. The anchor holds fiat and does KYC; we build on the anchor's KYC and run none ourselves. No send, no P2P, no merchant flow. Per-transaction cap on-chain, anchor-side limits. Before mainnet the anchor confirms in writing it can serve a non-custodial app. No confirmation, no launch.
+**EN.** Non-custodial software; the anchor is the regulated party. We never hold lira, USDC or keys. The anchor holds fiat and does KYC; we build on the anchor's KYC and run none ourselves. Money leaves to your own bank account or to a Stellar address you choose; no payments product, no merchant flow, no address book. Per-transaction cap on-chain, anchor-side limits. Before mainnet the anchor confirms in writing it can serve a non-custodial app. No confirmation, no launch.
 
 ## 9 · Team
 

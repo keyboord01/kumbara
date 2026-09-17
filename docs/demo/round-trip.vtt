@@ -4,7 +4,7 @@ WEBVTT
 Landing page on Stellar TESTNET: one button, no password, no app, no XLM.
 
 00:03.831 --> 00:13.689
-Tap 'Kumbaranı aç': the passkey (Face ID) creates the key; the relay deploys the smart account.
+Tap 'Başla': the passkey (Face ID) creates the key; the relay deploys the smart account.
 
 00:13.689 --> 00:27.065
 Savings screen: the kumbara exists on-chain, TESTNET address with a stellar.expert link.

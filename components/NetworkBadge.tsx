@@ -1,5 +1,7 @@
 "use client";
 
+import { cn } from "cn";
+import { Badge } from "@/components/ui/badge";
 import { NETWORK } from "@/lib/config";
 import { useLocale } from "@/lib/i18n";
 
@@ -7,13 +9,11 @@ import { useLocale } from "@/lib/i18n";
 export function NetworkBadge({ className = "" }: { className?: string }) {
   const { t } = useLocale();
   const testnet = NETWORK === "testnet";
+  const label = testnet ? t.network.testnet : t.network.mainnet;
   return (
-    <span
-      className={`microlabel inline-flex items-center gap-1 rounded-full border px-2 py-0.5 ${testnet ? "border-amber/40 bg-amber/10 text-amber" : "border-mint/40 bg-mint/10 text-mint"} ${className}`}
-      aria-label={testnet ? t.network.testnet : t.network.mainnet}
-    >
-      <span className={`h-1.5 w-1.5 rounded-full ${testnet ? "bg-amber" : "bg-mint"}`} aria-hidden />
-      {testnet ? t.network.testnet : t.network.mainnet}
-    </span>
+    <Badge variant={testnet ? "warning" : "success"} className={cn("font-mono text-[11px] tracking-[0.12em] uppercase", className)} aria-label={label}>
+      <span className={cn("size-1.5 rounded-full", testnet ? "bg-amber" : "bg-mint")} aria-hidden />
+      {label}
+    </Badge>
   );
 }

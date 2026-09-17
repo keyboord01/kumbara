@@ -18,7 +18,7 @@ export function OfflineBanner() {
   const online = useSyncExternalStore(subscribe, () => navigator.onLine, () => true);
   if (online) return null;
   return (
-    <div role="status" aria-live="polite" data-testid="offline-banner" className="border-b border-amber/40 bg-amber/10 px-4 py-2 text-center text-sm text-ink">
+    <div role="status" aria-live="polite" data-testid="offline-banner" className="border-b border-amber/40 bg-amber/10 px-4 py-2 text-center text-sm text-foreground">
       <strong>{t.failures.kinds.offline.title}</strong> {t.failures.offlineBanner}
     </div>
   );

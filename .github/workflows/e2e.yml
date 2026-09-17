@@ -82,7 +82,9 @@ jobs:
           node scripts/e2e-invite.mjs
           node scripts/e2e-deposit.mjs
           E2E_LEAVE_AFTER_IBAN=1 node scripts/e2e-deposit.mjs
+          E2E_AUTOBANK=1 node scripts/e2e-deposit.mjs
           node scripts/e2e-withdraw.mjs
+          node scripts/e2e-address.mjs
           node scripts/e2e-booth.mjs
           node scripts/e2e-stats.mjs
           node scripts/e2e-funnel.mjs
@@ -163,12 +165,25 @@ jobs:
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
           E2E_LEAVE_AFTER_IBAN: "1"
         run: node scripts/e2e-deposit.mjs
+      - name: Deposit with nobody on the console (auto bank)
+        id: autobank
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+          E2E_AUTOBANK: "1"
+        run: node scripts/e2e-deposit.mjs
       - name: Withdraw
         id: withdraw
         if: steps.preflight.outputs.skip != 'true'
         env:
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
         run: node scripts/e2e-withdraw.mjs
+      - name: Withdraw to a Stellar address
+        id: address
+        if: steps.preflight.outputs.skip != 'true'
+        env:
+          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+        run: node scripts/e2e-address.mjs
       - name: Booth
         id: booth
         if: steps.preflight.outputs.skip != 'true'
@@ -201,7 +216,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.proof.outcome == 'failure' && 'proof' || steps.goal.outcome == 'failure' && 'goal' || steps.invite.outcome == 'failure' && 'invite' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.funnel.outcome == 'failure' && 'funnel' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
+          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.proof.outcome == 'failure' && 'proof' || steps.goal.outcome == 'failure' && 'goal' || steps.invite.outcome == 'failure' && 'invite' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.autobank.outcome == 'failure' && 'autobank' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.address.outcome == 'failure' && 'address' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.funnel.outcome == 'failure' && 'funnel' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
           ARTIFACT_URL: ${{ steps.shots.outputs.artifact-url }}
         run: |
           TITLE="Scheduled E2E failed at step: $STEP"

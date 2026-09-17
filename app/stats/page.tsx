@@ -3,7 +3,14 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { cn } from "cn";
 import { NetworkBadge } from "@/components/NetworkBadge";
+import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
+import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@/components/ui/item";
+import { Progress } from "@/components/ui/progress";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, SITE_URL, sembolConfig } from "@/lib/config";
 import { formatTry, formatUsdc, shortAddress } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
@@ -121,9 +128,10 @@ function seconds(ms: number | null): string {
   return ms === null ? "–" : `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`;
 }
 
+/** Text link to the explorer; every one carries the network label. */
 function ExplorerLink({ href, label, tv }: { href: string; label: string; tv: boolean }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={`${tv ? "text-base" : "text-sm"} text-teal underline-offset-2 hover:underline`}>
+    <a href={href} target="_blank" rel="noreferrer" className={cn("rounded-sm text-teal underline-offset-4 hover:underline", tv ? "text-base" : "text-sm")}>
       {label} · {NETWORK_LABEL} ↗
     </a>
   );
@@ -179,12 +187,12 @@ function Stats() {
     value === undefined ? "–" : kind === "try" ? formatTry(Number(value), locale) : `${formatUsdc(value, locale)} USDC`;
 
   return (
-    <div className={`mx-auto flex w-full ${tv ? "max-w-6xl px-6 py-6" : "max-w-3xl px-4 py-5"} flex-col gap-6`}>
+    <div className={cn("mx-auto flex w-full flex-col gap-6", tv ? "max-w-6xl px-6 py-6" : "max-w-3xl px-4 py-5")}>
       {!tv ? (
         <header className="flex items-center justify-between gap-3">
-          <Link href="/" className="flex items-baseline gap-2">
+          <Link href="/" className="flex items-baseline gap-2 rounded-md">
             <span className="text-lg font-bold tracking-tight text-teal">{t.brand}</span>
-            <span className="text-xs text-muted">{t.bySembol}</span>
+            <span className="text-xs text-muted-foreground">{t.bySembol}</span>
           </Link>
           <div className="flex items-center gap-2">
             <NetworkBadge />
@@ -195,12 +203,12 @@ function Stats() {
 
       <section className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <h1 className={`${tv ? "text-4xl" : "text-3xl"} font-bold tracking-tight text-ink`}>{t.stats.title}</h1>
-          <div className="flex items-center gap-3 text-xs text-muted" data-testid="live">
+          <h1 className={cn("font-bold tracking-tight text-foreground", tv ? "text-4xl" : "text-3xl")}>{t.stats.title}</h1>
+          <div className="flex items-center gap-3 text-xs text-muted-foreground" data-testid="live">
             <span className="inline-flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-mint opacity-60" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-mint" />
+              <span className="relative flex size-2">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-mint opacity-60" />
+                <span className="relative inline-flex size-2 rounded-full bg-mint" />
               </span>
               {t.stats.live}
             </span>
@@ -209,30 +217,32 @@ function Stats() {
         </div>
         <p className="text-sm text-ink-2">{t.stats.lead}</p>
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex overflow-hidden rounded-full border border-line text-xs font-semibold" role="group" aria-label={t.stats.windowEvent}>
+          <ToggleGroup
+            variant="segment"
+            size="xs"
+            spacing={0.5}
+            value={[effectiveWindow]}
+            onValueChange={(value) => {
+              const next = value[0];
+              if (next === "event" || next === "all") setWindow(next);
+            }}
+            aria-label={t.stats.windowEvent}
+          >
             {(["event", "all"] as const).map((w) => (
-              <button
-                key={w}
-                type="button"
-                onClick={() => setWindow(w)}
-                disabled={w === "event" && !eventStarted}
-                aria-pressed={effectiveWindow === w}
-                className={`px-3 py-1.5 ${effectiveWindow === w ? "bg-teal text-white" : "bg-white text-ink-2"} disabled:opacity-50`}
-                data-testid={`window-${w}`}
-              >
+              <ToggleGroupItem key={w} value={w} disabled={w === "event" && !eventStarted} className="normal-case" data-testid={`window-${w}`}>
                 {w === "event" ? t.stats.windowEvent : t.stats.windowAll}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
           {snapshot && !eventStarted ? (
-            <span className="text-xs text-muted" data-testid="event-not-started">
+            <span className="text-xs text-muted-foreground" data-testid="event-not-started">
               {t.stats.eventStarts.replace("{date}", new Date(snapshot.since * 1000).toLocaleDateString(intl, { day: "numeric", month: "long" }))}
             </span>
           ) : null}
         </div>
       </section>
 
-      <section className={`grid gap-3 ${tv ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-3"}`} data-testid="headline" aria-label={t.stats.title}>
+      <section className={cn("grid gap-3", tv ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-3")} data-testid="headline" aria-label={t.stats.title}>
         {(
           [
             ["accounts", fmtInt(shownTotals?.accounts), t.stats.headline.accounts, false],
@@ -243,232 +253,268 @@ function Stats() {
             ["usdcInVault", head?.usdcInVault === null ? "–" : money(head?.usdcInVault, "usdc"), t.stats.headline.usdcInVault, true],
           ] as const
         ).map(([key, value, label, isMoney]) => (
-          <div key={key} className="card flex flex-col gap-1 p-4">
-            <p className={`tnum ${key === "tryIn" || key === "tryOut" || key === "usdcInVault" ? (tv ? "text-3xl sm:text-4xl" : "text-2xl") : bigNumber} font-bold leading-none text-ink`} data-testid={`headline-${key}`}>
-              {value}
-            </p>
-            <p className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
-              <span>{label}</span>
-              {key === "accounts" && snapshot?.accounts.viaInvites ? <span data-testid="headline-via-invites">· {snapshot.accounts.viaInvites} {t.stats.viaInvites}</span> : null}
-              {isMoney || key === "accounts" || key === "deposits" || key === "withdrawals" ? <NetworkBadge /> : null}
-            </p>
-          </div>
+          <Card key={key} size="sm">
+            <CardContent className="flex flex-col gap-1">
+              <p className={cn("tnum font-bold leading-none text-foreground", isMoney ? (tv ? "text-3xl sm:text-4xl" : "text-2xl") : bigNumber)} data-testid={`headline-${key}`}>
+                {value}
+              </p>
+              <p className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
+                <span>{label}</span>
+                {key === "accounts" && snapshot?.accounts.viaInvites ? <span data-testid="headline-via-invites">· {snapshot.accounts.viaInvites} {t.stats.viaInvites}</span> : null}
+                {isMoney || key === "accounts" || key === "deposits" || key === "withdrawals" ? <NetworkBadge /> : null}
+              </p>
+            </CardContent>
+          </Card>
         ))}
       </section>
 
-      <div className={`grid gap-6 ${tv ? "grid-cols-2" : "grid-cols-1"}`}>
+      <div className={cn("grid gap-6", tv ? "grid-cols-2" : "grid-cols-1")}>
         {snapshot?.funnel ? (
-          <section className="card p-5" aria-label={t.stats.funnelTitle} data-testid="funnel">
-            <h2 className="font-semibold">{t.stats.funnelTitle}</h2>
-            <p className="mt-1 text-xs text-ink-2">{t.stats.funnelHint}</p>
-            {(
-              [
-                ["deposits", t.stats.funnelDeposits, snapshot.funnel.deposits, t.stats.funnelStages.deposit],
-                ["withdrawals", t.stats.funnelWithdrawals, snapshot.funnel.withdrawals, t.stats.funnelStages.withdraw],
-              ] as const
-            ).map(([key, title, data, labels]) => (
-              <div key={key} className="mt-4" data-testid={`funnel-${key}`}>
-                <p className="microlabel">{title}</p>
-                <table className="tnum mt-2 w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted">
-                      <th className="py-1 font-medium">{t.stats.funnelStage}</th>
-                      <th className="py-1 text-right font-medium">{t.stats.funnelCount}</th>
-                      <th className="py-1 text-right font-medium">{t.stats.funnelDrop}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.stages.map((s, i) => (
-                      <tr key={s.stage} className="border-t border-line" data-stage={s.stage}>
-                        <td className="py-1.5">{(labels as Record<string, string>)[s.stage] ?? s.stage}</td>
-                        <td className="py-1.5 text-right font-semibold">{fmtInt(s.count)}</td>
-                        <td className={`py-1.5 text-right ${s.dropOff > 0 ? "text-amber" : "text-muted"}`}>{i === 0 ? "—" : s.dropPct === null ? "—" : `−${fmtInt(s.dropOff)} (${s.dropPct}%)`}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {Object.keys(data.exits).length ? (
-                  <p className="mt-2 text-xs text-muted">
-                    {t.stats.funnelExits}: {Object.entries(data.exits).map(([k, v]) => `${(labels as Record<string, string>)[k] ?? k} ${fmtInt(v)}`).join(" · ")}
-                  </p>
-                ) : null}
-              </div>
-            ))}
-          </section>
+          <Card render={<section aria-label={t.stats.funnelTitle} />} data-testid="funnel">
+            <CardHeader>
+              <CardTitle>{t.stats.funnelTitle}</CardTitle>
+              <CardDescription className="text-xs text-ink-2">{t.stats.funnelHint}</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-5">
+              {(
+                [
+                  ["deposits", t.stats.funnelDeposits, snapshot.funnel.deposits, t.stats.funnelStages.deposit],
+                  ["withdrawals", t.stats.funnelWithdrawals, snapshot.funnel.withdrawals, t.stats.funnelStages.withdraw],
+                ] as const
+              ).map(([key, title, data, labels]) => (
+                <div key={key} className="flex flex-col gap-2" data-testid={`funnel-${key}`}>
+                  <p className="microlabel">{title}</p>
+                  <Table className="tnum">
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="h-8 px-0 text-xs text-muted-foreground">{t.stats.funnelStage}</TableHead>
+                        <TableHead className="h-8 px-0 text-right text-xs text-muted-foreground">{t.stats.funnelCount}</TableHead>
+                        <TableHead className="h-8 px-0 text-right text-xs text-muted-foreground">{t.stats.funnelDrop}</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {data.stages.map((s, i) => (
+                        <TableRow key={s.stage} data-stage={s.stage} className="hover:bg-transparent">
+                          <TableCell className="px-0 py-1.5 whitespace-normal">{(labels as Record<string, string>)[s.stage] ?? s.stage}</TableCell>
+                          <TableCell className="px-0 py-1.5 text-right font-semibold">{fmtInt(s.count)}</TableCell>
+                          <TableCell className={cn("px-0 py-1.5 text-right", s.dropOff > 0 ? "text-amber" : "text-muted-foreground")}>{i === 0 ? "—" : s.dropPct === null ? "—" : `−${fmtInt(s.dropOff)} (${s.dropPct}%)`}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {Object.keys(data.exits).length ? (
+                    <p className="text-xs text-muted-foreground">
+                      {t.stats.funnelExits}: {Object.entries(data.exits).map(([k, v]) => `${(labels as Record<string, string>)[k] ?? k} ${fmtInt(v)}`).join(" · ")}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
         ) : null}
-        <section className="card p-5" aria-label={t.stats.feedTitle} data-testid="feed">
-          <div className="flex items-center justify-between">
-            <h2 className="font-semibold">{t.stats.feedTitle}</h2>
-            <NetworkBadge />
-          </div>
-          {feed.length === 0 ? (
-            <p className="mt-3 text-sm text-muted" data-testid="feed-empty">
-              {t.stats.feedEmpty}
-            </p>
-          ) : (
-            <ul className="mt-3 flex flex-col divide-y divide-line">
-              {feed.slice(0, tv ? 12 : 20).map((item) => (
-                <li key={`${item.type}-${item.ts}-${item.hash ?? ""}`} className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 py-2 ${tv ? "text-base" : "text-sm"}`} data-testid="feed-item">
-                  <span className="flex items-baseline gap-2">
-                    <span className="font-mono text-xs text-ink-2">{item.contractId ? shortAddress(item.contractId, 4) : "–"}</span>
-                    <span className="text-ink">{t.stats.feed[item.type]}</span>
-                    {item.usdc ? <span className="tnum font-semibold">{formatUsdc(item.usdc, locale)} USDC</span> : null}
-                    {item.try ? <span className="tnum text-ink-2">({formatTry(Number(item.try), locale)})</span> : null}
-                  </span>
-                  <span className="flex items-baseline gap-3 text-xs text-muted">
-                    <span className="tnum">{ago(item.ts)}</span>
-                    {item.link ? (
-                      <a href={item.link} target="_blank" rel="noreferrer" className="text-teal hover:underline">
-                        {NETWORK_LABEL} ↗
-                      </a>
-                    ) : null}
-                  </span>
+
+        <Card render={<section aria-label={t.stats.feedTitle} />} data-testid="feed">
+          <CardHeader>
+            <CardTitle>{t.stats.feedTitle}</CardTitle>
+            <CardAction>
+              <NetworkBadge />
+            </CardAction>
+          </CardHeader>
+          <CardContent>
+            {feed.length === 0 ? (
+              <Empty className="p-4" data-testid="feed-empty">
+                <EmptyHeader>
+                  <EmptyTitle className="text-sm">{t.stats.feedEmpty}</EmptyTitle>
+                  <EmptyDescription className="text-xs">{t.stats.lead}</EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <ItemGroup className="gap-0">
+                {feed.slice(0, tv ? 12 : 20).map((item) => (
+                  <Item key={`${item.type}-${item.ts}-${item.hash ?? ""}`} size="xs" className={cn("rounded-none border-t border-border px-0 first:border-t-0", tv ? "text-base" : "text-sm")} data-testid="feed-item">
+                    <ItemContent>
+                      <ItemTitle className="flex-wrap items-baseline gap-2 font-normal">
+                        <span className="font-mono text-xs text-ink-2">{item.contractId ? shortAddress(item.contractId, 4) : "–"}</span>
+                        <span className="text-foreground">{t.stats.feed[item.type]}</span>
+                        {item.usdc ? <span className="tnum font-semibold">{formatUsdc(item.usdc, locale)} USDC</span> : null}
+                        {item.try ? <span className="tnum text-ink-2">({formatTry(Number(item.try), locale)})</span> : null}
+                      </ItemTitle>
+                    </ItemContent>
+                    <ItemActions className="items-baseline gap-3 text-xs text-muted-foreground">
+                      <span className="tnum">{ago(item.ts)}</span>
+                      {item.link ? (
+                        <a href={item.link} target="_blank" rel="noreferrer" className="rounded-sm text-teal underline-offset-4 hover:underline">
+                          {NETWORK_LABEL} ↗
+                        </a>
+                      ) : null}
+                    </ItemActions>
+                  </Item>
+                ))}
+              </ItemGroup>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card render={<section aria-label={t.stats.curveTitle} />} data-testid="curve">
+          <CardHeader>
+            <CardTitle>{showRefChart ? t.stats.byRef : t.stats.curveTitle}</CardTitle>
+            {snapshot && !showRefChart ? <CardDescription className="text-xs">{t.stats.curveHint.replace("{minutes}", String(snapshot.buckets.minutes))}</CardDescription> : null}
+          </CardHeader>
+          <CardContent className="flex flex-col gap-1">
+            {showRefChart ? (
+              <RefBars byRef={byRef} noRef={t.stats.noRef} intl={intl} tv={tv} />
+            ) : (
+              <svg viewBox={`0 0 ${Math.max(series.length, 1) * 10} 120`} preserveAspectRatio="none" className={cn("w-full", tv ? "h-56" : "h-32")} role="img" aria-label={t.stats.curveTitle}>
+                {series.map((b, i) => {
+                  const h = (b.accounts / maxBucket) * 110;
+                  return <rect key={b.start} x={i * 10 + 1} y={115 - h} width={8} height={h} rx={1.5} fill="var(--color-teal)" opacity={b.accounts ? 1 : 0.15} />;
+                })}
+                <line x1={0} y1={116} x2={Math.max(series.length, 1) * 10} y2={116} stroke="var(--color-border)" strokeWidth={1} />
+              </svg>
+            )}
+            {!showRefChart && snapshot ? (
+              <p className="tnum flex justify-between text-[11px] text-muted-foreground">
+                <span>{new Date(snapshot.buckets.from).toLocaleString(intl, { dateStyle: "short", timeStyle: "short" })}</span>
+                <span>{new Date(snapshot.buckets.to).toLocaleString(intl, { dateStyle: "short", timeStyle: "short" })}</span>
+              </p>
+            ) : null}
+            {!tv ? (
+              <div className="mt-3 flex flex-col gap-2">
+                <h3 className="microlabel">{t.stats.byRef}</h3>
+                <RefBars byRef={byRef} noRef={t.stats.noRef} intl={intl} tv={false} />
+              </div>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card render={<section aria-label={t.stats.timingsTitle} />} data-testid="timings">
+        <CardHeader>
+          <CardTitle>{t.stats.timingsTitle}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <dl className={cn("grid gap-3", tv ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3")}>
+            {(["tapToReady", "deposit", "withdraw"] as const).map((key) => {
+              const timing = snapshot?.timings[key];
+              const enough = timing && timing.medianMs !== null;
+              return (
+                <div key={key} className="flex flex-col gap-1 rounded-lg bg-muted p-3">
+                  <dt className="text-sm text-ink-2">{t.stats.timings[key]}</dt>
+                  <dd className="flex flex-col gap-1">
+                    {enough ? (
+                      <p className={cn("tnum font-bold", tv ? "text-3xl" : "text-xl")}>
+                        {seconds(timing.medianMs)} <span className="text-xs font-normal text-muted-foreground">{t.stats.median}</span>
+                        <span className="ml-2 text-sm font-semibold text-ink-2">{seconds(timing.p90Ms)}</span> <span className="text-xs font-normal text-muted-foreground">{t.stats.p90}</span>
+                      </p>
+                    ) : (
+                      <p className="text-sm font-semibold text-amber">{t.stats.notEnough}</p>
+                    )}
+                    <p className="tnum text-xs text-muted-foreground">
+                      {timing ? t.stats.samples.replace("{n}", String(timing.n)) : "–"}
+                      {timing && !enough && snapshot ? ` · ${t.stats.minSamples.replace("{n}", String(snapshot.timings.minSamples))}` : ""}
+                    </p>
+                  </dd>
+                </div>
+              );
+            })}
+          </dl>
+        </CardContent>
+      </Card>
+
+      {!tv ? (
+        <Card render={<section aria-label={t.stats.contractsTitle} />} data-testid="contracts">
+          <CardHeader>
+            <CardTitle>{t.stats.contractsTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <ul className="flex flex-col gap-2 text-sm">
+              {(
+                [
+                  [t.stats.contracts.vault, head?.vaultId ?? null],
+                  [t.stats.contracts.strategy, head?.strategyId ?? null],
+                  [t.stats.contracts.policy, policyId],
+                  [t.stats.contracts.account, exampleAccount],
+                ] as const
+              ).map(([label, id]) => (
+                <li key={label} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+                  <span className="text-ink-2">{label}</span>
+                  {id ? <ExplorerLink href={`${EXPLORER_BASE}/contract/${id}`} label={shortAddress(id, 6)} tv={false} /> : <span className="text-muted-foreground">–</span>}
                 </li>
               ))}
             </ul>
-          )}
-        </section>
-
-        <section className="card p-5" aria-label={t.stats.curveTitle} data-testid="curve">
-          <div className="flex items-center justify-between gap-2">
-            <h2 className="font-semibold">{showRefChart ? t.stats.byRef : t.stats.curveTitle}</h2>
-            {snapshot ? <p className="text-xs text-muted">{showRefChart ? "" : t.stats.curveHint.replace("{minutes}", String(snapshot.buckets.minutes))}</p> : null}
-          </div>
-          {showRefChart ? (
-            <RefBars byRef={byRef} noRef={t.stats.noRef} intl={intl} tv={tv} />
-          ) : (
-            <svg viewBox={`0 0 ${Math.max(series.length, 1) * 10} 120`} preserveAspectRatio="none" className={`mt-3 w-full ${tv ? "h-56" : "h-32"}`} role="img" aria-label={t.stats.curveTitle}>
-              {series.map((b, i) => {
-                const h = (b.accounts / maxBucket) * 110;
-                return <rect key={b.start} x={i * 10 + 1} y={115 - h} width={8} height={h} rx={1.5} fill="#0f6b6b" opacity={b.accounts ? 1 : 0.15} />;
-              })}
-              <line x1={0} y1={116} x2={Math.max(series.length, 1) * 10} y2={116} stroke="#e3dccd" strokeWidth={1} />
-            </svg>
-          )}
-          {!showRefChart && snapshot ? (
-            <p className="tnum mt-1 flex justify-between text-[11px] text-muted">
-              <span>{new Date(snapshot.buckets.from).toLocaleString(intl, { dateStyle: "short", timeStyle: "short" })}</span>
-              <span>{new Date(snapshot.buckets.to).toLocaleString(intl, { dateStyle: "short", timeStyle: "short" })}</span>
-            </p>
-          ) : null}
-          {!tv ? (
-            <div className="mt-4">
-              <h3 className="microlabel">{t.stats.byRef}</h3>
-              <RefBars byRef={byRef} noRef={t.stats.noRef} intl={intl} tv={false} />
-            </div>
-          ) : null}
-        </section>
-      </div>
-
-      <section className="card p-5" aria-label={t.stats.timingsTitle} data-testid="timings">
-        <h2 className="font-semibold">{t.stats.timingsTitle}</h2>
-        <dl className={`mt-3 grid gap-3 ${tv ? "grid-cols-3" : "grid-cols-1 sm:grid-cols-3"}`}>
-          {(["tapToReady", "deposit", "withdraw"] as const).map((key) => {
-            const timing = snapshot?.timings[key];
-            const enough = timing && timing.medianMs !== null;
-            return (
-              <div key={key} className="rounded-xl bg-paper-2 p-3">
-                <dt className="text-sm text-ink-2">{t.stats.timings[key]}</dt>
-                <dd className="mt-1">
-                  {enough ? (
-                    <p className={`tnum ${tv ? "text-3xl" : "text-xl"} font-bold`}>
-                      {seconds(timing.medianMs)} <span className="text-xs font-normal text-muted">{t.stats.median}</span>
-                      <span className="ml-2 text-sm font-semibold text-ink-2">{seconds(timing.p90Ms)}</span> <span className="text-xs font-normal text-muted">{t.stats.p90}</span>
-                    </p>
-                  ) : (
-                    <p className="text-sm font-semibold text-amber">{t.stats.notEnough}</p>
-                  )}
-                  <p className="tnum mt-1 text-xs text-muted">
-                    {timing ? t.stats.samples.replace("{n}", String(timing.n)) : "–"}
-                    {timing && !enough && snapshot ? ` · ${t.stats.minSamples.replace("{n}", String(snapshot.timings.minSamples))}` : ""}
-                  </p>
-                </dd>
-              </div>
-            );
-          })}
-        </dl>
-      </section>
-
-      {!tv ? (
-        <section className="card p-5" aria-label={t.stats.contractsTitle} data-testid="contracts">
-          <h2 className="font-semibold">{t.stats.contractsTitle}</h2>
-          <ul className="mt-3 flex flex-col gap-2 text-sm">
-            {(
-              [
-                [t.stats.contracts.vault, head?.vaultId ?? null],
-                [t.stats.contracts.strategy, head?.strategyId ?? null],
-                [t.stats.contracts.policy, policyId],
-                [t.stats.contracts.account, exampleAccount],
-              ] as const
-            ).map(([label, id]) => (
-              <li key={label} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                <span className="text-ink-2">{label}</span>
-                {id ? <ExplorerLink href={`${EXPLORER_BASE}/contract/${id}`} label={shortAddress(id, 6)} tv={false} /> : <span className="text-muted">–</span>}
-              </li>
-            ))}
-          </ul>
-          <ul className="mt-4 flex flex-col gap-1.5 text-sm text-ink-2">
-            {(["anchor", "defindex", "oz", "relay", "reflector"] as const).map((k) => (
-              <li key={k}>{t.stats.integrations[k]}</li>
-            ))}
-          </ul>
-        </section>
+            <ul className="flex flex-col gap-1.5 text-sm text-ink-2">
+              {(["anchor", "defindex", "oz", "relay", "reflector"] as const).map((k) => (
+                <li key={k}>{t.stats.integrations[k]}</li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       ) : null}
 
       {!tv ? (
-        <section className="card p-5" aria-label={t.stats.howTitle} data-testid="how">
-          <h2 className="font-semibold">{t.stats.howTitle}</h2>
-          <ol className="mt-3 flex flex-col gap-2 text-sm text-ink-2">
-            {t.stats.how.map((step, i) => (
-              <li key={step} className="flex gap-3">
-                <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-teal/10 text-xs font-semibold text-teal">{i + 1}</span>
-                <span>{step}</span>
-              </li>
-            ))}
-          </ol>
-          <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="mt-3 inline-block text-sm text-teal hover:underline">
-            {t.stats.repo} ↗
-          </a>
-        </section>
-      ) : null}
-
-      {!tv ? (
-        <section className="card p-5" aria-label={t.stats.healthTitle} data-testid="health">
-          <h2 className="font-semibold">{t.stats.healthTitle}</h2>
-          <ul className="mt-3 grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
-            {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
-              const dep = deps?.[name];
-              return (
-                <li key={name} className="flex items-center gap-2">
-                  <span role="img" className={`h-3 w-3 rounded-full ${dep ? (dep.ok ? "bg-mint" : "bg-danger") : "bg-line"}`} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
-                  <span>{t.admin.healthNames[name]}</span>
+        <Card render={<section aria-label={t.stats.howTitle} />} data-testid="how">
+          <CardHeader>
+            <CardTitle>{t.stats.howTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <ol className="flex flex-col gap-2 text-sm text-ink-2">
+              {t.stats.how.map((step, i) => (
+                <li key={step} className="flex gap-3">
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-teal/10 text-xs font-semibold text-teal">{i + 1}</span>
+                  <span>{step}</span>
                 </li>
-              );
-            })}
-          </ul>
-          <div className="mt-4">
-            <p className="text-sm text-ink-2">{t.stats.sponsor}</p>
-            <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-paper-2" role="img" aria-label={t.stats.sponsor}>
-              <div className={`h-full rounded-full ${health?.sponsor?.ok ? "bg-mint" : "bg-danger"}`} style={{ width: `${sponsorRatio === null ? 0 : Math.min(100, (sponsorRatio / 5) * 100)}%` }} />
-            </div>
-            <p className="tnum mt-1 text-xs text-muted" data-testid="sponsor-ratio">
-              {sponsorRatio === null ? "–" : `${sponsorRatio.toFixed(1)}×`}
-            </p>
-          </div>
-        </section>
+              ))}
+            </ol>
+            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="w-fit rounded-sm text-sm text-teal underline-offset-4 hover:underline">
+              {t.stats.repo} ↗
+            </a>
+          </CardContent>
+        </Card>
       ) : null}
 
-      <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 text-xs text-muted">
+      {!tv ? (
+        <Card render={<section aria-label={t.stats.healthTitle} />} data-testid="health">
+          <CardHeader>
+            <CardTitle>{t.stats.healthTitle}</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4">
+            <ul className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
+              {(["anchor", "relay", "rpc", "vault"] as const).map((name) => {
+                const dep = deps?.[name];
+                return (
+                  <li key={name} className="flex items-center gap-2">
+                    <span role="img" className={cn("size-3 rounded-full", dep ? (dep.ok ? "bg-mint" : "bg-destructive") : "bg-border")} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                    <span>{t.admin.healthNames[name]}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex flex-col gap-1">
+              <p className="text-sm text-ink-2">{t.stats.sponsor}</p>
+              <Progress
+                value={sponsorRatio === null ? 0 : Math.min(100, (sponsorRatio / 5) * 100)}
+                aria-label={t.stats.sponsor}
+                className={cn("gap-0 [&_[data-slot=progress-indicator]]:rounded-full [&_[data-slot=progress-track]]:h-2", health?.sponsor?.ok ? "[&_[data-slot=progress-indicator]]:bg-mint" : "[&_[data-slot=progress-indicator]]:bg-destructive")}
+              />
+              <p className="tnum text-xs text-muted-foreground" data-testid="sponsor-ratio">
+                {sponsorRatio === null ? "–" : `${sponsorRatio.toFixed(1)}×`}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      <footer className="mt-auto flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{NETWORK === "testnet" ? t.footer : t.footerMainnet}</span>
         {!tv ? (
           <span className="flex gap-4">
-            <a href={SITE_URL || "/"} className="hover:text-teal">
+            <a href={SITE_URL || "/"} className="rounded-sm hover:text-teal">
               {SITE_URL ? SITE_URL.replace(/^https?:\/\//, "") : "kumbara"}
             </a>
-            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="hover:text-teal">
+            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="rounded-sm hover:text-teal">
               GitHub
             </a>
-            <Link href="/stats?mode=tv" className="hover:text-teal">
+            <Link href="/stats?mode=tv" className="rounded-sm hover:text-teal">
               {t.stats.tv} →
             </Link>
           </span>
@@ -480,9 +526,9 @@ function Stats() {
 
 function RefBars({ byRef, noRef, intl, tv }: { byRef: Array<[string, number]>; noRef: string; intl: string; tv: boolean }) {
   const max = Math.max(1, ...byRef.map(([, n]) => n));
-  if (byRef.length === 0) return <p className="mt-2 text-sm text-muted">–</p>;
+  if (byRef.length === 0) return <p className="text-sm text-muted-foreground">–</p>;
   return (
-    <ul className={`mt-2 flex flex-col gap-1.5 ${tv ? "text-lg" : "text-sm"}`} data-testid="by-ref">
+    <ul className={cn("flex flex-col gap-1.5", tv ? "text-lg" : "text-sm")} data-testid="by-ref">
       {byRef.slice(0, 8).map(([ref, n]) => (
         <li key={ref} className="flex items-center gap-3">
           <span className="w-28 shrink-0 truncate font-mono text-xs text-ink-2">{ref === "(none)" ? noRef : ref}</span>
@@ -497,13 +543,23 @@ function RefBars({ byRef, noRef, intl, tv }: { byRef: Array<[string, number]>; n
 function LangToggle() {
   const { locale, setLocale } = useLocale();
   return (
-    <div className="flex overflow-hidden rounded-full border border-line text-xs font-semibold" role="group" aria-label="Language">
+    <ToggleGroup
+      variant="segment"
+      size="xs"
+      spacing={0.5}
+      value={[locale]}
+      onValueChange={(value) => {
+        const next = value[0];
+        if (next === "tr" || next === "en") setLocale(next);
+      }}
+      aria-label="Language"
+    >
       {(["tr", "en"] as const).map((l) => (
-        <button key={l} type="button" onClick={() => setLocale(l)} aria-pressed={locale === l} className={`px-2.5 py-1 uppercase ${locale === l ? "bg-teal text-white" : "bg-white text-ink-2"}`}>
+        <ToggleGroupItem key={l} value={l} aria-label={l}>
           {l}
-        </button>
+        </ToggleGroupItem>
       ))}
-    </div>
+    </ToggleGroup>
   );
 }
 

@@ -132,7 +132,7 @@ async function runAutobankFlow(reference) {
   const pendingList = await (await fetch(`${APP}/api/booth/admin/pending`, { headers: adminHeaders })).json();
   const mine = (pendingList.pending ?? []).find((d) => d.reference === reference);
   if (!mine) throw new Error("deposit not listed for the presenter");
-  const maxTry = Number(pendingList.autoBankMaxTry ?? 0);
+  const maxTry = Number(pendingList.autoConfirm?.try ?? 0);
   log(`driver auto-bank threshold: ₺${maxTry}; this deposit: ₺${AMOUNT}`);
   if (!(Number(AMOUNT) <= maxTry)) throw new Error(`BOOTH_AUTO_BANK_MAX_TRY (${maxTry}) must be at least ${AMOUNT} for this check`);
   const startedAt = Date.now();

@@ -80,7 +80,7 @@ export function InviteCard() {
                 </Button>
               ) : null}
             </div>
-            <p key={invite.count} className="tnum pop-in text-sm font-semibold text-foreground" data-testid="invite-count">
+            <p className="tnum text-sm font-semibold text-foreground" data-testid="invite-count">
               {t.invite.count.replace("{n}", String(invite.count))}
             </p>
           </>

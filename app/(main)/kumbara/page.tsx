@@ -15,7 +15,6 @@ import { Skeleton } from "@/components/Skeleton";
 import { RequireWallet } from "@/components/RequireWallet";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
-import { usePopOnChange } from "@/components/usePopOnChange";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -156,7 +155,6 @@ function Savings() {
 
   const inVault = position?.usdc ?? null;
   // A balance that just changed should land rather than blink; the first paint stays still.
-  const vaultPop = usePopOnChange(inVault === null ? null : inVault.toString());
   const waiting = info && wallet.raw !== null ? wallet.raw : null;
   const sweepable = waiting !== null && waiting >= MIN_SWEEPABLE_STROOPS;
   const xlm = walletXlm.raw !== null && walletXlm.raw >= MIN_VISIBLE_XLM_STROOPS ? walletXlm.raw : null;
@@ -247,7 +245,7 @@ function Savings() {
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
-          <p key={vaultPop} className={cn("tnum text-4xl font-bold text-foreground", vaultPop > 0 && "pop-in")}>
+          <p className="tnum text-4xl font-bold text-foreground">
             {inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}
           </p>
           <p className="tnum text-sm text-ink-2">
@@ -255,10 +253,10 @@ function Savings() {
             {rate && <span className="text-muted-foreground"> · {t.savings.rateSource[rate.source]}</span>}
           </p>
           {sweepable && waiting !== null && (
-            <div className="coin-drop mt-2 flex flex-col gap-2 rounded-lg bg-blush/40 px-3 py-3">
+            <div className="mt-2 flex flex-col gap-2 rounded-lg bg-blush/40 px-3 py-3">
               <p className="text-sm text-ink-2">
                 {t.savings.waiting}:{" "}
-                <strong key={waiting.toString()} className="tnum pop-in text-foreground" data-testid="wallet-usdc">
+                <strong className="tnum text-foreground" data-testid="wallet-usdc">
                   {formatUsdc(waiting, locale)} USDC
                 </strong>
                 <span className="tnum">

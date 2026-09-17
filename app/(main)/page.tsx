@@ -137,7 +137,7 @@ export default function OnboardPage() {
           ) : isConnected && address ? (
             <>
               <p className="text-sm text-ink-2">{t.onboard.done}</p>
-              <div className="pop-in">
+              <div>
                 <AddressCard />
               </div>
               {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}

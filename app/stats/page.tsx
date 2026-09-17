@@ -256,7 +256,7 @@ function Stats() {
           <Card key={key} size="sm">
             <CardContent className="flex flex-col gap-1">
               {/* Keyed on the value so a figure that changed lands; nothing animates until the snapshot is in. */}
-              <p key={`${key}-${value}`} className={cn("tnum font-bold leading-none text-foreground", snapshot && "pop-in", isMoney ? (tv ? "text-3xl sm:text-4xl" : "text-2xl") : bigNumber)} data-testid={`headline-${key}`}>
+              <p className={cn("tnum font-bold leading-none text-foreground", isMoney ? (tv ? "text-3xl sm:text-4xl" : "text-2xl") : bigNumber)} data-testid={`headline-${key}`}>
                 {value}
               </p>
               <p className="flex flex-wrap items-center gap-2 text-xs text-ink-2">

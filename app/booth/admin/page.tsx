@@ -147,7 +147,8 @@ export default function BoothAdminPage() {
   /** Per-row play in flight, and rows played from here in the last minute (kept on screen until the driver moves them on). */
   const [playing, setPlaying] = useState<string | null>(null);
   const [playedRows, setPlayedRows] = useState<Record<string, { row: Pending; at: number }>>({});
-  const [autoBankMaxTry, setAutoBankMaxTry] = useState(250);
+  /** The automatic-confirmation line: written in dollars, compared in lira at the server's rate. */
+  const [autoConfirm, setAutoConfirm] = useState<{ usd: number; try: number }>({ usd: 50, try: 0 });
   const [sweepNote, setSweepNote] = useState<string | null>(null);
   const [anchors, setAnchors] = useState<AnchorsInfo | null>(null);
   const [anchorNote, setAnchorNote] = useState<string | null>(null);
@@ -204,7 +205,7 @@ export default function BoothAdminPage() {
     if (!ready) return;
     try {
       const [p, h, s, c, a] = await Promise.all([
-        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; autoBankMaxTry?: number; error?: { message: string } } })),
+        fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { autoConfirm?: { usd: number; try: number }; pending?: Pending[]; stuck?: Stuck[]; autoBankMaxTry?: number; error?: { message: string } } })),
         fetch("/api/health").then((r) => r.json() as Promise<Health>),
         fetch("/api/booth/admin/sponsor", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as Sponsor & { error?: { message: string } } })),
         fetch("/api/ci/status").then((r) => (r.ok ? (r.json() as Promise<CiStatus>) : null)).catch(() => null),
@@ -213,7 +214,7 @@ export default function BoothAdminPage() {
       if (!p.ok) throw new Error(p.body.error?.message ?? "unauthorized");
       setPending(p.body.pending ?? []);
       setStuck(p.body.stuck ?? []);
-      if (typeof p.body.autoBankMaxTry === "number") setAutoBankMaxTry(p.body.autoBankMaxTry);
+      if (p.body.autoConfirm) setAutoConfirm({ usd: p.body.autoConfirm.usd, try: p.body.autoConfirm.try });
       setHealth(h);
       setCi(c);
       setAnchors(a);
@@ -498,7 +499,7 @@ export default function BoothAdminPage() {
       .map((p) => p.row);
     return [...listed.map((r) => playedRows[r.id]?.row ?? r), ...kept];
   })();
-  const isAuto = (row: Pending) => autoBankMaxTry > 0 && Number(row.amountTry) <= autoBankMaxTry;
+  const isAuto = (row: Pending) => autoConfirm.try > 0 && Number(row.amountTry) <= autoConfirm.try;
   const manualRows = queue.filter((row) => !isAuto(row) && !row.bankPlayed);
   const ageOf = (row: Pending) => t.admin.age.replace("{s}", String(Math.max(0, Math.round((clock - Date.parse(row.createdAt)) / 1000))));
   const driverLine = driver.last
@@ -521,7 +522,7 @@ export default function BoothAdminPage() {
           <h1 className="text-2xl font-bold tracking-tight">{t.admin.title}</h1>
           <NetworkBadge />
         </div>
-        <p className="text-sm text-ink-2">{t.admin.lead.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</p>
+        <p className="text-sm text-ink-2">{t.admin.lead.replace("{max}", autoConfirm.try.toLocaleString(intl)).replace("{usd}", String(autoConfirm.usd))}</p>
       </div>
 
       {!ready && (
@@ -633,7 +634,7 @@ export default function BoothAdminPage() {
               <Card render={<section aria-live="polite" aria-label={t.admin.queue} />}>
                 <CardHeader>
                   <CardTitle>{t.admin.queue}</CardTitle>
-                  <CardDescription className="text-xs">{t.admin.queueHint.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</CardDescription>
+                  <CardDescription className="text-xs">{t.admin.queueHint.replace("{usd}", String(autoConfirm.usd)).replace("{max}", autoConfirm.try.toLocaleString(intl))}</CardDescription>
                   {manualRows.length >= 2 ? (
                     <CardAction>
                       <Button variant="outline" size="sm" onClick={() => void playAll(manualRows)} disabled={busy !== ""}>

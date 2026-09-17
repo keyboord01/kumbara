@@ -1,6 +1,6 @@
 import "server-only";
 import { PlayBankError, playBank, type BankPlayed } from "./demo-bank";
-import { serverEnv } from "./env.server";
+import { autoConfirmLimit } from "./autoconfirm.server";
 import type { DepositRecord } from "./deposit.server";
 
 /**
@@ -19,10 +19,11 @@ const noHookUntil = new Map<string, number>();
 
 /** Plays the bank when the deposit is small enough, or returns null when it is not ours to play. */
 export async function autoPlayBank(record: DepositRecord & { bankPlayed?: BankPlayed }): Promise<string | null> {
-  const maxTry = serverEnv.boothAutoBankMaxTry();
-  if (maxTry <= 0 || record.status !== "awaiting_transfer" || record.bankPlayed || !record.sep6) return null;
+  if (record.status !== "awaiting_transfer" || record.bankPlayed || !record.sep6) return null;
+  const limit = await autoConfirmLimit();
+  if (limit.try <= 0) return null;
   const amount = Number(record.amountTry);
-  if (!Number.isFinite(amount) || amount > maxTry) return null;
+  if (!Number.isFinite(amount) || amount > limit.try) return null;
   const now = Date.now();
   if (now - Date.parse(record.createdAt) < AUTO_BANK_MIN_AGE_MS) return null;
   if (record.transferDeadline && now > Date.parse(record.transferDeadline)) return null;

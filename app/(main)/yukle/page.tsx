@@ -207,6 +207,9 @@ function Deposit() {
   const { toast } = useToast();
   const [view, setView] = useState<"loading" | "form" | "waiting">("loading");
   const [amount, setAmount] = useState("100");
+  // Some people think in lira, some in dollars. The anchor is paid in lira either way; the dollar figure is
+  // converted at the same rate the server uses for the automatic-confirmation line, so both agree.
+  const [currency, setCurrency] = useState<"try" | "usd">("try");
   const [method, setMethod] = useState<DepositMethod>("iban");
   const [record, setRecord] = useState<DepositRecord | null>(null);
   const [resumed, setResumed] = useState(false);
@@ -366,7 +369,7 @@ function Deposit() {
     setSubmitting(true);
     setFailure(null);
     try {
-      const created = await api<DepositRecord>("/api/deposit", { method: "POST", body: JSON.stringify({ contractId: address, amountTry: amount }) });
+      const created = await api<DepositRecord>("/api/deposit", { method: "POST", body: JSON.stringify({ contractId: address, amountTry: String(amountNumber) }) });
       setRecord(created);
       setResumed(false);
       setView("waiting");
@@ -388,7 +391,11 @@ function Deposit() {
     setView("form");
   };
 
-  const amountNumber = Number(amount.replace(",", "."));
+  const typed = Number(amount.replace(",", "."));
+  // Everything downstream works in lira: the anchor's limits, the quote, the threshold. The page already
+  // reads the rate for the equivalent line; the server's own figure is the fallback so both agree.
+  const rate = usdTry ?? (info?.autoConfirm?.rateUsed && info.autoConfirm.rateUsed > 0 ? info.autoConfirm.rateUsed : null);
+  const amountNumber = currency === "usd" && rate ? Math.round(typed * rate * 100) / 100 : typed;
   const treasuryUsdc = info?.treasuryUsdc ? Number(info.treasuryUsdc) : null;
   const estimatedUsdc = usdTry ? amountNumber / (usdTry * 1.005) : null;
   const overTreasury = treasuryUsdc !== null && estimatedUsdc !== null && estimatedUsdc > treasuryUsdc * 0.9;
@@ -398,9 +405,11 @@ function Deposit() {
   const maxAmount = limits?.fiat?.max ?? null;
   const numberLocale = locale === "tr" ? "tr-TR" : "en-US";
   const amountValid = Number.isFinite(amountNumber) && amountNumber >= minAmount && (maxAmount === null || amountNumber <= maxAmount) && !overTreasury;
-  // Deposits at or below this are confirmed by the server itself; above it a person at the desk approves them.
-  const autoConfirmMax = info?.autoConfirmMaxTry ?? null;
-  const needsApproval = (amount: number) => autoConfirmMax !== null && autoConfirmMax > 0 && amount > autoConfirmMax;
+  // Deposits worth at or below this are confirmed by the server itself; above it a person at the desk approves
+  // them. The limit is written in dollars and compared in lira, at the rate the server used.
+  const autoConfirm = info?.autoConfirm ?? null;
+  const autoConfirmMax = autoConfirm && autoConfirm.try > 0 ? autoConfirm.try : null;
+  const needsApproval = (amount: number) => autoConfirmMax !== null && amount > autoConfirmMax;
 
   if (view === "loading") return <ScreenSkeleton />;
 
@@ -457,9 +466,35 @@ function Deposit() {
                   <FieldLabel htmlFor="deposit-amount" className="microlabel text-[11px] font-normal">
                     {t.deposit.amountLabel}
                   </FieldLabel>
+                  <ToggleGroup
+                    variant="segment"
+                    size="sm"
+                    spacing={0.5}
+                    value={[currency]}
+                    onValueChange={(value) => {
+                      const next = value[0];
+                      if (next !== "try" && next !== "usd") return;
+                      // Carry the value across rather than clearing it: the person typed an amount, not a number of lira.
+                      if (next !== currency && rate && Number.isFinite(typed) && typed > 0) {
+                        const converted = next === "usd" ? typed / rate : typed * rate;
+                        setAmount(String(Math.round(converted * 100) / 100));
+                      }
+                      setCurrency(next);
+                    }}
+                    aria-label={t.deposit.currency.label}
+                    data-testid="deposit-currency"
+                    className="w-fit"
+                  >
+                    <ToggleGroupItem value="try" data-testid="deposit-currency-try">
+                      {t.deposit.currency.try}
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="usd" data-testid="deposit-currency-usd" disabled={!rate}>
+                      {t.deposit.currency.usd}
+                    </ToggleGroupItem>
+                  </ToggleGroup>
                   <InputGroup className="h-14">
                     <InputGroupAddon align="inline-start">
-                      <InputGroupText className="text-2xl font-semibold">₺</InputGroupText>
+                      <InputGroupText className="text-2xl font-semibold">{currency === "usd" ? "$" : "₺"}</InputGroupText>
                     </InputGroupAddon>
                     <InputGroupInput
                       id="deposit-amount"
@@ -479,10 +514,12 @@ function Deposit() {
                     variant="segment"
                     size="lg"
                     spacing={0.5}
-                    value={[amount]}
+                    value={[currency === "try" ? amount : ""]}
                     onValueChange={(value) => {
                       const next = value[0];
-                      if (typeof next === "string") setAmount(next);
+                      if (typeof next !== "string") return;
+                      setCurrency("try");
+                      setAmount(next);
                     }}
                     aria-label={t.deposit.amountLabel}
                     className="flex-wrap"
@@ -493,6 +530,11 @@ function Deposit() {
                       </ToggleGroupItem>
                     ))}
                   </ToggleGroup>
+                  {currency === "usd" ? (
+                    <FieldDescription className="tnum text-xs" data-testid="deposit-converted">
+                      {t.deposit.currency.approx.replace("{try}", amountNumber.toLocaleString(numberLocale, { maximumFractionDigits: 2 }))} · {t.deposit.currency.usdHint}
+                    </FieldDescription>
+                  ) : null}
                   <FieldDescription id="deposit-limits" className="text-xs">
                     {(maxAmount === null ? t.deposit.limitsMin : t.deposit.limits).replace("{min}", minAmount.toLocaleString(numberLocale)).replace("{max}", (maxAmount ?? 0).toLocaleString(numberLocale))}
                   </FieldDescription>
@@ -502,7 +544,9 @@ function Deposit() {
                       className={cn("text-xs", needsApproval(amountNumber) && "font-semibold text-amber")}
                       data-testid="approval-note"
                     >
-                      {(needsApproval(amountNumber) ? t.deposit.journey.manual : t.deposit.journey.auto).replace("{max}", autoConfirmMax.toLocaleString(numberLocale))}
+                      {(needsApproval(amountNumber) ? t.deposit.journey.manual : t.deposit.journey.auto)
+                        .replace("{max}", autoConfirmMax.toLocaleString(numberLocale, { maximumFractionDigits: 0 }))
+                        .replace("{usd}", String(autoConfirm?.usd ?? 0))}
                     </FieldDescription>
                   ) : null}
                 </Field>

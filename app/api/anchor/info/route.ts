@@ -5,6 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import { discoverAnchor } from "@/lib/anchor.server";
+import { autoConfirmLimit } from "@/lib/autoconfirm.server";
 import { serverEnv } from "@/lib/env.server";
 
 export const runtime = "nodejs";
@@ -26,8 +27,8 @@ export async function GET(): Promise<Response> {
         onrampMode: serverEnv.onrampMode(),
         offrampMode: serverEnv.offrampMode(),
         anchor: { homeDomain: anchor.homeDomain, orgName: anchor.orgName, fiatCode: anchor.fiatCode, sep6: anchor.sep6, limits: anchor.limits },
-        // Deposits at or below this are confirmed automatically; the screen tells the visitor which side they are on.
-        autoConfirmMaxTry: serverEnv.boothAutoBankMaxTry(),
+        // Deposits worth at or below this are confirmed automatically; the screen tells the visitor which side they are on.
+        autoConfirm: await autoConfirmLimit(),
       },
       // Not cached at the edge: the presenter can switch anchors at the booth and the next page load must see the new
       // anchor's limits. Discovery itself sits in the framework data cache, and the browser keeps this for a minute.

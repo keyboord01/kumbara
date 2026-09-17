@@ -32,10 +32,10 @@ export const serverEnv = {
   defindexVaultId: () => required("DEFINDEX_VAULT_ID"),
   soroswapEnabled: () => optional("SOROSWAP_ENABLED") === "true",
   boothStartTs: () => Number(optional("BOOTH_START_TS") ?? "0"),
-  /** Deposits at or below this many TRY are confirmed by the driver itself; above it a person approves them. 0 turns it off. */
-  boothAutoBankMaxTry: (): number => {
-    const value = Number(optional("BOOTH_AUTO_BANK_MAX_TRY") ?? "200");
-    return Number.isFinite(value) && value >= 0 ? value : 200;
+  /** Deposits worth at or below this many dollars are confirmed without a person; above it someone approves. 0 turns it off. */
+  boothAutoConfirmMaxUsd: (): number => {
+    const value = Number(optional("BOOTH_AUTO_CONFIRM_MAX_USD") ?? "50");
+    return Number.isFinite(value) && value >= 0 ? value : 50;
   },
   mainnetDemoEnabled: () => optional("MAINNET_DEMO_ENABLED") === "true",
   /** Home domains the presenter can switch between; the first is the default. Everything else is read from each stellar.toml. */

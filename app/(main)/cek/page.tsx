@@ -485,7 +485,7 @@ function Withdraw() {
                   <div className="rounded-lg bg-muted p-3" data-testid="withdraw-quote">
                     <p className="microlabel">{t.withdraw.quoteTitle}</p>
                     {/* A refreshed rate should land, so the visitor notices the figure moved. */}
-                    <p key={quote.tryOut} className="tnum pop-in text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
+                    <p className="tnum text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
                     <p className="tnum text-xs text-ink-2">
                       {t.withdraw.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({quote.spreadBps} bps {t.withdraw.spread}) · {t.withdraw.indicative}
                     </p>

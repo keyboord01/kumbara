@@ -1,9 +1,9 @@
 /** Presenter-only: deposits awaiting a (simulated) bank transfer. */
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin.server";
+import { autoConfirmLimit } from "@/lib/autoconfirm.server";
 import { listPendingDeposits } from "@/lib/demo-bank";
 import { listStuckDeposits } from "@/lib/deposit.server";
-import { serverEnv } from "@/lib/env.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,7 +16,7 @@ export async function GET(request: Request): Promise<Response> {
   return NextResponse.json(
     {
       pending,
-      autoBankMaxTry: serverEnv.boothAutoBankMaxTry(),
+      autoConfirm: await autoConfirmLimit(),
       stuck: stuck.map((d) => ({
         id: d.id,
         status: d.status,

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePasskeyWallet } from "@sembol/passkey-react";
 import { PiggyBankIcon } from "lucide-react";
+import { SignOut } from "./SignOut";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useLocale } from "@/lib/i18n";
 import { HeaderNav } from "./Nav";
@@ -22,6 +23,7 @@ export function Header() {
         <HeaderNav />
         <div className="flex items-center gap-2">
           <NetworkBadge />
+          <SignOut variant="icon" />
           <ToggleGroup
             variant="segment"
             size="xs"

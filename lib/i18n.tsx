@@ -149,6 +149,15 @@ export const dict = {
       limit: "Harcama limiti",
       limitHint: "Kumbaradan çıkan her USDC transferini sınırlar, kasaya yatırma dahil. Zincir üstünde uygulanır.",
       back: "Kumbarama dön",
+      signOut: {
+        action: "Çıkış yap",
+        title: "Bu cihazdan çıkılsın mı?",
+        body: "Kumbaran zincirde kalır ve parana bir şey olmaz. Aynı passkey ile istediğin an geri girersin.",
+        confirm: "Çıkış yap",
+        cancel: "Vazgeç",
+        done: "Çıkış yapıldı.",
+        hint: "Bu cihazda oturumu kapatır. Kumbaran ve paran yerinde kalır.",
+      },
     },
     deposit: {
       title: "Yükle",
@@ -645,6 +654,15 @@ export const dict = {
       limit: "Spending limit",
       limitHint: "Caps every USDC transfer that leaves the kumbara, vault deposits included. Enforced on chain.",
       back: "Back to my kumbara",
+      signOut: {
+        action: "Sign out",
+        title: "Sign out on this device?",
+        body: "Your kumbara stays on chain and your money is untouched. The same passkey opens it again whenever you like.",
+        confirm: "Sign out",
+        cancel: "Cancel",
+        done: "Signed out.",
+        hint: "Ends the session on this device. Your kumbara and your money stay where they are.",
+      },
     },
     deposit: {
       title: "Deposit",

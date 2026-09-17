@@ -50,6 +50,10 @@ Red Relay dot; "The relay is not answering", "The relay refused the request" or 
 
 The visitor signed the vault deposit but the page never reported it back (closed tab, lost network, or a retry that the vault refused with `Error(Contract, #10)` because the USDC had already moved). The record stays at `in_wallet`, the funnel shows a drop-off before `in_vault`, and the visitor sees the vault balance on Savings anyway, so nothing is lost. Reconcile from the laptop, DB only: `pnpm reconcile:in-wallet` prints the evidence per record (a successful vault transaction seconds after `in_wallet`, moving exactly the paid USDC from that kumbara into the vault, per Horizon); `pnpm reconcile:in-wallet --apply` writes what the app would have written and prints the funnel before and after. Records without such a transaction are left alone and listed. Run on 15 September 2026: ten records, all verified, none unmatched.
 
+### Handing the phone to the next visitor
+
+The header carries a sign-out button whenever a kumbara is open, and the Security screen has the same action with an explanation. It asks first, and it ends the session on that device only: the kumbara is a contract on chain, so the same passkey opens it again. Use it between visitors on a shared booth phone; use the visitor's own phone wherever possible, since their passkey lives there.
+
 ### Passkey on another device, or lost
 
 "Passkey ile gir" (Sign in with your passkey) opens the kumbara on any device that has the passkey (iCloud Keychain, 1Password, Google Password Manager): the address derives from the passkey itself, no service in between. "Passkey'imi bulamıyorum" (`/kurtar`) is for a backup passkey enrolled on the security screen, or for typing the address; the kumbara's address is on its Savings screen and on stellar.expert. Without a backup passkey or the address, nobody can open a kumbara, Kumbara included.

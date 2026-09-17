@@ -84,6 +84,21 @@ try {
   log(`  ✓ recovery screen reached the same kumbara in ${((Date.now() - cAt) / 1000).toFixed(1)}s`);
   await c.context.close();
 
+  log("D: sign out on this device, then back in with the same passkey");
+  await a.page.goto(`${APP}/kumbara/guvenlik`, { waitUntil: "domcontentloaded" });
+  await a.page.getByTestId("sign-out").first().click();
+  await a.page.getByTestId("sign-out-dialog").waitFor({ timeout: 10000 });
+  await a.page.getByTestId("sign-out-confirm").click();
+  // Signed out: the landing page offers the first action again, and the kumbara screen no longer opens.
+  await a.page.getByRole("button", { name: /Başla|Get started/ }).waitFor({ timeout: 20000 });
+  log("  ✓ signed out: back to the first screen");
+  await a.page.getByRole("button", { name: /Passkey ile gir|Sign in with your passkey/ }).click();
+  await a.page.waitForURL("**/kumbara**", { timeout: 60000 });
+  await a.page.getByText(/Kumbara adresi|Kumbara address/).first().waitFor({ timeout: 30000 });
+  const backIn = await contractOf(a.page);
+  if (backIn !== contract) throw new Error(`signing back in reached ${backIn}, expected ${contract}`);
+  log("  ✓ the same passkey opened the same kumbara again");
+
   log("registry: a backup passkey can be registered and looked up (unverified)");
   const fake = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const post = await fetch(`${APP}/api/registry`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ credentialId: fake, contractId: contract }) });

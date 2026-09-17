@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { AddSignerButton, RecoverySetup, SignerList, SpendingPolicyForm, usePasskeyWallet } from "@sembol/passkey-react";
 import { RequireWallet } from "@/components/RequireWallet";
+import { SignOut } from "@/components/SignOut";
 import { Skeleton } from "@/components/Skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -61,6 +62,16 @@ function Security() {
               <Skeleton className="h-11 w-40" />
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      <Card className="rise-in" render={<section aria-label={t.security.signOut.action} />}>
+        <CardHeader>
+          <CardTitle>{t.security.signOut.action}</CardTitle>
+          <CardDescription className="text-ink-2">{t.security.signOut.hint}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SignOut />
         </CardContent>
       </Card>
     </div>

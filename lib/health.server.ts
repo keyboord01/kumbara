@@ -9,6 +9,8 @@ import { networkPassphrase, serverEnv } from "./env.server";
 
 export interface DependencyStatus {
   ok: boolean;
+  /** Answering, but slowly enough that the next signature may time out. Still `ok`, because it is answering. */
+  slow?: boolean;
   ms: number;
   detail: string;
 }
@@ -24,11 +26,19 @@ export interface DependencyHealth {
 const READ_ONLY = new Account("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAWHF", "0");
 const TIMEOUT_MS = 6000;
 
+/**
+ * A dependency that answers in two seconds is not the same as one that answers in fifty milliseconds. The
+ * relay went from 57 ms to 2.9 s on 17 September while every dot stayed green, and three round trips died
+ * on signatures timing out. Slowness is now visible before it becomes failure.
+ */
+const SLOW_MS = 1_500;
+
 async function timed(fn: () => Promise<string>): Promise<DependencyStatus> {
   const started = Date.now();
   try {
     const detail = await fn();
-    return { ok: true, ms: Date.now() - started, detail };
+    const ms = Date.now() - started;
+    return ms >= SLOW_MS ? { ok: true, slow: true, ms, detail } : { ok: true, ms, detail };
   } catch (err) {
     return { ok: false, ms: Date.now() - started, detail: err instanceof Error ? err.message.slice(0, 160) : String(err).slice(0, 160) };
   }

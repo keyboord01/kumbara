@@ -55,6 +55,8 @@ interface PlayResult {
 }
 interface Dep {
   ok: boolean;
+  /** Answering, but slowly enough that the next signature may time out. */
+  slow?: boolean;
   ms: number;
   detail: string;
 }
@@ -600,10 +602,17 @@ export default function BoothAdminPage() {
                     const dep = deps?.[name];
                     return (
                       <li key={name}>
-                        <Badge variant={dep ? (dep.ok ? "success" : "destructive") : "secondary"} className="h-7 gap-2 px-3 text-sm text-foreground" title={dep?.detail ?? ""}>
-                          <span role="img" className={cn("size-2.5 rounded-full", dep ? (dep.ok ? "bg-mint" : "bg-destructive") : "bg-input")} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
+                        {/* Amber for a dependency that answers slowly: still up, but the next signature may time out.
+                            The dot keeps saying "ok", because the checks read it and slow is not down. */}
+                        <Badge
+                          variant={dep ? (dep.ok ? (dep.slow ? "warning" : "success") : "destructive") : "secondary"}
+                          className="h-7 gap-2 px-3 text-sm text-foreground"
+                          title={dep ? `${dep.detail}${dep.slow ? ` · ${t.admin.healthSlow}` : ""}` : ""}
+                          data-slow={dep?.slow ? "true" : "false"}
+                        >
+                          <span role="img" className={cn("size-2.5 rounded-full", dep ? (dep.ok ? (dep.slow ? "bg-amber" : "bg-mint") : "bg-destructive") : "bg-input")} aria-label={dep ? (dep.ok ? "ok" : "down") : "unknown"} />
                           {t.admin.healthNames[name]}
-                          {dep ? <span className="tnum text-[11px] font-normal text-muted-foreground">{dep.ms} ms</span> : <Spinner className="size-3 text-muted-foreground" />}
+                          {dep ? <span className={cn("tnum text-[11px] font-normal", dep.slow ? "font-semibold text-amber" : "text-muted-foreground")}>{dep.ms} ms</span> : <Spinner className="size-3 text-muted-foreground" />}
                         </Badge>
                       </li>
                     );

@@ -5,83 +5,86 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Kumbara palette: warm cream paper, deep teal ink, coral for the one action
- * that matters on each screen. Mobile first; system fonts only. One type
- * scale, one radius set, one motion budget, 44 px targets, focus that is
- * always visible. The shadcn primitives in components/ui carry the buttons,
- * cards, fields, badges and tables; the utilities below are the few things
- * they do not cover (tabular numbers, microlabels, the step pulse).
+ * Kumbara palette: a piggy bank. Pale rose paper, deep mulberry ink, one warm
+ * rose for the action that matters on each screen and a plum for links. Mobile
+ * first; system fonts only. One type scale, one radius set, one motion budget,
+ * 44 px targets, focus that is always visible. Every pairing below clears WCAG
+ * AA on the surface it sits on. The shadcn primitives in components/ui carry
+ * the buttons, cards, fields, badges and tables; the utilities further down are
+ * the few things they do not cover (tabular numbers, microlabels, the motion).
  */
 @theme {
-  --color-paper: #fbf7f0;
-  --color-paper-2: #f3ede2;
-  --color-paper-3: #ebe3d3;
-  --color-line: #e3dccd;
-  --color-line-2: #d3cab6;
-  --color-ink: #12313a;
-  --color-ink-2: #3f5b63;
-  --color-teal: #0f6b6b;
-  --color-teal-2: #0b5555;
-  --color-coral: #e5533d;
-  --color-coral-2: #c9432f;
-  --color-mint: #1f9d6a;
-  --color-amber: #7a4f0f;
+  --color-paper: #fdf5f4;
+  --color-paper-2: #f9e7e6;
+  --color-paper-3: #f3d9d8;
+  --color-line: #f0dbd9;
+  --color-line-2: #e2c1c0;
+  --color-ink: #33212a;
+  --color-ink-2: #6b5058;
+  --color-rose: #c9356a;
+  --color-rose-2: #ac2a59;
+  --color-blush: #f7c6d2;
+  --color-plum: #7a2b52;
+  --color-plum-2: #5f2040;
+  --color-mint: #1a7a58;
+  --color-mint-2: #146348;
+  --color-amber: #8a5a12;
   --color-danger: #b42318;
-  --color-mint-2: #167a52;
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --radius-card: 20px;
   --radius-control: 14px;
-  --shadow-card: 0 1px 2px rgba(18, 49, 58, 0.04), 0 6px 20px -12px rgba(18, 49, 58, 0.18);
-  --shadow-toast: 0 10px 30px -10px rgba(18, 49, 58, 0.35);
+  --shadow-card: 0 1px 2px rgba(51, 33, 42, 0.04), 0 6px 20px -12px rgba(51, 33, 42, 0.22);
+  --shadow-toast: 0 10px 30px -10px rgba(51, 33, 42, 0.35);
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /*
  * shadcn semantic tokens, mapped onto the palette above: every primitive in
  * components/ui renders on-brand and screens use the semantic names
  * (bg-background, bg-card, text-muted-foreground, border-border, ring-ring).
- * The named colours stay for the brand (teal), status (mint, amber, danger)
+ * The named colours stay for the brand (plum), status (mint, amber, danger)
  * and charts. Light only, by design: warm paper is the product.
  */
 :root {
-  --background: #fbf7f0;
-  --foreground: #12313a;
+  --background: #fdf5f4;
+  --foreground: #33212a;
   --card: #ffffff;
-  --card-foreground: #12313a;
+  --card-foreground: #33212a;
   --popover: #ffffff;
-  --popover-foreground: #12313a;
-  --primary: #e5533d;
-  --primary-hover: #c9432f;
+  --popover-foreground: #33212a;
+  --primary: #c9356a;
+  --primary-hover: #ac2a59;
   --primary-foreground: #ffffff;
-  --secondary: #f3ede2;
-  --secondary-foreground: #12313a;
-  --muted: #f3ede2;
-  --muted-foreground: #5a6b71;
-  --accent: #ebe3d3;
-  --accent-foreground: #12313a;
+  --secondary: #f9e7e6;
+  --secondary-foreground: #33212a;
+  --muted: #f9e7e6;
+  --muted-foreground: #7d646c;
+  --accent: #f3d9d8;
+  --accent-foreground: #33212a;
   --destructive: #b42318;
-  --border: #e3dccd;
-  --input: #d3cab6;
-  --ring: #0f6b6b;
-  --chart-1: #0f6b6b;
-  --chart-2: #e5533d;
-  --chart-3: #1f9d6a;
-  --chart-4: #7a4f0f;
-  --chart-5: #3f5b63;
+  --border: #f0dbd9;
+  --input: #e2c1c0;
+  --ring: #7a2b52;
+  --chart-1: #c9356a;
+  --chart-2: #7a2b52;
+  --chart-3: #1a7a58;
+  --chart-4: #8a5a12;
+  --chart-5: #6b5058;
   /* 14 px controls; the multipliers below give 20 px cards at rounded-xl. */
   --radius: 0.875rem;
-  --sidebar: #f3ede2;
-  --sidebar-foreground: #12313a;
-  --sidebar-primary: #0f6b6b;
+  --sidebar: #f9e7e6;
+  --sidebar-foreground: #33212a;
+  --sidebar-primary: #c9356a;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #ebe3d3;
-  --sidebar-accent-foreground: #12313a;
-  --sidebar-border: #e3dccd;
-  --sidebar-ring: #0f6b6b;
+  --sidebar-accent: #f3d9d8;
+  --sidebar-accent-foreground: #33212a;
+  --sidebar-border: #f0dbd9;
+  --sidebar-ring: #7a2b52;
   /* Sembol component theming: match the palette. */
-  --sembol-accent: #0f6b6b;
-  --sembol-accent-hover: #0b5555;
+  --sembol-accent: #7a2b52;
+  --sembol-accent-hover: #5f2040;
   --sembol-radius: 14px;
 }
 
@@ -174,7 +177,7 @@
 
   /* Focus is part of the design, never removed. Primitives bring their own ring; this covers links and native controls. */
   :focus-visible {
-    outline: 3px solid color-mix(in srgb, var(--color-teal) 55%, transparent);
+    outline: 3px solid color-mix(in srgb, var(--color-plum) 55%, transparent);
     outline-offset: 2px;
   }
   @media (prefers-reduced-motion: reduce) {
@@ -186,6 +189,160 @@
       transition-duration: 0.01ms !important;
     }
   }
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion. A small vocabulary, used everywhere, so waiting reads as progress
+ * rather than a frozen screen: things enter, numbers land, the live step
+ * breathes, a coin travels a route, a spinner becomes a tick. Every animation
+ * is transform or opacity, and prefers-reduced-motion turns the lot off.
+ * ------------------------------------------------------------------------ */
+
+@keyframes kumbara-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes kumbara-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.82);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes kumbara-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes kumbara-travel {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+@keyframes kumbara-sheen {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes kumbara-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.86;
+  }
+}
+
+@keyframes kumbara-coin-drop {
+  0% {
+    transform: translateY(-16px) rotate(-12deg);
+    opacity: 0;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes kumbara-grow-down {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes kumbara-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.98);
+  }
+}
+
+/* An element arriving in a list or a card, one at a time. */
+@utility rise-in {
+  animation: kumbara-rise 320ms var(--ease-out) both;
+}
+
+/* A figure that just changed: it lands rather than blinking. */
+@utility pop-in {
+  animation: kumbara-pop 420ms var(--ease-spring) both;
+}
+
+/* A line that draws itself: pair with stroke-dasharray on the same element. */
+@utility draw-in {
+  animation: kumbara-draw 900ms var(--ease-out) both;
+}
+
+/* A coin riding an offset-path: set offset-path on the element. */
+@utility travel {
+  animation: kumbara-travel 2.4s linear infinite;
+}
+
+/* Text that is waiting on something: a slow sheen across the words. */
+@utility sheen {
+  background: linear-gradient(90deg, var(--color-ink-2) 0%, var(--color-ink-2) 35%, var(--color-rose) 50%, var(--color-ink-2) 65%, var(--color-ink-2) 100%);
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: kumbara-sheen 2.6s linear infinite;
+}
+
+/* The live thing on the screen, breathing so the eye knows where to look. */
+@utility breathe {
+  animation: kumbara-breathe 2.2s var(--ease-out) infinite;
+}
+
+/* A rail filling in behind a step that just completed; pair with transform-origin. */
+@utility grow-down {
+  transform-origin: top;
+  animation: kumbara-grow-down 420ms var(--ease-out) both;
+}
+
+/* A toast leaving: the mirror of toast-in, so it does not vanish mid-sentence. */
+@utility toast-out {
+  animation: kumbara-toast-out 180ms var(--ease-out) both;
+}
+
+@utility coin-drop {
+  animation: kumbara-coin-drop 520ms var(--ease-spring) both;
 }
 
 @utility tnum {
@@ -209,7 +366,7 @@
 @keyframes kumbara-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-coral) 45%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-rose) 45%, transparent);
   }
   70% {
     box-shadow: 0 0 0 8px transparent;

@@ -52,9 +52,9 @@ async function restoreAnchor() {
 }
 
 async function runBoothFlow(reference) {
-  const closeHint = ((await page.getByTestId("close-hint").textContent().catch(() => "")) ?? "").trim();
-  log("timeline says:", closeHint);
-  if (!/Kapatabilirsin|You can close/.test(closeHint)) throw new Error(`no close hint under the current step (saw "${closeHint}")`);
+  const current = ((await page.getByTestId("deposit-current").textContent().catch(() => "")) ?? "").trim();
+  log("timeline says:", current);
+  if (!current) throw new Error("no current step under the timeline");
   const pendingList = await (await fetch(`${APP}/api/booth/admin/pending`, { headers: adminHeaders })).json();
   const mine = (pendingList.pending ?? []).find((d) => d.reference === reference);
   if (!mine) throw new Error("deposit not listed for the presenter");

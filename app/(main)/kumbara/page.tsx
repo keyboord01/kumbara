@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { RequireWallet } from "@/components/RequireWallet";
 import { Spinner } from "@/components/Spinner";
 import { useToast } from "@/components/Toaster";
+import { usePopOnChange } from "@/components/usePopOnChange";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -154,6 +155,8 @@ function Savings() {
   }, [setupRequested, info, policyLoading, policy, install, router]);
 
   const inVault = position?.usdc ?? null;
+  // A balance that just changed should land rather than blink; the first paint stays still.
+  const vaultPop = usePopOnChange(inVault === null ? null : inVault.toString());
   const waiting = info && wallet.raw !== null ? wallet.raw : null;
   const sweepable = waiting !== null && waiting >= MIN_SWEEPABLE_STROOPS;
   const xlm = walletXlm.raw !== null && walletXlm.raw >= MIN_VISIBLE_XLM_STROOPS ? walletXlm.raw : null;
@@ -225,9 +228,9 @@ function Savings() {
             {setupFailure ? <FailureScreen failure={setupFailure} compact primary={{ label: t.savings.limitSetupConfirm, onClick: () => void install() }} /> : null}
           </div>
         ) : (
-          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-teal/30 bg-teal/5">
-            <Spinner className="text-teal" />
-            <AlertTitle className="text-teal">{t.savings.limitSetup}</AlertTitle>
+          <Alert role="status" aria-live="polite" aria-label={t.savings.limit} className="border-plum/30 bg-plum/5">
+            <Spinner className="text-plum" />
+            <AlertTitle className="text-plum">{t.savings.limitSetup}</AlertTitle>
             <AlertDescription className="text-ink-2">{t.savings.limitSetupHint}</AlertDescription>
           </Alert>
         ))}
@@ -244,16 +247,18 @@ function Savings() {
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
-          <p className="tnum text-4xl font-bold text-foreground">{inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}</p>
+          <p key={vaultPop} className={cn("tnum text-4xl font-bold text-foreground", vaultPop > 0 && "pop-in")}>
+            {inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}
+          </p>
           <p className="tnum text-sm text-ink-2">
             {t.savings.tryEquiv} {formatTry(tryValue(inVault), locale)}
             {rate && <span className="text-muted-foreground"> · {t.savings.rateSource[rate.source]}</span>}
           </p>
           {sweepable && waiting !== null && (
-            <div className="mt-2 flex flex-col gap-2 rounded-lg bg-muted px-3 py-3">
+            <div className="coin-drop mt-2 flex flex-col gap-2 rounded-lg bg-blush/40 px-3 py-3">
               <p className="text-sm text-ink-2">
                 {t.savings.waiting}:{" "}
-                <strong className="tnum text-foreground" data-testid="wallet-usdc">
+                <strong key={waiting.toString()} className="tnum pop-in text-foreground" data-testid="wallet-usdc">
                   {formatUsdc(waiting, locale)} USDC
                 </strong>
                 <span className="tnum">

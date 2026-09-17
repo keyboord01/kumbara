@@ -29,6 +29,8 @@ export function ScreenSkeleton({ label }: { label?: string }) {
           <Skeleton className="h-3 w-16" />
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {/* The shape of the status column: a route strip, then the steps, so nothing jumps when it arrives. */}
+          <Skeleton className="h-8 w-full rounded-full" />
           <Skeleton className="h-4 w-48" />
           <Skeleton className="h-4 w-40" />
           <Skeleton className="h-4 w-52" />

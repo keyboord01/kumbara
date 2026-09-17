@@ -65,7 +65,7 @@ export function InviteCard() {
       <CardContent className="flex flex-col gap-3">
         {invite ? (
           <>
-            <p className="break-all rounded-lg bg-muted p-3 font-mono text-xs text-foreground" data-testid="invite-link">
+            <p className="break-all rounded-lg bg-blush/40 p-3 font-mono text-xs text-foreground" data-testid="invite-link">
               {invite.link}
             </p>
             <div className="flex flex-wrap gap-2">
@@ -80,7 +80,7 @@ export function InviteCard() {
                 </Button>
               ) : null}
             </div>
-            <p className="tnum text-sm font-semibold text-foreground" data-testid="invite-count">
+            <p key={invite.count} className="tnum pop-in text-sm font-semibold text-foreground" data-testid="invite-count">
               {t.invite.count.replace("{n}", String(invite.count))}
             </p>
           </>

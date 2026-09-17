@@ -567,7 +567,7 @@ export default function BoothAdminPage() {
                   {ci.at ? ` · ${new Date(ci.at).toLocaleString(intl)}` : ""}
                 </p>
                 {ci.runUrl ? (
-                  <a href={ci.runUrl} target="_blank" rel="noreferrer" className="w-fit rounded-sm text-teal underline underline-offset-4">
+                  <a href={ci.runUrl} target="_blank" rel="noreferrer" className="w-fit rounded-sm text-plum underline underline-offset-4">
                     {t.admin.ciRun} ↗
                   </a>
                 ) : null}
@@ -726,7 +726,7 @@ export default function BoothAdminPage() {
                             {d.landing ? (
                               <ItemDescription className="text-xs text-ink-2">
                                 {t.failures.landingLabel}:{" "}
-                                <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-teal underline underline-offset-4">
+                                <a href={`${EXPLORER_BASE}/account/${d.landing}`} target="_blank" rel="noreferrer" className="font-mono text-plum underline underline-offset-4">
                                   {d.landing.slice(0, 8)}…{d.landing.slice(-6)}
                                 </a>{" "}
                                 · {t.admin.paid} {d.paidUsdc ?? "?"} / {d.usdc ?? "?"} USDC
@@ -894,7 +894,7 @@ export default function BoothAdminPage() {
               </Card>
 
               <div className="flex items-center justify-between text-xs">
-                <Link href="/booth?n=1" className="rounded-sm text-teal underline-offset-4 hover:underline">
+                <Link href="/booth?n=1" className="rounded-sm text-plum underline-offset-4 hover:underline">
                   {t.admin.qr} →
                 </Link>
                 <Button

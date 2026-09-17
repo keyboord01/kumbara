@@ -14,6 +14,8 @@ export interface AnchorInfo {
   treasuryUsdc: string | null;
   /** Which anchor the server uses for new requests, with the limits it publishes (SEP-6 /info in the asset; lira limits when the anchor states them). */
   anchor?: { homeDomain: string; orgName: string | null; fiatCode: string | null; limits?: { deposit: { min: number | null; max: number | null }; withdraw: { min: number | null; max: number | null }; fiat: { min: number | null; max: number | null; source: "anchor" | "derived" } | null } };
+  /** Deposits at or below this many lira are confirmed without anyone pressing anything. */
+  autoConfirmMaxTry?: number;
   onrampMode: "landing" | "direct";
   offrampMode: "landing" | "direct";
 }

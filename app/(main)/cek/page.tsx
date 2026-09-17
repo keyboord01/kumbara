@@ -98,7 +98,7 @@ const floor2 = (stroops: bigint): string => {
 
 function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
-    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-teal hover:underline">
+    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-plum hover:underline">
       {label} · {NETWORK_LABEL}
       <ExternalLinkIcon className="size-3.5" aria-hidden />
     </a>
@@ -379,7 +379,7 @@ function Withdraw() {
       <div className="flex flex-col gap-5 py-2">
         <div className="flex items-baseline justify-between">
           <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
-          <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
+          <Link href="/kumbara" className="rounded-sm text-sm text-plum hover:underline">
             {t.withdraw.backToSavings}
           </Link>
         </div>
@@ -484,7 +484,8 @@ function Withdraw() {
                 {method === "iban" && quote ? (
                   <div className="rounded-lg bg-muted p-3" data-testid="withdraw-quote">
                     <p className="microlabel">{t.withdraw.quoteTitle}</p>
-                    <p className="tnum text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
+                    {/* A refreshed rate should land, so the visitor notices the figure moved. */}
+                    <p key={quote.tryOut} className="tnum pop-in text-2xl font-bold">{formatTry(Number(quote.tryOut), locale)}</p>
                     <p className="tnum text-xs text-ink-2">
                       {t.withdraw.rateLine} {Number(quote.rate).toLocaleString(locale === "tr" ? "tr-TR" : "en-US", { maximumFractionDigits: 4 })} ₺/USDC ({quote.spreadBps} bps {t.withdraw.spread}) · {t.withdraw.indicative}
                     </p>
@@ -544,7 +545,7 @@ function Withdraw() {
     <div className={cn("flex flex-col gap-5 py-2", done && "mx-auto w-full lg:max-w-2xl")}>
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
-        <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
+        <Link href="/kumbara" className="rounded-sm text-sm text-plum hover:underline">
           {t.withdraw.backToSavings}
         </Link>
       </div>
@@ -609,18 +610,14 @@ function Withdraw() {
             <p className="text-sm font-semibold text-foreground" role="status" aria-live="polite" data-testid="withdraw-current">
               {stepLabels[record.status]}
             </p>
-            {record.status === "usdc_sent" || record.status === "paid" ? (
-              <p className="text-sm text-teal" data-testid="close-hint">
-                {t.withdraw.closeHint}
-              </p>
-            ) : record.status === "created" || record.status === "awaiting_usdc" ? (
+            {record.status === "created" || record.status === "awaiting_usdc" ? (
               <p className="text-sm text-amber" data-testid="needs-you">
                 {t.withdraw.needsYou}
               </p>
             ) : null}
             {clientLabel && record.status !== "completed" ? (
               <p className="flex items-center gap-2 text-sm text-ink-2" role="status">
-                <Spinner className="text-teal" />
+                <Spinner className="text-plum" />
                 {clientLabel}
               </p>
             ) : null}

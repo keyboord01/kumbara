@@ -31,7 +31,7 @@ function Booth() {
 
   useEffect(() => {
     if (!url) return;
-    QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#12313a", light: "#ffffff" } })
+    QRCode.toString(url, { type: "svg", errorCorrectionLevel: "M", margin: 1, color: { dark: "#33212a", light: "#ffffff" } })
       .then(setSvg)
       .catch(() => setSvg(""));
   }, [url]);
@@ -61,7 +61,7 @@ function Booth() {
 
   return (
     <div className="m-auto flex w-full max-w-lg flex-col items-center gap-6 px-6 py-10 text-center">
-      <p className="text-3xl font-bold tracking-tight text-teal">{t.booth.title}</p>
+      <p className="text-3xl font-bold tracking-tight text-plum">{t.booth.title}</p>
       {/* The QR is the first svg on the page; the booth check waits for it. */}
       <Card size="sm" className="w-full max-w-sm px-(--card-spacing)" role="img" aria-label={url} dangerouslySetInnerHTML={{ __html: svg }} />
       <p className="microlabel">

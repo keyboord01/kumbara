@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { cn } from "cn";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -19,6 +20,8 @@ export interface ToastInput {
 interface Toast extends ToastInput {
   id: number;
   variant: ToastVariant;
+  /** Set while the toast plays its exit; it leaves the list when that finishes. */
+  leaving?: boolean;
 }
 
 interface ToastApi {
@@ -30,10 +33,12 @@ const ToastContext = createContext<ToastApi | null>(null);
 
 /** At most this many on screen; the oldest leaves first. */
 const MAX_VISIBLE = 3;
+/** Matches the toast-out utility in globals.css; a toast should finish its sentence before it goes. */
+const EXIT_MS = 180;
 const DEFAULT_MS: Record<ToastVariant, number> = { info: 4000, success: 4000, warning: 6000, error: 8000 };
 
 const STYLE: Record<ToastVariant, { bar: string; icon: string }> = {
-  info: { bar: "bg-teal", icon: "i" },
+  info: { bar: "bg-plum", icon: "i" },
   success: { bar: "bg-mint", icon: "✓" },
   warning: { bar: "bg-amber", icon: "!" },
   error: { bar: "bg-destructive", icon: "×" },
@@ -51,10 +56,17 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
   const timers = useRef(new Map<number, ReturnType<typeof setTimeout>>());
 
   const dismiss = useCallback((id: number) => {
-    setToasts((list) => list.filter((t) => t.id !== id));
+    // Mark it leaving so the exit animation runs, then drop it from the list.
+    setToasts((list) => list.map((t) => (t.id === id ? { ...t, leaving: true } : t)));
     const timer = timers.current.get(id);
     if (timer) clearTimeout(timer);
-    timers.current.delete(id);
+    timers.current.set(
+      id,
+      setTimeout(() => {
+        setToasts((list) => list.filter((t) => t.id !== id));
+        timers.current.delete(id);
+      }, EXIT_MS),
+    );
   }, []);
 
   const toast = useCallback(
@@ -93,7 +105,10 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             aria-live="polite"
             data-testid="toast"
             data-variant={t.variant}
-            className="toast-in pointer-events-auto flex w-full max-w-xl items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 pr-2 shadow-toast"
+            className={cn(
+              "pointer-events-auto flex w-full max-w-xl items-start gap-3 overflow-hidden rounded-xl border border-border bg-card p-3 pr-2 shadow-toast",
+              t.leaving ? "toast-out" : "toast-in",
+            )}
           >
             <span className={`mt-0.5 flex h-5 w-5 flex-none items-center justify-center rounded-full text-[11px] font-bold text-white ${STYLE[t.variant].bar}`} aria-hidden>
               {STYLE[t.variant].icon}

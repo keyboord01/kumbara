@@ -43,7 +43,7 @@ for (const variant of VARIANTS) {
   const sheet = await browser.newPage({ viewport: { width: 1600, height: 100 } });
   const cells = files.map((f, i) => `<figure><img src="data:image/png;base64,${readFileSync(path.join(slidesDir, f)).toString("base64")}"><figcaption>${i + 1}</figcaption></figure>`).join("");
   await sheet.setContent(`<!doctype html><html><head><style>
-    body{margin:0;background:#fbf7f0;font-family:ui-sans-serif,system-ui,sans-serif;color:#12313a}
+    body{margin:0;background:#fdf5f4;font-family:ui-sans-serif,system-ui,sans-serif;color:#33212a}
     .wrap{padding:28px 32px} h1{font-size:22px;margin:0 0 14px;letter-spacing:-.01em}
     .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px} figure{margin:0}
     img{width:100%;display:block;border:1px solid #e3dccd;border-radius:8px;background:#fff}

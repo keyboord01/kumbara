@@ -19,9 +19,8 @@
  * would. Idempotent: a tick that finds nothing to do changes nothing.
  */
 import "server-only";
-import { PlayBankError, playBank, type BankPlayed } from "./demo-bank";
+import { autoPlayBank } from "./autobank.server";
 import { advanceDeposit, type DepositRecord, type DepositStatus } from "./deposit.server";
-import { serverEnv } from "./env.server";
 import { advanceWithdrawal, type WithdrawalRecord, type WithdrawalStatus } from "./withdraw.server";
 import { depositStore, withLease, withdrawalStore } from "./store.server";
 
@@ -35,45 +34,9 @@ const PER_STATUS = 25;
 /** Steps one record may take in one tick (a deposit that just got paid can go forward → cleanup → in_wallet in one tick). */
 const MAX_STEPS_PER_RECORD = 6;
 /** A deposit must be this old before the driver plays its bank transfer: the visitor sees the IBAN screen first, and the record is settled. */
-const AUTO_BANK_MIN_AGE_MS = 5_000;
 /** After the anchor refused an automatic play, leave that record alone for this long. */
-const AUTO_BANK_BACKOFF_MS = 30_000;
 /** Anchors without the sandbox hook are not asked again for a while. */
-const NO_HOOK_MEMORY_MS = 5 * 60_000;
-const autoBankBackoff = new Map<string, number>();
-const noHookUntil = new Map<string, number>();
 
-/**
- * The booth's small-deposit autopilot: on the sandbox anchor, the driver plays
- * the bank for deposits at or below BOOTH_AUTO_BANK_MAX_TRY (default 250) so a
- * visitor's ₺100 completes without the presenter. Only before the transfer
- * deadline, only once, only on anchors with the hook. Returns a note for the
- * tick item, or null when nothing was attempted.
- */
-async function autoPlayBank(record: DepositRecord & { bankPlayed?: BankPlayed }): Promise<string | null> {
-  const maxTry = serverEnv.boothAutoBankMaxTry();
-  if (maxTry <= 0 || record.status !== "awaiting_transfer" || record.bankPlayed || !record.sep6) return null;
-  const amount = Number(record.amountTry);
-  if (!Number.isFinite(amount) || amount > maxTry) return null;
-  const now = Date.now();
-  if (now - Date.parse(record.createdAt) < AUTO_BANK_MIN_AGE_MS) return null;
-  if (record.transferDeadline && now > Date.parse(record.transferDeadline)) return null;
-  if ((autoBankBackoff.get(record.id) ?? 0) > now) return null;
-  const host = record.sep6.transferServer;
-  if ((noHookUntil.get(host) ?? 0) > now) return null;
-  try {
-    await playBank({ depositId: record.id, by: "auto" });
-    return "auto_bank:played";
-  } catch (err) {
-    if (err instanceof PlayBankError) {
-      if (err.code === "no_sandbox_hook") noHookUntil.set(host, now + NO_HOOK_MEMORY_MS);
-      else if (err.code !== "already_paid") autoBankBackoff.set(record.id, now + AUTO_BANK_BACKOFF_MS);
-      return `auto_bank:${err.code}`;
-    }
-    autoBankBackoff.set(record.id, now + AUTO_BANK_BACKOFF_MS);
-    return `auto_bank:${err instanceof Error ? err.message.slice(0, 80) : String(err)}`;
-  }
-}
 
 export interface TickItem {
   id: string;

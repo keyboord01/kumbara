@@ -64,7 +64,6 @@ const STEP_TIMEOUT_MS = 120_000;
 const AMOUNT_FAILURES = new Set(["invalid_amount", "anchor_rejected", "insufficient_balance"]);
 /** Steps the server (and the booth driver) takes on its own; the page can be closed during these. */
 const PREVIEW_STEPS: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"];
-const SERVER_STEPS = new Set(["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded"]);
 /** Typical wall-clock seconds per step, from the production round trips of 9–10 September (bank to vault 33–42 s in all). */
 const TYPICAL_SECONDS: Partial<Record<string, number>> = { transfer_received: 8, onramp_pending: 8, onramp_paid: 10, forwarded: 6, in_wallet: 14 };
 
@@ -652,11 +651,7 @@ function Deposit() {
             <p className="text-sm font-semibold text-foreground" role="status" aria-live="polite" data-testid="deposit-current">
               {t.deposit.steps[record.status]}
             </p>
-            {SERVER_STEPS.has(record.status) ? (
-              <p className="text-sm text-plum" data-testid="close-hint">
-                {t.deposit.closeHint}
-              </p>
-            ) : record.status === "in_wallet" ? (
+            {record.status === "in_wallet" ? (
               <p className="text-sm text-amber" data-testid="needs-you">
                 {t.deposit.needsYou}
               </p>

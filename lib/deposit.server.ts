@@ -364,7 +364,7 @@ async function leaseHeld(id: string): Promise<never> {
   throw new DepositError(409, "lease_held", `another step is running on deposit ${id} right now; try again in a few seconds`);
 }
 
-async function loadDeposit(id: string): Promise<DepositRecord> {
+export async function loadDeposit(id: string): Promise<DepositRecord> {
   const record = await depositStore.get<DepositRecord>(id);
   if (!record) throw new DepositError(404, "not_found", "deposit not found");
   return record;

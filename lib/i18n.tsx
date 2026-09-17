@@ -19,7 +19,7 @@ export const dict = {
       lead: "Kumbara passkey'inle açılır: Face ID, Touch ID ya da parola yöneticin. Anahtar yalnızca sende. Tohum kelime yok, uygulama yok, XLM yok.",
       cta: "Başla",
       existing: "Kumbarama git",
-      phasePasskey: "Passkey onayı bekleniyor…",
+      phasePasskey: "Passkey onayını bekliyoruz…",
       phaseDeploy: "Kumbaran Stellar'da oluşturuluyor…",
       phaseLimit: "Harcama limiti kuruluyor (ikinci onay)…",
       done: "Kumbaran hazır.",
@@ -36,6 +36,7 @@ export const dict = {
       ceremony: {
         title: "Kumbaran kuruluyor",
         lead: "Perde arkasında olanlar:",
+        hold: "Ekranda kal. Birkaç saniye sürer.",
         steps: {
           passkey: { label: "Passkey anahtarını üretiyor", detail: "Anahtar cihazından çıkmaz. Sunucu da, biz de göremeyiz." },
           deploy: { label: "Akıllı hesabın Stellar'da açılıyor", detail: "OpenZeppelin akıllı hesabı; tek imzacısı senin passkey'in." },
@@ -209,7 +210,6 @@ export const dict = {
       autopilotNeedsTap: "Kasaya koymak için passkey onayı gerekiyor.",
       autopilotButton: "Kasaya koy",
       autopilotSigning: "Passkey onayı bekleniyor…",
-      closeHint: "Kapatabilirsin, biz devam ediyoruz.",
       needsYou: "Bu adım passkey'ini istiyor.",
       arrivedTitle: "USDC geldi — kumbarana koymak için dokun.",
       stepTagUs: "biz",
@@ -273,7 +273,6 @@ export const dict = {
       stepVault: "1/2 Kasadan çekiliyor…",
       stepTransfer: "2/2 Kumbaradan gönderiliyor…",
       needsTap: "Devam etmek için passkey onayı gerekiyor.",
-      closeHint: "Kapatabilirsin, biz devam ediyoruz.",
       needsYou: "Bu adım passkey'ini istiyor; sayfa açık kalsın.",
       returnedTitle: "Çekimin seni bekliyor — devam etmek için dokun.",
       tapVault: "Kasadan çek (passkey)",
@@ -533,6 +532,7 @@ export const dict = {
       ceremony: {
         title: "Opening your kumbara",
         lead: "What is happening behind the screen:",
+        hold: "Stay on this screen. It takes a few seconds.",
         steps: {
           passkey: { label: "Your passkey makes the key", detail: "The key never leaves your device. Not the server, not us." },
           deploy: { label: "Your smart account goes on Stellar", detail: "An OpenZeppelin smart account whose only signer is your passkey." },
@@ -706,7 +706,6 @@ export const dict = {
       autopilotNeedsTap: "Passkey approval is needed to put it in the vault.",
       autopilotButton: "Put it in the vault",
       autopilotSigning: "Waiting for your passkey…",
-      closeHint: "You can close this; we'll continue.",
       needsYou: "This step needs your passkey.",
       arrivedTitle: "USDC arrived. Tap to put it in the vault.",
       stepTagUs: "us",
@@ -770,7 +769,6 @@ export const dict = {
       stepVault: "1/2 Withdrawing from the vault…",
       stepTransfer: "2/2 Sending from your kumbara…",
       needsTap: "Passkey approval is needed to continue.",
-      closeHint: "You can close this; we'll continue.",
       needsYou: "This step needs your passkey; keep the page open.",
       returnedTitle: "Your withdrawal is waiting for you — tap to continue.",
       tapVault: "Withdraw from vault (passkey)",

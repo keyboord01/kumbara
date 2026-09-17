@@ -610,11 +610,7 @@ function Withdraw() {
             <p className="text-sm font-semibold text-foreground" role="status" aria-live="polite" data-testid="withdraw-current">
               {stepLabels[record.status]}
             </p>
-            {record.status === "usdc_sent" || record.status === "paid" ? (
-              <p className="text-sm text-plum" data-testid="close-hint">
-                {t.withdraw.closeHint}
-              </p>
-            ) : record.status === "created" || record.status === "awaiting_usdc" ? (
+            {record.status === "created" || record.status === "awaiting_usdc" ? (
               <p className="text-sm text-amber" data-testid="needs-you">
                 {t.withdraw.needsYou}
               </p>

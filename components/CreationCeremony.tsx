@@ -125,9 +125,21 @@ export function CreationCeremony({ phase, done = false, className }: { phase: Cr
         })}
       </ol>
 
-      <p className="tnum text-xs text-muted-foreground">
-        {copy.elapsed.replace("{s}", String(elapsed))} · {copy.typical}
-      </p>
+      {/* The wait needs saying out loud: a first-timer does not know a passkey prompt is followed by ten
+          seconds of chain work, and a silent screen reads as a screen that has stopped. */}
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="text-sm font-semibold text-rose">{copy.hold}</p>
+        <p className="tnum text-xs text-muted-foreground">
+          {copy.elapsed.replace("{s}", String(elapsed))} · {copy.typical}
+        </p>
+      </div>
+      {/* A bar that fills toward the typical duration, so the wait has a shape rather than a number. */}
+      <div className="h-1 w-full overflow-hidden rounded-full bg-muted" aria-hidden>
+        <div
+          className="h-full rounded-full bg-rose transition-[width] duration-1000 ease-linear"
+          style={{ width: `${Math.min(96, Math.round((elapsed / 14) * 100))}%` }}
+        />
+      </div>
       <span className="sr-only">{active ? copy.steps[active.key].label : copy.steps.ready.label}</span>
     </div>
   );

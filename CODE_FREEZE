@@ -1,5 +1,0 @@
-2026-09-16
-Kumbara is frozen for the Rise In x Stellar Pro Hackathon (Istanbul, 19-20 September 2026).
-From the date above, a push to main that changes application code must be a hotfix: a fix for a
-red pre-doors checklist item or a red E2E, with a commit subject that starts with "hotfix:".
-Docs, scripts, workflows and this file stay open. The guard is .github/workflows/freeze.yml.

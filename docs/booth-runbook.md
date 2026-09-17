@@ -2,10 +2,6 @@
 
 Rise In × Stellar Pro Hackathon, Istanbul, 19–20 September 2026. Everything below is **Stellar testnet**: no real lira moves, and every screen says so.
 
-## Code freeze
-
-The tree is frozen from 16 September 2026 (`CODE_FREEZE` at the repository root; the guard is the Freeze workflow). Until the demo, a push to `main` that touches application code must be a hotfix for a red checklist item or a red E2E, with a commit subject that starts with `hotfix:`. Docs, scripts and workflows stay open. Every production deploy still runs the round trip in CI; dispatch the E2E workflow by hand after a hotfix and wait for green before the doors open.
-
 ## Pre-doors checklist (30 minutes before)
 
 1. **The domain serves the latest deploy.** `kumbara.sembol.xyz` is the project's production domain, so every production deploy reaches it by itself (no alias step). Check `curl -s "https://kumbara.sembol.xyz/api/anchor/info?cb=$(date +%s)"` shows the vault id from `docs/deploy.md` and `/api/health` answers `ok:true`. Passkeys are bound to this domain: accounts made on the old `kumbara.vercel.app` address (which now redirects here) do not open on it, so seed the demo account fresh (step 8).

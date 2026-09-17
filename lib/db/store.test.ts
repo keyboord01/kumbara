@@ -114,12 +114,17 @@ describe("libsql store", () => {
   });
 
   it("rate-limit windows count per bucket and forget old hits", async () => {
+    // Counting: a window wide enough that a slow runner cannot age the first hits out mid-test.
     const bucket = "abc123";
-    expect((await store.rateLimitHit(bucket, 2, 200)).allowed).toBe(true);
-    expect((await store.rateLimitHit(bucket, 2, 200)).allowed).toBe(true);
-    expect((await store.rateLimitHit(bucket, 2, 200))).toEqual({ allowed: false, count: 2 });
-    await new Promise((r) => setTimeout(r, 250));
-    expect((await store.rateLimitHit(bucket, 2, 200)).allowed).toBe(true);
+    expect((await store.rateLimitHit(bucket, 2, 10_000)).allowed).toBe(true);
+    expect((await store.rateLimitHit(bucket, 2, 10_000)).allowed).toBe(true);
+    expect(await store.rateLimitHit(bucket, 2, 10_000)).toEqual({ allowed: false, count: 2 });
+    // Forgetting: sleep past a short window, so a slow runner only makes the gap larger.
+    const old = "abc123-old";
+    expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(true);
+    expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(false);
+    await new Promise((r) => setTimeout(r, 150));
+    expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(true);
     expect((await store.rateLimitHit("other", 0, 200)).allowed).toBe(true); // 0 = unlimited
   });
 });

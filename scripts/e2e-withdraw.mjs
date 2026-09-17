@@ -4,6 +4,24 @@
 //   pnpm e2e:withdraw   (APP_URL defaults to http://localhost:3100; needs BOOTH_ADMIN_TOKEN in .env)
 import { chromium } from "playwright";
 
+/**
+ * An amount the presenter has to confirm by hand: above the automatic line, below the anchor's per-deposit
+ * maximum. Both move (the line is a dollar figure converted at the live rate), so it is read rather than
+ * guessed, and the check says so plainly when the two leave no room between them.
+ */
+async function manualAmount(app) {
+  const info = await (await fetch(`${app}/api/anchor/info?cb=${Date.now()}`)).json();
+  const auto = Number(info?.autoConfirm?.try ?? 0);
+  // The anchor publishes two ceilings: `deposit` is in USDC, `fiat` is the lira the visitor types. This is lira.
+  const anchorMax = Number(info?.anchor?.limits?.fiat?.max ?? 0);
+  if (auto <= 0) return "300"; // automatic confirmation is off: any amount needs the press
+  const wanted = Math.ceil((auto + 50) / 50) * 50;
+  if (anchorMax > 0 && wanted > anchorMax) {
+    throw new Error(`no amount needs a manual press: the automatic line is ₺${auto} and the anchor's maximum is ₺${anchorMax}`);
+  }
+  return String(wanted);
+}
+
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 const ADMIN = process.env.BOOTH_ADMIN_TOKEN?.trim();
 if (!ADMIN) throw new Error("BOOTH_ADMIN_TOKEN is required (pnpm e2e:withdraw loads .env)");
@@ -83,7 +101,9 @@ try {
   });
   const depositInput = page.locator("input[type=number]");
   await depositInput.waitFor({ timeout: 20000 });
-  await depositInput.fill("300");
+  const amount = await manualAmount(APP);
+  log(`a manual deposit today is ₺${amount}`);
+  await depositInput.fill(amount);
   await page.getByRole("button", { name: /Devam/ }).click();
   // The request builds and locks the bridge account (SEP-10/12/38/6 inside) before the IBAN shows: up to 90 s on production.
   await page.getByTestId("deposit-reference").waitFor({ timeout: 90000 });

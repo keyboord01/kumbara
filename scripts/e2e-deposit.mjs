@@ -4,6 +4,24 @@
 //   pnpm e2e:deposit   (APP_URL defaults to http://localhost:3100; needs BOOTH_ADMIN_TOKEN in .env)
 import { chromium } from "playwright";
 
+/**
+ * An amount the presenter has to confirm by hand: above the automatic line, below the anchor's per-deposit
+ * maximum. Both move (the line is a dollar figure converted at the live rate), so it is read rather than
+ * guessed, and the check says so plainly when the two leave no room between them.
+ */
+async function manualAmount(app) {
+  const info = await (await fetch(`${app}/api/anchor/info?cb=${Date.now()}`)).json();
+  const auto = Number(info?.autoConfirm?.try ?? 0);
+  // The anchor publishes two ceilings: `deposit` is in USDC, `fiat` is the lira the visitor types. This is lira.
+  const anchorMax = Number(info?.anchor?.limits?.fiat?.max ?? 0);
+  if (auto <= 0) return "300"; // automatic confirmation is off: any amount needs the press
+  const wanted = Math.ceil((auto + 50) / 50) * 50;
+  if (anchorMax > 0 && wanted > anchorMax) {
+    throw new Error(`no amount needs a manual press: the automatic line is ₺${auto} and the anchor's maximum is ₺${anchorMax}`);
+  }
+  return String(wanted);
+}
+
 const APP = process.env.APP_URL ?? "http://localhost:3100";
 // The bank is played through the presenter API (the anchor's SEP-6 sandbox hook), so only the admin token is needed.
 const ADMIN_TOKEN = process.env.BOOTH_ADMIN_TOKEN?.trim() ?? "";
@@ -22,7 +40,8 @@ const LEAVE_AFTER_IBAN = process.env.E2E_LEAVE_AFTER_IBAN === "1";
 const AUTOBANK = process.env.E2E_AUTOBANK === "1";
 // Manual-play modes deposit above the driver's auto-bank threshold, or the driver would play the bank first and the
 // presenter's press would be refused as already paid; the autobank mode deposits below it on purpose.
-const AMOUNT = process.env.E2E_DEPOSIT_AMOUNT?.trim() || (AUTOBANK ? "100" : "300");
+// Autobank wants an amount under the automatic line; the other modes want one over it, read at run time.
+let AMOUNT = process.env.E2E_DEPOSIT_AMOUNT?.trim() || "100";
 // The queue row for one reference (the console lists every waiting deposit, each with its own button).
 const queueRow = (admin, reference) => admin.locator("[data-testid='queue-item']").filter({ hasText: reference });
 const playButton = (admin, reference) => queueRow(admin, reference).getByRole("button", { name: /Bankayı oynat|Play the bank/ });
@@ -134,7 +153,7 @@ async function runAutobankFlow(reference) {
   if (!mine) throw new Error("deposit not listed for the presenter");
   const maxTry = Number(pendingList.autoConfirm?.try ?? 0);
   log(`driver auto-bank threshold: ₺${maxTry}; this deposit: ₺${AMOUNT}`);
-  if (!(Number(AMOUNT) <= maxTry)) throw new Error(`BOOTH_AUTO_BANK_MAX_TRY (${maxTry}) must be at least ${AMOUNT} for this check`);
+  if (!(Number(AMOUNT) <= maxTry)) throw new Error(`the automatic line (₺${maxTry}) must be at least ₺${AMOUNT} for this check`);
   const startedAt = Date.now();
   let last = "";
   let played = null;
@@ -204,6 +223,8 @@ try {
   await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 90000 });
   log("✓ spending limit installed, deposit enabled");
 
+  // The manual-press modes need an amount above the automatic line, which moves with the rate.
+  if (!AUTOBANK && !process.env.E2E_DEPOSIT_AMOUNT?.trim()) AMOUNT = await manualAmount(APP);
   log(`deposit ${AMOUNT} ${E2E_ANCHOR ? `on ${E2E_ANCHOR}` : ""}`);
   await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").click();
   // The link can be re-rendered under the click while the limit card settles; make sure the deposit page is actually open.

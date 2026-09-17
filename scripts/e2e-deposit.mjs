@@ -283,6 +283,8 @@ try {
     log("play the bank from the presenter page (/booth/admin)");
     const admin = await context.newPage();
     await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(adminToken)}`, { waitUntil: "domcontentloaded" });
+    // The page lifts the token out of the address bar when it mounts; check once it has.
+    await admin.waitForFunction(() => !window.location.search.includes("token="), null, { timeout: 15000 }).catch(() => undefined);
     if (admin.url().includes("token=")) throw new Error("admin token was not removed from the URL");
     await admin.getByText(reference).first().waitFor({ timeout: 20000 });
     await playButton(admin, reference).click();

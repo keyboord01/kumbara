@@ -257,7 +257,7 @@ async function createSep6Deposit(input: { contractId: string; amountTry: string;
   if (Object.keys(got.dep.instructions).length === 0) {
     // The instructions arrive on the transaction a few seconds after the per-transaction KYC answer. Bounded: the pipeline keeps polling and fills them in later otherwise.
     for (let i = 0; i < 6 && Object.keys(got.dep.instructions).length === 0; i += 1) {
-      await new Promise((r) => setTimeout(r, 1500));
+      await new Promise((r) => setTimeout(r, i === 0 ? 600 : 1200));
       const tx = await sep6Transaction(anchor, got.token, got.dep.id).catch(() => null);
       if (tx?.instructions && Object.keys(tx.instructions).length > 0) got.dep.instructions = tx.instructions;
     }

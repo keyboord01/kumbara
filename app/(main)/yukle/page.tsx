@@ -96,6 +96,49 @@ type DepositMethod = "iban" | "address";
  * a Soroban-capable wallet or another kumbara. Nothing to submit here; once it
  * lands, Savings offers to put it in the vault.
  */
+
+/** What the server is doing while the IBAN does not exist yet. The beats advance on measured timings rather
+ *  than on events, so each one is phrased as the thing being done, never as a thing already finished. */
+function PreparingSteps() {
+  const { t } = useLocale();
+  const copy = t.deposit.preparingSteps;
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const beats = [
+    { key: "bridge", label: copy.bridge, from: 0 },
+    { key: "anchor", label: copy.anchor, from: 5 },
+    { key: "rate", label: copy.rate, from: 9 },
+  ];
+  const activeIndex = beats.reduce((found, beat, i) => (elapsed >= beat.from ? i : found), 0);
+  return (
+    <div className="rise-in flex flex-col gap-2 rounded-lg bg-muted p-3" data-testid="preparing-steps">
+      <p className="microlabel">{copy.title}</p>
+      <ol className="flex flex-col gap-1.5">
+        {beats.map((beat, i) => (
+          <li key={beat.key} className="flex items-start gap-2 text-sm" data-prep={beat.key} data-state={i < activeIndex ? "done" : i === activeIndex ? "active" : "idle"}>
+            <span
+              className={cn(
+                "mt-1.5 size-1.5 flex-none rounded-full",
+                i < activeIndex && "bg-mint",
+                i === activeIndex && "breathe bg-rose",
+                i > activeIndex && "bg-line-2",
+              )}
+              aria-hidden
+            />
+            <span className={cn("leading-5", i === activeIndex ? "sheen font-semibold" : i < activeIndex ? "text-ink-2" : "text-muted-foreground")}>{beat.label}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="tnum text-xs text-muted-foreground">
+        {t.onboard.ceremony.elapsed.replace("{s}", String(elapsed))} · {copy.typical}
+      </p>
+    </div>
+  );
+}
+
 function AddressDeposit() {
   const { t } = useLocale();
   const { address, explorerUrl } = useWalletAddress();
@@ -475,10 +518,15 @@ function Deposit() {
             ) : null}
             {failure ? <FailureScreen failure={failure} compact primary={AMOUNT_FAILURES.has(failure.kind) ? null : undefined} onRetry={() => void start()} /> : null}
           </div>
-          <Button type="submit" size="xl" className="w-full lg:[grid-area:actions]" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
-            {submitting ? <Spinner data-icon="inline-start" /> : null}
-            {submitting ? t.deposit.preparing : t.deposit.continue}
-          </Button>
+          <div className="flex flex-col gap-3 lg:[grid-area:actions]">
+            <Button type="submit" size="xl" className="w-full" disabled={!amountValid || submitting || !address} aria-busy={submitting ? "true" : undefined}>
+              {submitting ? <Spinner data-icon="inline-start" /> : null}
+              {submitting ? t.deposit.preparing : t.deposit.continue}
+            </Button>
+            {/* The IBAN takes eight to fifteen seconds to exist: a bridge account on chain, then the anchor's
+                answer. Naming the three things makes that a wait with a shape instead of a stalled button. */}
+            {submitting ? <PreparingSteps /> : null}
+          </div>
           {/* What happens next: the same steps the status card will show, idle. Last on a phone, beside the form on a laptop. */}
           <aside className="flex flex-col gap-4 max-lg:order-last lg:sticky lg:top-24 lg:[grid-area:side]" aria-label={t.deposit.statusTitle}>
             <Card size="sm">

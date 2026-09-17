@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { KeyRoundIcon } from "lucide-react";
 import { useCreateWallet, usePasskeyWallet } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
+import { CreationCeremony } from "@/components/CreationCeremony";
 import { FailureScreen } from "@/components/FailureScreen";
 import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
@@ -29,6 +30,8 @@ export default function OnboardPage() {
   const { createWallet, phase: createPhase } = useCreateWallet();
   const { info, failure: infoFailure, retry: retryInfo } = useAnchorInfo();
   const [stage, setStage] = useState<Stage>("idle");
+  // Which flow is running: both end at "done", but only one of them earns the ceremony.
+  const [flow, setFlow] = useState<"create" | "connect" | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
 
   // Booth ref: remembered only so the counter can attribute the account.
@@ -39,6 +42,7 @@ export default function OnboardPage() {
 
   const start = async () => {
     setFailure(null);
+    setFlow("create");
     setStage("creating");
     // Tap time, read by /api/relay when the deployment confirms, for the public
     // tap-to-kumbara timing. A timestamp only; it expires in ten minutes.
@@ -63,6 +67,7 @@ export default function OnboardPage() {
 
   const connectExisting = async () => {
     setFailure(null);
+    setFlow("connect");
     setStage("connecting");
     try {
       const wallet = await connect();
@@ -98,7 +103,6 @@ export default function OnboardPage() {
   };
 
   const busy = stage !== "idle";
-  const phaseLabel = stage === "connecting" ? t.onboard.connecting : stage === "creating" ? (createPhase === "deploying" ? t.onboard.phaseDeploy : t.onboard.phasePasskey) : t.onboard.phaseDeploy;
   const unsupported = capabilities !== null && capabilities.supported === false;
 
   return (
@@ -117,20 +121,25 @@ export default function OnboardPage() {
               <Skeleton className="mx-auto h-4 w-48" />
               <span className="sr-only">{t.savings.loading}</span>
             </div>
+          ) : flow === "create" && (stage === "creating" || stage === "done") ? (
+            // The eight to sixteen seconds of making a kumbara, shown as what is happening rather than a spinner.
+            <CreationCeremony phase={createPhase} done={stage === "done"} />
           ) : busy ? (
             <>
               <Button size="xl" className="w-full" disabled aria-busy="true">
                 <Spinner data-icon="inline-start" />
-                {phaseLabel}
+                {t.onboard.connecting}
               </Button>
               <p className="text-center text-sm text-muted-foreground" role="status" aria-live="polite">
-                {phaseLabel}
+                {t.onboard.connecting}
               </p>
             </>
           ) : isConnected && address ? (
             <>
               <p className="text-sm text-ink-2">{t.onboard.done}</p>
-              <AddressCard />
+              <div className="pop-in">
+                <AddressCard />
+              </div>
               {failure ? <FailureScreen failure={failure} compact primary={null} /> : null}
               <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
                 {t.onboard.existing}
@@ -175,7 +184,7 @@ export default function OnboardPage() {
         {t.onboard.steps.map((step, i) => (
           <Item key={step} render={<li />} size="sm" className="rounded-none not-last:border-b-border">
             <ItemMedia>
-              <span className="grid size-7 place-items-center rounded-full bg-teal/10 text-xs font-bold text-teal" aria-hidden>
+              <span className="grid size-7 place-items-center rounded-full bg-plum/10 text-xs font-bold text-plum" aria-hidden>
                 {i + 1}
               </span>
             </ItemMedia>

@@ -13,7 +13,7 @@ const badgeVariants = cva(
           "bg-secondary text-muted-foreground [a]:hover:bg-secondary/80",
         success: "bg-mint/12 text-mint-2",
         warning: "bg-amber/15 text-amber",
-        info: "bg-teal/10 text-teal",
+        info: "bg-plum/10 text-plum",
         destructive:
           "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
         outline:

@@ -3,7 +3,7 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 
 /**
- * Kumbara buttons are pills: coral for the one action that matters on a
+ * Kumbara buttons are pills: rose for the one action that matters on a
  * screen (size xl), white outline for the rest, chip-sized outline for the
  * quiet actions (copy, refresh, explorer). Every size is a 40 px target or
  * more. Busy buttons carry aria-busy; nothing inside a button is styled ad hoc.
@@ -20,7 +20,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground",
         destructive:
           "bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20",
-        link: "text-teal underline-offset-4 hover:underline",
+        link: "text-plum underline-offset-4 hover:underline",
       },
       size: {
         default: "h-11 px-5 has-data-[icon=inline-end]:pr-4 has-data-[icon=inline-start]:pl-4",

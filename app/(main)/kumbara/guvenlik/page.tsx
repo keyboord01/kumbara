@@ -22,7 +22,7 @@ function Security() {
           {t.security.back}
         </Button>
       </div>
-      <Card render={<section aria-label={t.security.signers} />}>
+      <Card className="rise-in" render={<section aria-label={t.security.signers} />}>
         <CardHeader>
           <CardTitle>{t.security.signers}</CardTitle>
           <CardDescription className="text-ink-2">{t.security.signersHint}</CardDescription>
@@ -32,7 +32,7 @@ function Security() {
           <AddSignerButton variant="outline" />
         </CardContent>
       </Card>
-      <Card render={<section aria-label={t.security.recovery} />}>
+      <Card className="rise-in" render={<section aria-label={t.security.recovery} />}>
         <CardHeader>
           <CardTitle>{t.security.recovery}</CardTitle>
           <CardDescription className="text-ink-2">{t.security.recoveryHint}</CardDescription>
@@ -47,7 +47,7 @@ function Security() {
           />
         </CardContent>
       </Card>
-      <Card render={<section aria-label={t.security.limit} />}>
+      <Card className="rise-in" render={<section aria-label={t.security.limit} />}>
         <CardHeader>
           <CardTitle>{t.security.limit}</CardTitle>
           <CardDescription className="text-ink-2">{t.security.limitHint}</CardDescription>

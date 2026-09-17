@@ -131,7 +131,7 @@ function seconds(ms: number | null): string {
 /** Text link to the explorer; every one carries the network label. */
 function ExplorerLink({ href, label, tv }: { href: string; label: string; tv: boolean }) {
   return (
-    <a href={href} target="_blank" rel="noreferrer" className={cn("rounded-sm text-teal underline-offset-4 hover:underline", tv ? "text-base" : "text-sm")}>
+    <a href={href} target="_blank" rel="noreferrer" className={cn("rounded-sm text-plum underline-offset-4 hover:underline", tv ? "text-base" : "text-sm")}>
       {label} · {NETWORK_LABEL} ↗
     </a>
   );
@@ -191,7 +191,7 @@ function Stats() {
       {!tv ? (
         <header className="flex items-center justify-between gap-3">
           <Link href="/" className="flex items-baseline gap-2 rounded-md">
-            <span className="text-lg font-bold tracking-tight text-teal">{t.brand}</span>
+            <span className="text-lg font-bold tracking-tight text-plum">{t.brand}</span>
             <span className="text-xs text-muted-foreground">{t.bySembol}</span>
           </Link>
           <div className="flex items-center gap-2">
@@ -255,7 +255,8 @@ function Stats() {
         ).map(([key, value, label, isMoney]) => (
           <Card key={key} size="sm">
             <CardContent className="flex flex-col gap-1">
-              <p className={cn("tnum font-bold leading-none text-foreground", isMoney ? (tv ? "text-3xl sm:text-4xl" : "text-2xl") : bigNumber)} data-testid={`headline-${key}`}>
+              {/* Keyed on the value so a figure that changed lands; nothing animates until the snapshot is in. */}
+              <p key={`${key}-${value}`} className={cn("tnum font-bold leading-none text-foreground", snapshot && "pop-in", isMoney ? (tv ? "text-3xl sm:text-4xl" : "text-2xl") : bigNumber)} data-testid={`headline-${key}`}>
                 {value}
               </p>
               <p className="flex flex-wrap items-center gap-2 text-xs text-ink-2">
@@ -294,7 +295,7 @@ function Stats() {
                     </TableHeader>
                     <TableBody>
                       {data.stages.map((s, i) => (
-                        <TableRow key={s.stage} data-stage={s.stage} className="hover:bg-transparent">
+                        <TableRow key={s.stage} data-stage={s.stage} style={{ animationDelay: `${i * 45}ms` }} className="rise-in hover:bg-transparent">
                           <TableCell className="px-0 py-1.5 whitespace-normal">{(labels as Record<string, string>)[s.stage] ?? s.stage}</TableCell>
                           <TableCell className="px-0 py-1.5 text-right font-semibold">{fmtInt(s.count)}</TableCell>
                           <TableCell className={cn("px-0 py-1.5 text-right", s.dropOff > 0 ? "text-amber" : "text-muted-foreground")}>{i === 0 ? "—" : s.dropPct === null ? "—" : `−${fmtInt(s.dropOff)} (${s.dropPct}%)`}</TableCell>
@@ -330,8 +331,8 @@ function Stats() {
               </Empty>
             ) : (
               <ItemGroup className="gap-0">
-                {feed.slice(0, tv ? 12 : 20).map((item) => (
-                  <Item key={`${item.type}-${item.ts}-${item.hash ?? ""}`} size="xs" className={cn("rounded-none border-t border-border px-0 first:border-t-0", tv ? "text-base" : "text-sm")} data-testid="feed-item">
+                {feed.slice(0, tv ? 12 : 20).map((item, i) => (
+                  <Item key={`${item.type}-${item.ts}-${item.hash ?? ""}`} size="xs" style={{ animationDelay: `${Math.min(i, 8) * 40}ms` }} className={cn("rise-in rounded-none border-t border-border px-0 first:border-t-0", tv ? "text-base" : "text-sm")} data-testid="feed-item">
                     <ItemContent>
                       <ItemTitle className="flex-wrap items-baseline gap-2 font-normal">
                         <span className="font-mono text-xs text-ink-2">{item.contractId ? shortAddress(item.contractId, 4) : "–"}</span>
@@ -343,7 +344,7 @@ function Stats() {
                     <ItemActions className="items-baseline gap-3 text-xs text-muted-foreground">
                       <span className="tnum">{ago(item.ts)}</span>
                       {item.link ? (
-                        <a href={item.link} target="_blank" rel="noreferrer" className="rounded-sm text-teal underline-offset-4 hover:underline">
+                        <a href={item.link} target="_blank" rel="noreferrer" className="rounded-sm text-plum underline-offset-4 hover:underline">
                           {NETWORK_LABEL} ↗
                         </a>
                       ) : null}
@@ -367,7 +368,7 @@ function Stats() {
               <svg viewBox={`0 0 ${Math.max(series.length, 1) * 10} 120`} preserveAspectRatio="none" className={cn("w-full", tv ? "h-56" : "h-32")} role="img" aria-label={t.stats.curveTitle}>
                 {series.map((b, i) => {
                   const h = (b.accounts / maxBucket) * 110;
-                  return <rect key={b.start} x={i * 10 + 1} y={115 - h} width={8} height={h} rx={1.5} fill="var(--color-teal)" opacity={b.accounts ? 1 : 0.15} />;
+                  return <rect key={b.start} x={i * 10 + 1} y={115 - h} width={8} height={h} rx={1.5} fill="var(--color-plum)" opacity={b.accounts ? 1 : 0.15} />;
                 })}
                 <line x1={0} y1={116} x2={Math.max(series.length, 1) * 10} y2={116} stroke="var(--color-border)" strokeWidth={1} />
               </svg>
@@ -460,12 +461,12 @@ function Stats() {
             <ol className="flex flex-col gap-2 text-sm text-ink-2">
               {t.stats.how.map((step, i) => (
                 <li key={step} className="flex gap-3">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-teal/10 text-xs font-semibold text-teal">{i + 1}</span>
+                  <span className="grid size-6 shrink-0 place-items-center rounded-full bg-plum/10 text-xs font-semibold text-plum">{i + 1}</span>
                   <span>{step}</span>
                 </li>
               ))}
             </ol>
-            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="w-fit rounded-sm text-sm text-teal underline-offset-4 hover:underline">
+            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="w-fit rounded-sm text-sm text-plum underline-offset-4 hover:underline">
               {t.stats.repo} ↗
             </a>
           </CardContent>
@@ -508,13 +509,13 @@ function Stats() {
         <span>{NETWORK === "testnet" ? t.footer : t.footerMainnet}</span>
         {!tv ? (
           <span className="flex gap-4">
-            <a href={SITE_URL || "/"} className="rounded-sm hover:text-teal">
+            <a href={SITE_URL || "/"} className="rounded-sm hover:text-plum">
               {SITE_URL ? SITE_URL.replace(/^https?:\/\//, "") : "kumbara"}
             </a>
-            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="rounded-sm hover:text-teal">
+            <a href="https://github.com/keyboord01/kumbara" target="_blank" rel="noreferrer" className="rounded-sm hover:text-plum">
               GitHub
             </a>
-            <Link href="/stats?mode=tv" className="rounded-sm hover:text-teal">
+            <Link href="/stats?mode=tv" className="rounded-sm hover:text-plum">
               {t.stats.tv} →
             </Link>
           </span>
@@ -532,7 +533,7 @@ function RefBars({ byRef, noRef, intl, tv }: { byRef: Array<[string, number]>; n
       {byRef.slice(0, 8).map(([ref, n]) => (
         <li key={ref} className="flex items-center gap-3">
           <span className="w-28 shrink-0 truncate font-mono text-xs text-ink-2">{ref === "(none)" ? noRef : ref}</span>
-          <span className="h-3 rounded-full bg-teal" style={{ width: `${Math.max(2, (n / max) * 100)}%` }} aria-hidden />
+          <span className="h-3 rounded-full bg-plum" style={{ width: `${Math.max(2, (n / max) * 100)}%` }} aria-hidden />
           <span className="tnum font-semibold">{n.toLocaleString(intl)}</span>
         </li>
       ))}

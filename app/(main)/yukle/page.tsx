@@ -7,6 +7,7 @@ import { CheckIcon, CopyIcon, ExternalLinkIcon } from "lucide-react";
 import QRCode from "qrcode";
 import { cn } from "cn";
 import { FailureScreen } from "@/components/FailureScreen";
+import { ApprovalWait, MoneyJourney } from "@/components/MoneyJourney";
 import { ScreenSkeleton, Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { Stepper, type StepperStep } from "@/components/Stepper";
@@ -149,7 +150,7 @@ function AddressDeposit() {
 
 function TxLink({ hash, label }: { hash: string; label: string }) {
   return (
-    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-teal hover:underline">
+    <a href={`${EXPLORER_BASE}/tx/${hash}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-sm text-sm text-plum hover:underline">
       {label} · {NETWORK_LABEL}
       <ExternalLinkIcon className="size-3.5" aria-hidden />
     </a>
@@ -355,6 +356,9 @@ function Deposit() {
   const maxAmount = limits?.fiat?.max ?? null;
   const numberLocale = locale === "tr" ? "tr-TR" : "en-US";
   const amountValid = Number.isFinite(amountNumber) && amountNumber >= minAmount && (maxAmount === null || amountNumber <= maxAmount) && !overTreasury;
+  // Deposits at or below this are confirmed by the server itself; above it a person at the desk approves them.
+  const autoConfirmMax = info?.autoConfirmMaxTry ?? null;
+  const needsApproval = (amount: number) => autoConfirmMax !== null && autoConfirmMax > 0 && amount > autoConfirmMax;
 
   if (view === "loading") return <ScreenSkeleton />;
 
@@ -364,7 +368,7 @@ function Deposit() {
       <div className="flex flex-col gap-5 py-2">
         <div className="flex items-baseline justify-between">
           <h1 className="text-3xl font-bold tracking-tight">{t.deposit.title}</h1>
-          <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
+          <Link href="/kumbara" className="rounded-sm text-sm text-plum hover:underline">
             {t.deposit.backToSavings}
           </Link>
         </div>
@@ -450,6 +454,15 @@ function Deposit() {
                   <FieldDescription id="deposit-limits" className="text-xs">
                     {(maxAmount === null ? t.deposit.limitsMin : t.deposit.limits).replace("{min}", minAmount.toLocaleString(numberLocale)).replace("{max}", (maxAmount ?? 0).toLocaleString(numberLocale))}
                   </FieldDescription>
+                  {/* Which side of the automatic threshold this amount falls on, before it is submitted. */}
+                  {autoConfirmMax !== null && autoConfirmMax > 0 ? (
+                    <FieldDescription
+                      className={cn("text-xs", needsApproval(amountNumber) && "font-semibold text-amber")}
+                      data-testid="approval-note"
+                    >
+                      {(needsApproval(amountNumber) ? t.deposit.journey.manual : t.deposit.journey.auto).replace("{max}", autoConfirmMax.toLocaleString(numberLocale))}
+                    </FieldDescription>
+                  ) : null}
                 </Field>
               </FieldGroup>
             </CardContent>
@@ -504,11 +517,13 @@ function Deposit() {
 
   const done = FINAL.includes(record.status);
   const needsYou = record.status === "in_wallet";
+  // Above the automatic threshold: the panel waits while nothing has moved, ticks over on the first leg, then goes.
+  const aboveThreshold = needsApproval(Number(record.amountTry)) && ["awaiting_transfer", "transfer_received", "onramp_pending"].includes(record.status);
   return (
     <div className={cn("flex flex-col gap-5 py-2", done && "mx-auto w-full lg:max-w-2xl")}>
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.deposit.title}</h1>
-        <Link href="/kumbara" className="rounded-sm text-sm text-teal hover:underline">
+        <Link href="/kumbara" className="rounded-sm text-sm text-plum hover:underline">
           {t.deposit.backToSavings}
         </Link>
       </div>
@@ -578,9 +593,9 @@ function Deposit() {
                 <dt className="text-muted-foreground">{t.deposit.amount}</dt>
                 <dd className="tnum text-right font-medium">{formatTry(Number(record.amountTry), locale)}</dd>
               </div>
-              <div className="rounded-lg border border-teal/30 bg-teal/5 p-3">
+              <div className="rounded-lg border border-plum/30 bg-plum/5 p-3">
                 <div className="flex items-center justify-between gap-3">
-                  <dt className="font-semibold text-teal">{t.deposit.description}</dt>
+                  <dt className="font-semibold text-plum">{t.deposit.description}</dt>
                   <CopyButton value={record.instructions.reference} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
                 </div>
                 <dd className="mt-1 font-mono text-2xl font-bold tracking-wide text-foreground" data-testid="deposit-reference">
@@ -618,6 +633,11 @@ function Deposit() {
           <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {/* The picture: where the money is right now. The stepper under it carries the detail. */}
+          <MoneyJourney status={record.status} since={record.updatedAt} typicalSeconds={TYPICAL_SECONDS[record.status]} />
+          {/* Above the automatic threshold a person approves the deposit; say so, and count the wait. */}
+          {aboveThreshold ? <ApprovalWait createdAt={record.createdAt} approved={record.status !== "awaiting_transfer"} /> : null}
+          <Separator />
           <Stepper
             testId="deposit-status"
             steps={STEP_ORDER.filter((s) => ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"].includes(s)).map((s): StepperStep => {
@@ -633,7 +653,7 @@ function Deposit() {
               {t.deposit.steps[record.status]}
             </p>
             {SERVER_STEPS.has(record.status) ? (
-              <p className="text-sm text-teal" data-testid="close-hint">
+              <p className="text-sm text-plum" data-testid="close-hint">
                 {t.deposit.closeHint}
               </p>
             ) : record.status === "in_wallet" ? (
@@ -648,7 +668,7 @@ function Deposit() {
             ) : null}
             {record.status === "in_wallet" && autopilot === "signing" ? (
               <p className="mt-1 flex items-center gap-2 text-sm text-ink-2" role="status">
-                <Spinner className="text-teal" />
+                <Spinner className="text-plum" />
                 {t.deposit.autopilotSigning}
               </p>
             ) : null}

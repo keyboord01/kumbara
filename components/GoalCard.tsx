@@ -27,11 +27,12 @@ function Ring({ fraction, label }: { fraction: number; label: string }) {
   const done = Math.max(0, Math.min(1, fraction));
   return (
     <svg viewBox="0 0 84 84" className="size-24 flex-none" role="img" aria-label={label}>
-      <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-paper-3)" strokeWidth="8" />
-      <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-teal)" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c}`} strokeDashoffset={`${c * (1 - done)}`} transform="rotate(-90 42 42)" style={{ transition: "stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1)" }} />
+      <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-blush)" strokeWidth="8" />
+      <circle cx="42" cy="42" r={r} fill="none" stroke="var(--color-rose)" strokeWidth="8" strokeLinecap="round" strokeDasharray={`${c}`} strokeDashoffset={`${c * (1 - done)}`} transform="rotate(-90 42 42)" style={{ transition: "stroke-dashoffset 700ms cubic-bezier(0.16, 1, 0.3, 1)" }} />
       <text x="42" y="47" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--color-ink)" style={{ fontVariantNumeric: "tabular-nums" }}>
         {Math.round(done * 100)}%
       </text>
+      {/* The ring itself animates through stroke-dashoffset above; the number is read out by aria-label. */}
     </svg>
   );
 }

@@ -8,9 +8,9 @@ import { useLocale } from "@/lib/i18n";
 export function ResumeNotice({ flow }: { flow: "deposit" | "withdraw" }) {
   const { t } = useLocale();
   return (
-    <Alert role="status" data-testid="resume-notice" className="border-teal/30 bg-teal/5">
-      <RotateCwIcon className="text-teal" />
-      <AlertTitle className="text-teal">{flow === "deposit" ? t.deposit.resumeTitle : t.withdraw.resume}</AlertTitle>
+    <Alert role="status" data-testid="resume-notice" className="border-plum/30 bg-plum/5">
+      <RotateCwIcon className="text-plum" />
+      <AlertTitle className="text-plum">{flow === "deposit" ? t.deposit.resumeTitle : t.withdraw.resume}</AlertTitle>
       <AlertDescription className="text-ink-2">{t.failures.resumedBody}</AlertDescription>
     </Alert>
   );

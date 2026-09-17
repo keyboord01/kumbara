@@ -54,7 +54,7 @@ export function HeaderNav() {
           key={item.key}
           href={item.href}
           aria-current={item.active ? "page" : undefined}
-          className={cn("rounded-full px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-muted hover:text-foreground", item.active ? "bg-teal/10 text-teal" : "text-muted-foreground")}
+          className={cn("rounded-full px-3 py-1.5 text-sm font-semibold transition-colors hover:bg-muted hover:text-foreground", item.active ? "bg-plum/10 text-plum" : "text-muted-foreground")}
         >
           {item.label}
         </Link>
@@ -78,9 +78,9 @@ export function BottomNav() {
             <Link
               href={item.href}
               aria-current={item.active ? "page" : undefined}
-              className={cn("flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors", item.active ? "text-teal" : "text-muted-foreground hover:text-foreground")}
+              className={cn("flex min-h-14 flex-col items-center justify-center gap-1 text-[11px] font-semibold transition-colors", item.active ? "text-plum" : "text-muted-foreground hover:text-foreground")}
             >
-              <item.icon className={cn("size-5", item.active && "fill-teal/15")} aria-hidden />
+              <item.icon className={cn("size-5", item.active && "fill-plum/15")} aria-hidden />
               {item.label}
             </Link>
           </li>

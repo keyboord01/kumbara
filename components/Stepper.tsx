@@ -44,14 +44,15 @@ export function Stepper({ steps, testId }: { steps: StepperStep[]; testId?: stri
   return (
     <div data-testid={testId}>
       {/* The bar appears once something has started; an all-idle preview shows the rail alone. */}
-      {started ? <Progress value={Math.max(4, Math.round(progress * 100))} aria-label={current?.label ?? steps[steps.length - 1]?.label} className="gap-0 [&_[data-slot=progress-indicator]]:rounded-full [&_[data-slot=progress-indicator]]:bg-teal [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-track]]:h-1.5" /> : null}
+      {started ? <Progress value={Math.max(4, Math.round(progress * 100))} aria-label={current?.label ?? steps[steps.length - 1]?.label} className="gap-0 [&_[data-slot=progress-indicator]]:rounded-full [&_[data-slot=progress-indicator]]:bg-plum [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-track]]:h-1.5" /> : null}
       <ol className={cn("flex flex-col", started && "mt-4")}>
         {steps.map((s, i) => {
           const last = i === steps.length - 1;
           const elapsed = s.state === "current" && s.since ? Math.max(0, Math.round((now - Date.parse(s.since)) / 1000)) : null;
           return (
             <li key={s.key} className="relative flex gap-3 pb-4 last:pb-0" data-step={s.key} data-state={s.state}>
-              {!last ? <span className={cn("absolute top-6 left-[11px] h-[calc(100%-1.25rem)] w-0.5", s.state === "done" ? "bg-mint" : "bg-border")} aria-hidden /> : null}
+              {/* The rail fills in behind a step the moment it completes, so progress reads as movement. */}
+              {!last ? <span className={cn("absolute top-6 left-[11px] h-[calc(100%-1.25rem)] w-0.5", s.state === "done" ? "grow-down bg-mint" : "bg-border")} aria-hidden /> : null}
               <span
                 className={cn(
                   "relative z-[1] mt-0.5 flex size-6 flex-none items-center justify-center rounded-full text-[11px] font-bold",
@@ -73,7 +74,7 @@ export function Stepper({ steps, testId }: { steps: StepperStep[]; testId?: stri
                   <p className="tnum mt-0.5 flex items-center gap-2 text-xs text-muted-foreground" data-testid="step-timing">
                     {elapsed !== null ? (
                       <span className="inline-flex items-center gap-1.5">
-                        <Spinner className="size-3 text-teal" />
+                        <Spinner className="size-3 text-plum" />
                         {t.stepper.elapsed.replace("{s}", String(elapsed))}
                       </span>
                     ) : null}

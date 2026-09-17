@@ -47,8 +47,8 @@ try {
   // One approval opened the kumbara: Deposit is available at once; the safety limit is set at the first withdrawal.
   await page.locator("section[aria-label='Kumbarada'] a[href='/yukle']").waitFor({ timeout: 15000 });
   const deferred = ((await page.getByTestId("limit-card").textContent()) ?? "").replace(/\s+/g, " ");
-  log("limit card before any withdrawal:", deferred.slice(0, 80));
-  if (!/İlk çekimde kurulur|Set at your first withdrawal/.test(deferred)) throw new Error("limit card should say the limit is set at the first withdrawal");
+  log("limit card before it is set:", deferred.slice(0, 80));
+  if (!/Kurulmadı|Not set/.test(deferred)) throw new Error(`the safety limit should start unset, saw: ${deferred.slice(0, 80)}`);
   const addr = (await page.getByTestId("kumbara-address").getAttribute("title"))?.trim();
   log("contract:", addr);
   if (!addr?.startsWith("C")) throw new Error("no contract address rendered");

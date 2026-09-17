@@ -52,9 +52,11 @@ try {
   if (!/TESTNET/.test(body) || !/Test ağı/.test(body)) throw new Error("booth screen lacks the testnet label");
 
   log("presenter console");
-  await page.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
-  if (page.url().includes("token=")) throw new Error("token still in URL");
+  await page.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
   await page.getByTestId("health-dots").waitFor({ timeout: 20000 });
+  // The page lifts the token out of the address bar as soon as it mounts; check once it has.
+  await page.waitForFunction(() => !window.location.search.includes("token="), null, { timeout: 10000 }).catch(() => undefined);
+  if (page.url().includes("token=")) throw new Error("token still in URL");
   for (let i = 0; i < 10; i += 1) {
     const dots = await page.locator("[data-testid='health-dots'] span[aria-label]").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
     if (dots.length === 4 && dots.every((d) => d === "ok")) {

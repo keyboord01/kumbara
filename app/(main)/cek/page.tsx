@@ -27,7 +27,6 @@ import { EXPLORER_BASE, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { StepTimeoutError, classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
 import { formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
-import { DEFAULT_LIMIT_PERIOD, DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
 import { readVaultPosition, readVaultTotals, sharesForAmount, type VaultPosition } from "@/lib/vault";
 
@@ -118,7 +117,7 @@ function Withdraw() {
   const { signAndSubmit } = useSignTransaction();
   const { toast } = useToast();
   const usdcToken = info ? { contractId: info.usdc.contractId } : ("native" as const);
-  const { policy, isLoading: policyLoading, setLimit } = useSpendingPolicy(usdcToken);
+  const { policy, isLoading: policyLoading } = useSpendingPolicy(usdcToken);
   const [view, setView] = useState<"loading" | "form" | "progress">("loading");
   const [position, setPosition] = useState<VaultPosition | null>(null);
   const [amount, setAmount] = useState("1");
@@ -132,13 +131,11 @@ function Withdraw() {
   const [resumed, setResumed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [failure, setFailure] = useState<Failure | null>(null);
-  const [client, setClient] = useState<"idle" | "limit" | "vault" | "transfer" | "needs_tap" | "done">("idle");
+  const [client, setClient] = useState<"idle" | "vault" | "transfer" | "needs_tap" | "done">("idle");
   const [clientFailure, setClientFailure] = useState<Failure | null>(null);
   const vaultTx = useRef<string | null>(null);
   const transferTx = useRef<string | null>(null);
   /** The safety limit is installed at the first withdrawal (one passkey approval), never twice in a session. */
-  const limitInstalled = useRef(false);
-  const [limitDone, setLimitDone] = useState(false);
   const policyRef = useRef<{ policy: typeof policy; loading: boolean }>({ policy: null, loading: true });
   useEffect(() => {
     policyRef.current = { policy, loading: policyLoading };
@@ -256,17 +253,8 @@ function Withdraw() {
     const stellar = methodOf(record) === "stellar";
     try {
       const amountStroops = toStroops(record.amountUsdc);
-      // First withdrawal: install the safety limit (one approval) before anything leaves the kumbara.
-      if (!limitInstalled.current && !policyRef.current.loading && policyRef.current.policy === null) {
-        stepContext = "relay";
-        setClient("limit");
-        console.info(`[kumbara] withdraw ${record.id}: installing the safety limit`);
-        await withTimeout(setLimit({ limit: DEFAULT_LIMIT_USDC, period: DEFAULT_LIMIT_PERIOD, token: { contractId: info.usdc.contractId } }), STEP_TIMEOUT_MS, "safety limit");
-        limitInstalled.current = true;
-        setLimitDone(true);
-        console.info(`[kumbara] withdraw ${record.id}: safety limit installed`);
-        stepContext = "vault";
-      }
+      // Two approvals, never three: the safety limit is opt-in from the limit card or the security page,
+      // because spending a passkey prompt on a rule the person did not ask for is the prompt they resent.
       if (!vaultTx.current) {
         setClient("vault");
         const totals = await retryOnceOnTimeout(() => withTimeout(readVaultTotals(sembolConfig.rpcUrl, sembolConfig.networkPassphrase, info.vault.id), STEP_TIMEOUT_MS, "vault totals"));
@@ -319,7 +307,7 @@ function Withdraw() {
     } finally {
       running.current = false;
     }
-  }, [record, kit, info, address, signAndSubmit, setLimit]);
+  }, [record, kit, info, address, signAndSubmit]);
 
   useEffect(() => {
     if (!record || !kit || !info) return;
@@ -346,8 +334,6 @@ function Withdraw() {
     setFailure(null);
     setDestinationError(null);
     try {
-      // The first policy read decides whether the safety limit is installed first; give it a moment if it is still running.
-      for (let i = 0; i < 10 && policyRef.current.loading; i += 1) await new Promise((res) => setTimeout(res, 500));
       const created = await api<WithdrawalRecord>("/api/withdraw", {
         method: "POST",
         body: JSON.stringify({ contractId: address, amountUsdc: amount.replace(",", "."), method, ...(method === "stellar" ? { destination: dest } : {}) }),
@@ -548,10 +534,9 @@ function Withdraw() {
   const stellar = methodOf(record) === "stellar";
   const stepLabels: Record<WithdrawalStatus, string> = stellar ? { ...t.withdraw.steps, ...t.withdraw.addressSteps } : t.withdraw.steps;
   const stepKeys: readonly WithdrawalStatus[] = stellar ? ADDRESS_STEPS : WITHDRAW_STEPS;
-  const clientLabel = client === "limit" ? t.withdraw.stepLimit : client === "vault" ? t.withdraw.stepVault : client === "transfer" ? t.withdraw.stepTransfer : null;
+  const clientLabel = client === "vault" ? t.withdraw.stepVault : client === "transfer" ? t.withdraw.stepTransfer : null;
   const failed = record.status === "failed" ? classifyRecordError(record.error ?? { code: "step_failed", message: record.lastError?.message ?? "unknown" }, { landingAddress: record.landing?.publicKey }) : null;
-  const limitPending = !limitDone && !policyLoading && policy === null;
-  const retryLabel = limitPending ? t.withdraw.tapLimit : vaultTxHash ? t.withdraw.tapTransfer : t.withdraw.tapVault;
+  const retryLabel = vaultTxHash ? t.withdraw.tapTransfer : t.withdraw.tapVault;
 
   const done = FINAL.includes(record.status);
   const needsYou = record.status === "created" || record.status === "awaiting_usdc" || client === "needs_tap";

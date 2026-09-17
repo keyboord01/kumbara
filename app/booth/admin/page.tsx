@@ -123,7 +123,9 @@ function isNetworkError(err: unknown): boolean {
 /**
  * Presenter console. Not linked anywhere. The admin token is taken from
  * ?token= (removed from the URL at once) or typed in, kept in component state
- * only, and sent as a bearer header.
+ * only, and sent as a bearer header. It is also exchanged for an http-only
+ * session cookie, so reloading the page mid-demo does not ask for it again;
+ * the cookie is never readable here and never written to storage or the URL.
  */
 export default function BoothAdminPage() {
   const { t, locale } = useLocale();
@@ -132,6 +134,8 @@ export default function BoothAdminPage() {
   const { signAndSubmit } = useSignTransaction();
   const { toast } = useToast();
   const [token, setToken] = useState("");
+  /** Authorised by the session cookie from an earlier visit: the token itself is not in memory. */
+  const [authed, setAuthed] = useState(false);
   const [pending, setPending] = useState<Pending[] | null>(null);
   const [stuck, setStuck] = useState<Stuck[]>([]);
   const [resumed, setResumed] = useState<string | null>(null);
@@ -164,13 +168,40 @@ export default function BoothAdminPage() {
       setToken(fromUrl);
       url.searchParams.delete("token");
       window.history.replaceState({}, "", url.pathname + url.search);
+      return;
     }
+    // Nothing typed and nothing in the URL: an earlier visit may still be authorised by the session cookie.
+    void fetch("/api/booth/admin/pending", { credentials: "same-origin" })
+      .then((r) => {
+        if (r.ok) setAuthed(true);
+      })
+      .catch(() => undefined);
   }, []);
 
-  const auth = useCallback((init: RequestInit = {}): RequestInit => ({ ...init, headers: { ...(init.headers ?? {}), authorization: `Bearer ${token}`, "content-type": "application/json" } }), [token]);
+  // Whichever way the token arrived, hand it to the server once so a reload keeps the presenter signed in.
+  useEffect(() => {
+    if (!token) return;
+    void fetch("/api/booth/admin/session", { method: "POST", credentials: "same-origin", headers: { "content-type": "application/json" }, body: JSON.stringify({ token }) })
+      .then((r) => {
+        if (r.ok) setAuthed(true);
+      })
+      .catch(() => undefined);
+  }, [token]);
+
+  /** The console is usable with a token in memory or with the session cookie alone. */
+  const ready = token !== "" || authed;
+  // The bearer header when the token is in memory; otherwise the http-only cookie carries the request.
+  const auth = useCallback(
+    (init: RequestInit = {}): RequestInit => ({
+      ...init,
+      credentials: "same-origin",
+      headers: { ...(init.headers ?? {}), ...(token ? { authorization: `Bearer ${token}` } : {}), "content-type": "application/json" },
+    }),
+    [token],
+  );
 
   const load = useCallback(async () => {
-    if (!token) return;
+    if (!ready) return;
     try {
       const [p, h, s, c, a] = await Promise.all([
         fetch("/api/booth/admin/pending", auth()).then(async (r) => ({ ok: r.ok, body: (await r.json()) as { pending?: Pending[]; stuck?: Stuck[]; autoBankMaxTry?: number; error?: { message: string } } })),
@@ -200,11 +231,11 @@ export default function BoothAdminPage() {
       setPending(null);
       setError(err instanceof Error ? err.message : String(err));
     }
-  }, [token, auth]);
+  }, [ready, auth]);
 
   // The driver: advance every pending deposit and withdrawal server-side, whether or not the visitor's page is open.
   const tick = useCallback(async () => {
-    if (!token || tickInFlight.current) return;
+    if (!ready || tickInFlight.current) return;
     tickInFlight.current = true;
     try {
       const res = await fetch("/api/pipeline/tick", auth({ method: "POST", body: "{}" }));
@@ -221,10 +252,10 @@ export default function BoothAdminPage() {
     } finally {
       tickInFlight.current = false;
     }
-  }, [token, auth]);
+  }, [ready, auth]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     void tick();
     const id = setInterval(() => void tick(), 5_000);
     const clockId = setInterval(() => setClock(Date.now()), 1_000);
@@ -232,11 +263,11 @@ export default function BoothAdminPage() {
       clearInterval(id);
       clearInterval(clockId);
     };
-  }, [token, tick]);
+  }, [ready, tick]);
 
   // Network suspension (laptop lid, Wi-Fi drop, tab throttled): resume at once when the browser is back, and say so.
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     const resume = () => {
       void load();
       void tick();
@@ -253,7 +284,7 @@ export default function BoothAdminPage() {
       window.removeEventListener("offline", onOffline);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [token, load, tick]);
+  }, [ready, load, tick]);
 
   useEffect(() => {
     if (!reconnected) return;
@@ -263,11 +294,11 @@ export default function BoothAdminPage() {
   }, [reconnected, toast, t]);
 
   useEffect(() => {
-    if (!token) return;
+    if (!ready) return;
     void load();
     const id = setInterval(() => void load(), 10_000);
     return () => clearInterval(id);
-  }, [token, load]);
+  }, [ready, load]);
 
   const switchAnchor = async (homeDomain: string) => {
     setBusy("anchor");
@@ -493,7 +524,7 @@ export default function BoothAdminPage() {
         <p className="text-sm text-ink-2">{t.admin.lead.replace("{max}", autoBankMaxTry.toLocaleString(intl))}</p>
       </div>
 
-      {!token && (
+      {!ready && (
         <Card
           className="lg:max-w-xl"
           render={
@@ -524,7 +555,7 @@ export default function BoothAdminPage() {
         </Card>
       )}
 
-      {token && (
+      {ready && (
         <>
           {ci?.status === "failed" ? (
             <Alert variant="destructive" data-testid="ci-banner">
@@ -646,7 +677,7 @@ export default function BoothAdminPage() {
                               ) : (
                                 <Badge variant="warning">{t.admin.manual}</Badge>
                               )}
-                              {!auto || played ? (
+                              {!played && !auto ? (
                                 <Button size="sm" onClick={() => void play(row)} disabled={busy !== ""} aria-busy={playing === row.id ? "true" : undefined}>
                                   {playing === row.id ? <Spinner data-icon="inline-start" /> : null}
                                   {t.admin.play}
@@ -866,7 +897,16 @@ export default function BoothAdminPage() {
                 <Link href="/booth?n=1" className="rounded-sm text-teal underline-offset-4 hover:underline">
                   {t.admin.qr} →
                 </Link>
-                <Button variant="ghost" size="xs" className="text-muted-foreground" onClick={() => setToken("")}>
+                <Button
+                  variant="ghost"
+                  size="xs"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setToken("");
+                    setAuthed(false);
+                    void fetch("/api/booth/admin/session", { method: "DELETE", credentials: "same-origin" }).catch(() => undefined);
+                  }}
+                >
                   {t.admin.forget}
                 </Button>
               </div>

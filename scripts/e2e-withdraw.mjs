@@ -29,7 +29,7 @@ const log = (...a) => console.log(`[${((Date.now() - t0) / 1000).toFixed(1)}s]`,
 // The presenter page plays the bank through the anchor's SEP-6 sandbox hook, exactly as at the booth.
 async function playBank(reference) {
   const admin = await context.newPage();
-  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
   // One button per manual row in the queue.
   await admin.locator("[data-testid='queue-item']").filter({ hasText: reference }).getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
@@ -148,16 +148,11 @@ try {
   }
   log("savings shows in vault:", inVault, "| expected about", expected.toFixed(2));
   if (Math.abs(parseUsdc(inVault) - expected) > 0.05) throw new Error(`expected about ${expected.toFixed(2)} USDC left in the vault, saw ${inVault}`);
-  // The safety limit is installed by the first withdrawal (one extra passkey approval), not at onboarding.
-  let limitText = "";
-  for (let i = 0; i < 10; i += 1) {
-    limitText = ((await page.getByTestId("limit-card").textContent()) ?? "").replace(/\s+/g, " ");
-    if (/1\.000,00|1,000\.00/.test(limitText)) break;
-    await page.getByRole("button", { name: "Yenile" }).click().catch(() => {});
-    await page.waitForTimeout(3000);
-  }
-  log("limit card after the first withdrawal:", limitText.slice(0, 100));
-  if (!/1\.000,00|1,000\.00/.test(limitText)) throw new Error(`the first withdrawal should have installed the 1,000 USDC limit, saw: ${limitText}`);
+  // A withdrawal spends two passkey approvals and no more: the safety limit stays opt-in, so the limit
+  // card must still read "not set" (onboard's check covers installing it from "Set it now").
+  const limitText = ((await page.getByTestId("limit-card").textContent()) ?? "").replace(/\s+/g, " ");
+  log("limit card after the withdrawal:", limitText.slice(0, 100));
+  if (/1\.000,00|1,000\.00/.test(limitText)) throw new Error(`a withdrawal must not install the limit by itself, saw: ${limitText}`);
   console.log("\nE2E WITHDRAW OK. console errors:", consoleErrors.length ? consoleErrors : "none");
   console.log("CONTRACT=" + contract);
 } catch (err) {

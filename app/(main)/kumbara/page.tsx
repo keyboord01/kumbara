@@ -22,7 +22,7 @@ import { api } from "@/lib/api";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { classifyError, withTimeout, type Failure } from "@/lib/failures";
-import { formatTry, formatUsdc } from "@/lib/format";
+import { formatStroops, formatTry, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_PERIOD, DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -77,6 +77,11 @@ type SetupState = "idle" | "installing" | "done" | "error";
 /** A vault deposit (simulation + passkey + relay) that takes longer than this becomes a retryable failure. */
 const STEP_TIMEOUT_MS = 120_000;
 
+/** Below a cent of USDC there is nothing worth a passkey approval, so the "put it in the vault" block stays hidden. */
+const MIN_SWEEPABLE_STROOPS = 100_000n;
+/** Below half an XLM the native balance is dust from a funding test; above it, say it is there. */
+const MIN_VISIBLE_XLM_STROOPS = 5_000_000n;
+
 /** 7-decimal USDC string from stroops, the form `buildVaultDeposit` expects. */
 function stroopsToUsdc(stroops: bigint): string {
   return `${stroops / 10_000_000n}.${(stroops % 10_000_000n).toString().padStart(7, "0")}`;
@@ -95,6 +100,8 @@ function Savings() {
   const { position, refresh } = useVault(info?.vault.id, address, epoch);
   const usdcToken = info ? { contractId: info.usdc.contractId } : ("native" as const);
   const wallet = useWalletBalance({ token: usdcToken, enabled: Boolean(info) });
+  // XLM someone sent to the kumbara: shown so it is not invisible, never acted on (Kumbara saves in USDC and the relay pays the fees).
+  const walletXlm = useWalletBalance({ token: "native", enabled: Boolean(address) });
   const { signers } = useSigners();
   const { policy, isLoading: policyLoading, setLimit } = useSpendingPolicy(usdcToken);
 
@@ -148,13 +155,15 @@ function Savings() {
 
   const inVault = position?.usdc ?? null;
   const waiting = info && wallet.raw !== null ? wallet.raw : null;
+  const sweepable = waiting !== null && waiting >= MIN_SWEEPABLE_STROOPS;
+  const xlm = walletXlm.raw !== null && walletXlm.raw >= MIN_VISIBLE_XLM_STROOPS ? walletXlm.raw : null;
 
   // USDC already in the kumbara (sent to its address, or left by an interrupted deposit): one approval puts it in the vault.
   const [sweep, setSweep] = useState<"idle" | "signing">("idle");
   const [sweepFailure, setSweepFailure] = useState<Failure | null>(null);
   const sweepTx = useRef<string | null>(null);
   const putInVault = useCallback(async () => {
-    if (!kit || !info || !address || waiting === null || waiting <= 0n) return;
+    if (!kit || !info || !address || waiting === null || waiting < MIN_SWEEPABLE_STROOPS) return;
     const amountUsdc = stroopsToUsdc(waiting);
     setSweep("signing");
     setSweepFailure(null);
@@ -199,6 +208,7 @@ function Savings() {
             setEpoch((e) => e + 1);
             void refresh();
             void wallet.refetch();
+            void walletXlm.refetch();
           }}
         >
           <RefreshCwIcon data-icon="inline-start" />
@@ -239,7 +249,7 @@ function Savings() {
             {t.savings.tryEquiv} {formatTry(tryValue(inVault), locale)}
             {rate && <span className="text-muted-foreground"> · {t.savings.rateSource[rate.source]}</span>}
           </p>
-          {waiting !== null && waiting > 0n && (
+          {sweepable && waiting !== null && (
             <div className="mt-2 flex flex-col gap-2 rounded-lg bg-muted px-3 py-3">
               <p className="text-sm text-ink-2">
                 {t.savings.waiting}:{" "}
@@ -257,6 +267,19 @@ function Savings() {
                 {t.savings.putInVault}
               </Button>
               {sweepFailure ? <FailureScreen failure={sweepFailure} compact onRetry={() => void putInVault()} /> : null}
+            </div>
+          )}
+          {xlm !== null && (
+            <div className="mt-2 flex flex-col gap-0.5">
+              {/* The sentence carries the amount in both languages, so it is split around the placeholder. */}
+              <p className="text-sm text-ink-2">
+                {t.savings.xlmLine.split("{amount}")[0]}
+                <strong className="tnum text-foreground" data-testid="wallet-xlm">
+                  {formatStroops(xlm, locale)}
+                </strong>
+                {t.savings.xlmLine.split("{amount}")[1]}
+              </p>
+              <p className="text-xs text-muted-foreground">{t.savings.xlmHint}</p>
             </div>
           )}
         </CardContent>

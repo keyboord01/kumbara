@@ -46,9 +46,9 @@ Read aloud. TR first, then EN. The slides carry one idea each; these notes carry
 
 ## 8 · Regulation
 
-**TR.** Emanet almayan yazılım; düzenlemeye tabi taraf anchor. Lira, USDC ya da anahtar tutmayız. Anchor fiat parayı tutar ve KYC yapar; biz anchor'ın KYC'si üzerine kurarız, kendimiz KYC yürütmeyiz. Gönderme yok, P2P yok, işyeri akışı yok. İşlem başına limit zincirde, ek limitler anchor tarafında. Ana ağdan önce anchor, emanet almayan bir uygulamaya hizmet verebileceğini yazılı olarak teyit eder. Teyit yoksa açılış yok.
+**TR.** Emanet almayan yazılım; düzenlemeye tabi taraf anchor. Lira, USDC ya da anahtar tutmayız. Anchor fiat parayı tutar ve KYC yapar; biz anchor'ın KYC'si üzerine kurarız, kendimiz KYC yürütmeyiz. Para ya kendi banka hesabına ya da kendi seçtiğin bir Stellar adresine çıkar; ödeme ürünü yok, işyeri akışı yok, rehber yok. İşlem başına limit zincirde, ek limitler anchor tarafında. Ana ağdan önce anchor, emanet almayan bir uygulamaya hizmet verebileceğini yazılı olarak teyit eder. Teyit yoksa açılış yok.
 
-**EN.** Non-custodial software; the anchor is the regulated party. We never hold lira, USDC or keys. The anchor holds fiat and does KYC; we build on the anchor's KYC and run none ourselves. No send, no P2P, no merchant flow. Per-transaction cap on-chain, anchor-side limits. Before mainnet the anchor confirms in writing it can serve a non-custodial app. No confirmation, no launch.
+**EN.** Non-custodial software; the anchor is the regulated party. We never hold lira, USDC or keys. The anchor holds fiat and does KYC; we build on the anchor's KYC and run none ourselves. Money leaves to your own bank account or to a Stellar address you choose; no payments product, no merchant flow, no address book. Per-transaction cap on-chain, anchor-side limits. Before mainnet the anchor confirms in writing it can serve a non-custodial app. No confirmation, no launch.
 
 ## 9 · Team
 

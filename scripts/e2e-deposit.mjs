@@ -64,7 +64,7 @@ async function runBoothFlow(reference) {
 
   log("presenter console opens; its driver ticks every 5 s");
   const admin = await context.newPage();
-  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN_TOKEN)}`, { waitUntil: "networkidle" });
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN_TOKEN)}`, { waitUntil: "domcontentloaded" });
   await admin.getByTestId("driver").waitFor({ timeout: 20000 });
   for (let i = 0; i < 10; i += 1) {
     if ((await admin.getByTestId("driver").getAttribute("data-on")) === "true") break;
@@ -77,12 +77,14 @@ async function runBoothFlow(reference) {
   await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().waitFor({ timeout: 30000 });
   const bankAt = Date.now();
   log("  bank played:", ((await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).first().textContent()) ?? "").trim());
-  // The second press must be refused with the server's reason (already paid), rendered in the console. The played row
-  // stays on screen for a minute for exactly this.
-  await playButton(admin, reference).click({ timeout: 10000 }).catch(() => undefined);
-  const refused = await admin.getByTestId("admin-error").textContent({ timeout: 15000 }).catch(() => "");
-  log("  second press:", (refused ?? "").trim().slice(0, 160));
-  if (!refused || !/already_paid|no_pending_deposit|anchor_rejected|\b(404|409|502)\b/.test(refused)) throw new Error(`second press did not show a server reason: ${refused}`);
+  // A played row offers no button any more: pressing it again only ever earned an "already paid" refusal, which was a
+  // trap for the presenter. The refusal itself still has to carry the server's reason, so assert it on the API the
+  // console calls. (The console's rendering of a refusal is covered by e2e-booth, which plays with nothing pending.)
+  if ((await playButton(admin, reference).count()) !== 0) throw new Error("a played row still offers the play button");
+  const refusedRes = await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ depositId: mine.id }) });
+  const refusedBody = await refusedRes.json();
+  log("  second play refused:", refusedRes.status, JSON.stringify(refusedBody.error ?? {}).slice(0, 160));
+  if (refusedBody.error?.code !== "already_paid" || !refusedBody.error?.message) throw new Error(`second play was not refused with already_paid: ${JSON.stringify(refusedBody)}`);
 
   // Nobody polls for the visitor: only the console's ticks move the record. Watch it through the read-only admin route.
   let status = "";
@@ -280,7 +282,7 @@ try {
   } else if (adminToken) {
     log("play the bank from the presenter page (/booth/admin)");
     const admin = await context.newPage();
-    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(adminToken)}`, { waitUntil: "networkidle" });
+    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(adminToken)}`, { waitUntil: "domcontentloaded" });
     if (admin.url().includes("token=")) throw new Error("admin token was not removed from the URL");
     await admin.getByText(reference).first().waitFor({ timeout: 20000 });
     await playButton(admin, reference).click();

@@ -54,9 +54,9 @@ Two variants share these notes. **SCF** (`kumbara-deck-scf.pdf`, 12 slides): 1 t
 
 ## 8 · Regulatory posture
 
-**TR.** Kumbara emanet almaz: lira, USDC ya da anahtar tutmaz. Lisanslı anchor parayı tutar, KYC yapar, kendi IBAN'ına öder. Ödeme özelliği yok. Kapı: anchor'ın yazılı görüşü, birinci dilimde. Türkiye geçemezse pilot listedeki en üst pazarda açılır.
+**TR.** Kumbara emanet almaz: lira, USDC ya da anahtar tutmaz. Lisanslı anchor parayı tutar, KYC yapar, kendi IBAN'ına öder. Para kendi banka hesabına ya da kendi seçtiğin bir Stellar adresine çıkar; ödeme ürünü yok, rehber yok. Kapı: anchor'ın yazılı görüşü, birinci dilimde. Türkiye geçemezse pilot listedeki en üst pazarda açılır.
 
-**EN.** Kumbara is non-custodial: it never holds lira, USDC or keys. The licensed anchor holds the fiat, does KYC, pays your own IBAN. No payments feature. The gate: the anchor's written position, in Tranche 1. If Türkiye fails, the pilot launches in the top-ranked market.
+**EN.** Kumbara is non-custodial: it never holds lira, USDC or keys. The licensed anchor holds the fiat, does KYC, pays your own IBAN. Money leaves to your own bank account or to a Stellar address you choose; there is no payments product, no merchant flow and no address book. The gate: the anchor's written position, in Tranche 1. If Türkiye fails, the pilot launches in the top-ranked market.
 
 ## 9 · Team
 

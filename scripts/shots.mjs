@@ -31,7 +31,7 @@ try {
   await shot("05-deposit-waiting");
   if (ADMIN) {
     const admin = await context.newPage();
-    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+    await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
     await admin.getByTestId("health-dots").waitFor({ timeout: 20000 });
     await admin.waitForTimeout(6000);
     await admin.screenshot({ path: `${OUT}/08-admin.png`, fullPage: true }); console.log("shot 08-admin");

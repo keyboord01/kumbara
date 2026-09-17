@@ -44,7 +44,7 @@ async function kumbara(name) {
 // The presenter page plays the bank through the anchor's SEP-6 sandbox hook, exactly as at the booth.
 async function playBank(context, reference) {
   const admin = await context.newPage();
-  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
   // One button per manual row in the queue.
   await admin.locator("[data-testid='queue-item']").filter({ hasText: reference }).getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();

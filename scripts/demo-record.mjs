@@ -60,7 +60,7 @@ async function waitStatus(testId, doneRe, maxPolls, onTick) {
 
 async function playBank(reference) {
   const admin = await context.newPage();
-  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "networkidle" });
+  await admin.goto(`${APP}/booth/admin?token=${encodeURIComponent(ADMIN)}`, { waitUntil: "domcontentloaded" });
   await admin.getByText(reference).first().waitFor({ timeout: 20000 });
   await admin.getByRole("button", { name: /Bankayı oynat|Play the bank/ }).click();
   await admin.locator("[role=status]").filter({ hasText: /simüle edildi|simulated/ }).waitFor({ timeout: 30000 });

@@ -79,12 +79,12 @@ try {
   const playable = page.getByRole("button", { name: /Bankayı oynat|Play the bank/ });
   const waiting = await playable.count();
   log("queue: deposits waiting for a press:", waiting);
-  // A refused action shows the server's reason, not a bare status: play the bank with nothing pending.
-  if (waiting === 0) {
-    const refused = await (await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: "{}" })).json();
-    log("play-bank with nothing pending →", JSON.stringify(refused.error));
-    if (!refused.error?.code || !refused.error?.message) throw new Error("play-bank refusal carries no code/message");
-  }
+  // A refused action shows the server's reason, not a bare status. Ask for a deposit that cannot exist: an
+  // empty body would play whichever deposit is pending, and with automatic confirmation a pending deposit
+  // is no longer the same thing as a deposit waiting for a press.
+  const refused = await (await fetch(`${APP}/api/booth/admin/play-bank`, { method: "POST", headers: adminHeaders, body: JSON.stringify({ depositId: "dep_thisdoesnotexist" }) })).json();
+  log("play-bank for a deposit that does not exist →", JSON.stringify(refused.error));
+  if (!refused.error?.code || !refused.error?.message) throw new Error("play-bank refusal carries no code/message");
 
   log("seed a demo account (presenter passkey, fixed deposit, autopilot)");
   const seedAt = Date.now();

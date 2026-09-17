@@ -26,7 +26,12 @@ export async function POST(request: Request): Promise<Response> {
   const amountTry = body.amountTry ?? process.env.SEED_DEPOSIT_TRY?.trim() ?? "250";
   try {
     const deposit = await createDeposit({ contractId: String(body.contractId ?? ""), amountTry, ref: "seed" });
-    const bank = await playBank({ depositId: deposit.id });
+    // The driver confirms small deposits by itself, and the seed amount is usually small, so losing this
+    // race is the normal outcome rather than a failure: the bank has been played either way.
+    const bank = await playBank({ depositId: deposit.id }).catch((err: unknown) => {
+      if (err instanceof PlayBankError && err.code === "already_paid") return { reference: deposit.instructions.reference, amountTry, transferStatus: "already played by the driver" };
+      throw err;
+    });
     return NextResponse.json({ deposit, bank }, { status: 201, headers: { "cache-control": "no-store" } });
   } catch (err) {
     if (err instanceof DepositError) return NextResponse.json({ error: { code: err.code, message: err.message } }, { status: err.status });

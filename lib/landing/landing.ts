@@ -181,7 +181,14 @@ function sourceAccountAuth(usdcContract: string, from: string, to: string, amoun
   });
 }
 
-async function submit(deps: LandingDeps, tx: Transaction): Promise<{ hash: string; ledger: number }> {
+/**
+ * Submit and wait for inclusion. Testnet RPC nodes lose sight of a transaction often enough that the hash alone
+ * is not a reliable answer: the poll can end NOT_FOUND for something that did land. So the wait is short, a
+ * re-broadcast of the same signed envelope follows (same hash and sequence: it lands once or comes back a
+ * duplicate), and the caller can hand over a `landed` check that looks at the world instead of the ledger
+ * index — for an account creation, "does the account exist" settles it in one call.
+ */
+async function submit(deps: LandingDeps, tx: Transaction, landed?: () => Promise<boolean>): Promise<{ hash: string; ledger: number }> {
   const sent = await deps.server.sendTransaction(tx);
   if (sent.status === "ERROR") {
     let code = "unknown";
@@ -192,18 +199,23 @@ async function submit(deps: LandingDeps, tx: Transaction): Promise<{ hash: strin
     }
     throw new LandingError("submit_failed", `transaction rejected: ${code} (${sent.errorResult?.toXDR("base64") ?? "unknown"})`);
   }
-  const polled = await deps.server.pollTransaction(sent.hash, { attempts: 40 });
+  const log = deps.log ?? (() => undefined);
+  const polled = await deps.server.pollTransaction(sent.hash, { attempts: 20 });
   if (polled.status === "SUCCESS") return { hash: sent.hash, ledger: polled.ledger };
-  // NOT_FOUND after the budget means the RPC never saw it in a ledger: either it lagged behind, or the
-  // transaction was dropped before inclusion. Re-broadcast the same signed envelope once (same hash and
-  // sequence, so it either lands once or comes back a duplicate) and poll again before giving up. Without
-  // this a visitor's deposit dies on an RPC hiccup, which is the one failure the booth cannot explain away.
   if (polled.status === "NOT_FOUND") {
-    (deps.log ?? (() => undefined))(`transaction ${sent.hash} not found after the first poll; re-broadcasting once`);
+    if (await landed?.().catch(() => false)) {
+      log(`transaction ${sent.hash} not found by the RPC, but its effect is on chain; carrying on`);
+      return { hash: sent.hash, ledger: 0 };
+    }
+    log(`transaction ${sent.hash} not found after the first poll; re-broadcasting once`);
     const again = await deps.server.sendTransaction(tx);
     if (again.status !== "ERROR") {
-      const second = await deps.server.pollTransaction(sent.hash, { attempts: 40 });
+      const second = await deps.server.pollTransaction(sent.hash, { attempts: 20 });
       if (second.status === "SUCCESS") return { hash: sent.hash, ledger: second.ledger };
+      if (await landed?.().catch(() => false)) {
+        log(`transaction ${sent.hash} still not found, but its effect is on chain; carrying on`);
+        return { hash: sent.hash, ledger: 0 };
+      }
       throw new LandingError("submit_failed", `transaction ${sent.hash} ${second.status} after a re-broadcast`);
     }
   }
@@ -216,14 +228,14 @@ async function submit(deps: LandingDeps, tx: Transaction): Promise<{ hash: strin
  * preview and a production run sharing the sponsor) otherwise lose one of them. Only pre-flight rejections are retried;
  * a transaction that was included and failed is reported as such.
  */
-async function submitSponsored(deps: LandingDeps, sponsorPub: string, build: (sponsorAccount: Account) => Transaction, signers: Keypair[]): Promise<{ hash: string; ledger: number; fee: string }> {
+async function submitSponsored(deps: LandingDeps, sponsorPub: string, build: (sponsorAccount: Account) => Transaction, signers: Keypair[], landed?: () => Promise<boolean>): Promise<{ hash: string; ledger: number; fee: string }> {
   let lastError: unknown;
   for (let attempt = 1; attempt <= 3; attempt += 1) {
     const sponsorAccount = await deps.server.getAccount(sponsorPub);
     const tx = build(sponsorAccount);
     tx.sign(...signers);
     try {
-      return { ...(await submit(deps, tx)), fee: tx.fee };
+      return { ...(await submit(deps, tx, landed)), fee: tx.fee };
     } catch (err) {
       lastError = err;
       const badSeq = err instanceof LandingError && /txBadSeq/.test(err.message);
@@ -294,6 +306,15 @@ export async function createLandingAccount(deps: LandingDeps, input: LandingInpu
           .setTimeout(300)
           .build(),
       [deps.sponsor, landingKey],
+      // The RPC losing sight of this transaction does not mean it failed: if the account is there, it landed.
+      async () => {
+        try {
+          await deps.server.getAccount(landingPub);
+          return true;
+        } catch {
+          return false;
+        }
+      },
     );
 
     // A½: the anchor conversation that needs the master key (SEP-10) and fixes

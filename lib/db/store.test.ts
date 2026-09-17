@@ -119,11 +119,15 @@ describe("libsql store", () => {
     expect((await store.rateLimitHit(bucket, 2, 10_000)).allowed).toBe(true);
     expect((await store.rateLimitHit(bucket, 2, 10_000)).allowed).toBe(true);
     expect(await store.rateLimitHit(bucket, 2, 10_000)).toEqual({ allowed: false, count: 2 });
-    // Forgetting: sleep past a short window, so a slow runner only makes the gap larger.
+    // Blocking at the limit, again on a window nothing can outrun.
+    const tight = "abc123-tight";
+    expect((await store.rateLimitHit(tight, 1, 10_000)).allowed).toBe(true);
+    expect((await store.rateLimitHit(tight, 1, 10_000)).allowed).toBe(false);
+    // Forgetting: one hit, then a sleep longer than the window. Nothing here assumes two calls land close
+    // together, which is what a slow runner breaks; it only assumes a sleep is at least as long as it says.
     const old = "abc123-old";
     expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(true);
-    expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(false);
-    await new Promise((r) => setTimeout(r, 150));
+    await new Promise((r) => setTimeout(r, 200));
     expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(true);
     expect((await store.rateLimitHit("other", 0, 200)).allowed).toBe(true); // 0 = unlimited
   });

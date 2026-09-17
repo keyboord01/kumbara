@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { KeyRoundIcon } from "lucide-react";
 import { useCreateWallet, usePasskeyWallet } from "@sembol/passkey-react";
 import { AddressCard } from "@/components/AddressCard";
 import { FailureScreen } from "@/components/FailureScreen";
@@ -10,6 +11,7 @@ import { Skeleton } from "@/components/Skeleton";
 import { Spinner } from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Item, ItemContent, ItemMedia, ItemTitle } from "@/components/ui/item";
 import { api } from "@/lib/api";
 import { classifyError, type Failure } from "@/lib/failures";
@@ -151,11 +153,15 @@ export default function OnboardPage() {
                 />
               ) : null}
               <p className="text-xs leading-relaxed text-muted-foreground">{t.onboard.limitNote}</p>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <Button variant="link" size="xs" onClick={() => void connectExisting()}>
+              {/* Coming back is an action, not fine print: a returning visitor needs to see the way in. */}
+              <Separator />
+              <div className="flex flex-col gap-2">
+                <Button variant="outline" size="xl" className="w-full" onClick={() => void connectExisting()}>
+                  <KeyRoundIcon data-icon="inline-start" />
                   {t.onboard.haveOne}
                 </Button>
-                <Button variant="link" size="xs" className="text-muted-foreground" render={<Link href="/kurtar" />}>
+                <p className="text-xs leading-relaxed text-muted-foreground">{t.onboard.haveOneHint}</p>
+                <Button variant="link" size="xs" className="w-fit text-muted-foreground" render={<Link href="/kurtar" />}>
                   {t.onboard.lostPasskey}
                 </Button>
               </div>

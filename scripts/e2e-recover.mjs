@@ -1,6 +1,6 @@
 // Recovery end-to-end: create a kumbara in one browser context, move the same
 // passkey (virtual authenticator credential) into fresh contexts, and reach
-// Savings both through "I already have a kumbara" and through the recovery
+// Savings both through "Sign in with your passkey" and through the recovery
 // screen, with no third-party indexer. Also checks the registry the relay
 // wrote at deployment and the backup-passkey write path.
 //   pnpm e2e:recover   (APP_URL defaults to http://localhost:3100)
@@ -60,11 +60,11 @@ try {
   if (registry.contractId !== contract || !registry.verified) throw new Error(`registry answered ${JSON.stringify(registry)}, expected verified ${contract}`);
   log("  ✓ registry:", registry.kind, registry.verified ? "verified" : "unverified", registry.contractId.slice(0, 8) + "…");
 
-  log("B: fresh context with the same passkey → 'I already have a kumbara'");
+  log("B: fresh context with the same passkey → 'Sign in with your passkey'");
   const b = await freshContext({ credentialId: credential.credentialId, isResidentCredential: true, rpId: credential.rpId, privateKey: credential.privateKey, userHandle: credential.userHandle, signCount: credential.signCount });
   const bAt = Date.now();
   await b.page.goto(`${APP}/?net=testnet`, { waitUntil: "networkidle" });
-  await b.page.getByRole("button", { name: /Kumbaram zaten var|I already have a kumbara/ }).click();
+  await b.page.getByRole("button", { name: /Passkey ile gir|Sign in with your passkey/ }).click();
   await b.page.waitForURL("**/kumbara**", { timeout: 60000 });
   await b.page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   const bContract = await contractOf(b.page);

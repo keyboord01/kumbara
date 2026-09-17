@@ -52,7 +52,7 @@ The visitor signed the vault deposit but the page never reported it back (closed
 
 ### Passkey on another device, or lost
 
-"Kumbaram zaten var" opens the kumbara on any device that has the passkey (iCloud Keychain, 1Password, Google Password Manager): the address derives from the passkey itself, no service in between. "Passkey'imi bulamıyorum" (`/kurtar`) is for a backup passkey enrolled on the security screen, or for typing the address; the kumbara's address is on its Savings screen and on stellar.expert. Without a backup passkey or the address, nobody can open a kumbara, Kumbara included.
+"Passkey ile gir" (Sign in with your passkey) opens the kumbara on any device that has the passkey (iCloud Keychain, 1Password, Google Password Manager): the address derives from the passkey itself, no service in between. "Passkey'imi bulamıyorum" (`/kurtar`) is for a backup passkey enrolled on the security screen, or for typing the address; the kumbara's address is on its Savings screen and on stellar.expert. Without a backup passkey or the address, nobody can open a kumbara, Kumbara included.
 
 ### Passkey refused
 

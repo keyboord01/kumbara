@@ -17,6 +17,7 @@ import { ResumeNotice } from "@/components/ResumeNotice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
@@ -375,6 +376,31 @@ function Withdraw() {
 
   if (view === "form") {
     const invalid = amount !== "" && !amountValid;
+    // An empty vault is not an error the visitor made. Say what is true and point at the way in, rather
+    // than greeting them with a red "not enough USDC" for an amount the form filled in by itself.
+    if (position && position.usdc === 0n) {
+      return (
+        <div className="mx-auto flex w-full max-w-xl flex-col gap-5 py-2">
+          <div className="flex items-baseline justify-between">
+            <h1 className="text-3xl font-bold tracking-tight">{t.withdraw.title}</h1>
+            <Link href="/kumbara" className="rounded-sm text-sm text-plum hover:underline">
+              {t.withdraw.backToSavings}
+            </Link>
+          </div>
+          <Empty className="rounded-xl border border-border bg-card" data-testid="withdraw-empty">
+            <EmptyHeader>
+              <EmptyTitle>{t.withdraw.empty.title}</EmptyTitle>
+              <EmptyDescription>{t.withdraw.empty.body}</EmptyDescription>
+            </EmptyHeader>
+            <EmptyContent>
+              <Button size="xl" render={<Link href="/yukle" />}>
+                {t.deposit.title}
+              </Button>
+            </EmptyContent>
+          </Empty>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-5 py-2">
         <div className="flex items-baseline justify-between">

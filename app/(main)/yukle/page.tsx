@@ -21,13 +21,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/components/ui/input-group";
-import { Separator } from "@/components/ui/separator";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { api } from "@/lib/api";
 import { buildVaultDeposit } from "@/lib/autopilot";
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
 import { StepTimeoutError, classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
-import { formatTry, formatUsdc } from "@/lib/format";
+import { formatTryNarrow, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
@@ -55,7 +54,6 @@ interface DepositRecord {
   lastError?: { at: string; message: string; code?: string };
 }
 
-const STEP_ORDER: DepositStatus[] = ["awaiting_transfer", "transfer_received", "onramp_pending", "onramp_paid", "forwarded", "in_wallet", "in_vault"];
 const FINAL: DepositStatus[] = ["in_vault", "failed", "cancelled", "abandoned"];
 const WAIT_EXTENSION_MS = 30 * 60_000;
 /** A vault deposit (simulation + passkey + relay) that takes longer than this becomes a retryable failure. */
@@ -86,6 +84,61 @@ function CopyButton({ value, label, copiedLabel }: { value: string; label: strin
       {copied ? <CheckIcon data-icon="inline-start" /> : <CopyIcon data-icon="inline-start" />}
       {label}
     </Button>
+  );
+}
+
+/**
+ * One value the visitor has to copy into their banking app. Big, monospaced and copyable, because a
+ * mistyped IBAN or reference is the one mistake this screen cannot recover from.
+ */
+function CopyField({ label, value, display, testId, tone = "plain", hint }: { label: string; value: string; display?: string; testId: string; tone?: "plain" | "key"; hint?: string }) {
+  const { t } = useLocale();
+  return (
+    <div className={cn("rounded-lg p-3", tone === "key" ? "border border-plum/30 bg-plum/5" : "bg-muted")}>
+      <div className="flex items-center justify-between gap-3">
+        <p className={cn("text-sm font-semibold", tone === "key" ? "text-plum" : "text-ink-2")}>{label}</p>
+        <CopyButton value={value} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
+      </div>
+      <p className={cn("tnum mt-1.5 font-mono font-bold tracking-wide break-all text-foreground", tone === "key" ? "text-2xl" : "text-base sm:text-lg")} data-testid={testId}>
+        {display ?? value}
+      </p>
+      {hint ? <p className="mt-1.5 text-xs text-ink-2">{hint}</p> : null}
+    </div>
+  );
+}
+
+/**
+ * Where the lira goes and the reference that ties it back to this kumbara. Rendered twice over the life of a
+ * deposit — as the thing to act on, then folded inside the receipt — so the details never simply vanish.
+ * Only one of the two is ever mounted, which keeps the test ids unique.
+ */
+function BankFields({ record }: { record: { amountTry: string; instructions: DepositRecord["instructions"] } }) {
+  const { t, locale } = useLocale();
+  if (!record.instructions.iban) {
+    return (
+      <p className="rounded-lg bg-muted p-3 text-sm text-muted-foreground" role="status">
+        {t.deposit.instructionsPending}
+      </p>
+    );
+  }
+  const rows: [string, string][] = [
+    [t.deposit.amount, formatTryNarrow(Number(record.amountTry), locale)],
+    [t.deposit.recipient, record.instructions.accountHolder],
+    [t.deposit.bank, record.instructions.bankName],
+  ];
+  return (
+    <div className="flex flex-col gap-3">
+      <CopyField label={t.deposit.iban} value={record.instructions.iban} display={record.instructions.ibanFormatted} testId="deposit-iban" />
+      <CopyField label={t.deposit.description} value={record.instructions.reference} testId="deposit-reference" tone="key" hint={t.deposit.descriptionHint} />
+      <dl className="flex flex-col gap-1.5 text-sm">
+        {rows.map(([term, value]) => (
+          <div key={term} className="flex items-start justify-between gap-3">
+            <dt className="text-muted-foreground">{term}</dt>
+            <dd className="tnum text-right font-medium text-foreground">{value}</dd>
+          </div>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -589,9 +642,7 @@ function Deposit() {
   }
 
   if (!record) return null;
-  const currentIndex = STEP_ORDER.indexOf(record.status);
   const quote = record.firmQuote ?? record.indicative;
-  const tryShown = record.receivedTry ?? record.amountTry;
   const deadline = record.transferDeadline ? Date.parse(record.transferDeadline) : null;
   const timedOut = record.status === "awaiting_transfer" && deadline !== null && now > 0 && now > Math.max(deadline, waitUntil);
   const waitedMinutes = now > 0 ? Math.max(1, Math.round((now - Date.parse(record.createdAt)) / 60_000)) : 0;
@@ -608,10 +659,15 @@ function Deposit() {
 
   const done = FINAL.includes(record.status);
   const needsYou = record.status === "in_wallet";
+  /** The one state where the screen is asking the visitor for something: their bank transfer. */
+  const awaiting = record.status === "awaiting_transfer";
   // Above the automatic threshold: the panel waits while nothing has moved, ticks over on the first leg, then goes.
   const aboveThreshold = needsApproval(Number(record.amountTry)) && ["awaiting_transfer", "transfer_received", "onramp_pending"].includes(record.status);
+  const amountShown = formatTryNarrow(Number(record.amountTry), locale);
+  const usdcShown = formatUsdc(record.paidUsdc ?? quote.usdcOut, locale);
+
   return (
-    <div className={cn("flex flex-col gap-5 py-2", done && "mx-auto w-full lg:max-w-2xl")}>
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-4 py-2">
       <div className="flex items-baseline justify-between">
         <h1 className="text-3xl font-bold tracking-tight">{t.deposit.title}</h1>
         <Link href="/kumbara" className="rounded-sm text-sm text-plum hover:underline">
@@ -619,10 +675,7 @@ function Deposit() {
         </Link>
       </div>
 
-      {/* Two columns on a laptop: what the visitor acts on, then the status beside it; one centred column once the deposit is final. */}
-      <div className={cn("grid gap-5", !done && "lg:grid-cols-[3fr_2fr] lg:items-start")}>
-      <div className="flex flex-col gap-5">
-      {resumed && !FINAL.includes(record.status) ? <ResumeNotice flow="deposit" /> : null}
+      {resumed && !done ? <ResumeNotice flow="deposit" /> : null}
       {pollFailure ? <FailureScreen failure={pollFailure} primary={null} /> : null}
 
       {failed ? (
@@ -641,62 +694,49 @@ function Deposit() {
         />
       ) : null}
 
-      <Card render={<section aria-label={t.deposit.quoteTitle} />}>
-        <CardHeader>
-          <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.quoteTitle}</CardTitle>
-          <CardAction>
-            <NetworkBadge />
-          </CardAction>
-        </CardHeader>
-        <CardContent>
-          <p className="tnum text-3xl font-bold">{formatUsdc(quote.usdcOut, locale)} USDC</p>
-          <p className="tnum mt-1 text-sm text-ink-2">
-            {formatTry(Number(tryShown), locale)} · {t.deposit.rateLine} {Number(quote.rate).toLocaleString(numberLocale, { maximumFractionDigits: 4 })} ₺/USDC ({record.indicative.spreadBps} bps {t.deposit.spread})
-          </p>
-          {!record.firmQuote ? <p className="mt-1 text-xs text-muted-foreground">{t.deposit.indicative}</p> : null}
-        </CardContent>
-      </Card>
-
-      {record.status === "awaiting_transfer" ? (
+      {/* First card: the one thing being asked of the visitor. Nothing at all when the money is simply moving. */}
+      {awaiting ? (
         <Card render={<section aria-label={t.deposit.transferTitle} />}>
           <CardHeader>
-            <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.transferTitle}</CardTitle>
+            <CardTitle className="text-2xl leading-tight">{t.deposit.sendTitle.replace("{amount}", amountShown)}</CardTitle>
+            <CardDescription className="text-ink-2">{t.deposit.sendLead}</CardDescription>
+            <CardAction>
+              <NetworkBadge />
+            </CardAction>
           </CardHeader>
           <CardContent className="flex flex-col gap-3">
-            <dl className="flex flex-col gap-3 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <dt className="text-muted-foreground">{t.deposit.bank}</dt>
-                <dd className="text-right font-medium">{record.instructions.bankName}</dd>
-                {!record.instructions.iban ? <dd className="col-span-2 text-sm text-muted-foreground" role="status">{t.deposit.instructionsPending}</dd> : null}
-              </div>
-              <div className="rounded-lg bg-muted p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">{t.deposit.iban}</dt>
-                  <CopyButton value={record.instructions.iban} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
-                </div>
-                <dd className="tnum mt-1 font-mono text-sm font-semibold tracking-wide text-foreground" data-testid="deposit-iban">{record.instructions.ibanFormatted}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <dt className="text-muted-foreground">{t.deposit.recipient}</dt>
-                <dd className="text-right font-medium">{record.instructions.accountHolder}</dd>
-              </div>
-              <div className="flex items-start justify-between gap-3">
-                <dt className="text-muted-foreground">{t.deposit.amount}</dt>
-                <dd className="tnum text-right font-medium">{formatTry(Number(record.amountTry), locale)}</dd>
-              </div>
-              <div className="rounded-lg border border-plum/30 bg-plum/5 p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="font-semibold text-plum">{t.deposit.description}</dt>
-                  <CopyButton value={record.instructions.reference} label={t.deposit.copy} copiedLabel={t.deposit.copied} />
-                </div>
-                <dd className="mt-1 font-mono text-2xl font-bold tracking-wide text-foreground" data-testid="deposit-reference">
-                  {record.instructions.reference}
-                </dd>
-              </div>
-            </dl>
-            <p className="text-xs text-ink-2">{t.deposit.descriptionHint}</p>
+            <BankFields record={record} />
+            <p className="tnum text-sm text-ink-2">
+              {t.deposit.willReceive.replace("{usdc}", formatUsdc(quote.usdcOut, locale))} · {Number(quote.rate).toLocaleString(numberLocale, { maximumFractionDigits: 4 })} ₺/USDC
+            </p>
             <p className="text-xs text-muted-foreground">{t.deposit.sandbox}</p>
           </CardContent>
+        </Card>
+      ) : null}
+
+      {needsYou && autopilot === "needs_tap" ? (
+        autopilotFailure ? (
+          <FailureScreen
+            failure={autopilotFailure}
+            primary={autopilotFailure.kind === "limit_exceeded" ? undefined : { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() }}
+            secondary={autopilotFailure.kind === "limit_exceeded" ? { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() } : null}
+          />
+        ) : (
+          <Alert role="status" data-testid="arrived" className="border-amber/40 bg-amber/5">
+            <AlertTitle className="text-xl leading-tight font-bold">{t.deposit.arrivedTitle}</AlertTitle>
+            <AlertDescription className="text-ink-2">{t.deposit.autopilotNeedsTap}</AlertDescription>
+            <Button size="xl" onClick={() => void runAutopilot()} className="mt-3 w-full">
+              {t.deposit.autopilotButton}
+            </Button>
+          </Alert>
+        )
+      ) : null}
+
+      {record.status === "in_vault" ? (
+        <Card className="border-mint/40 bg-mint/5" render={<section aria-label={t.deposit.steps.in_vault} />}>
+          <CardHeader>
+            <CardTitle className="text-2xl leading-tight">{t.deposit.doneTitle.replace("{usdc}", usdcShown)}</CardTitle>
+          </CardHeader>
         </Card>
       ) : null}
 
@@ -714,36 +754,20 @@ function Deposit() {
           </CardContent>
         </Card>
       ) : null}
-      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
-      </div>
 
-      {/* The status column: sticky on a laptop, first on a phone while a step needs the visitor. */}
-      <div className={cn("flex flex-col gap-5", needsYou && "max-lg:order-first", !done && "lg:sticky lg:top-24")}>
+      {/* Second card: where the money is. One picture and one sentence, not four versions of the same fact. */}
       <Card render={<section aria-label={t.deposit.statusTitle} />}>
         <CardHeader>
           <CardTitle className="microlabel text-[11px] font-normal">{t.deposit.statusTitle}</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
-          {/* The picture: where the money is right now. The stepper under it carries the detail. */}
           <MoneyJourney status={record.status} since={record.updatedAt} typicalSeconds={TYPICAL_SECONDS[record.status]} />
-          {/* Above the automatic threshold a person approves the deposit; say so, and count the wait. */}
-          {aboveThreshold ? <ApprovalWait createdAt={record.createdAt} approved={record.status !== "awaiting_transfer"} /> : null}
-          <Separator />
-          <Stepper
-            testId="deposit-status"
-            steps={STEP_ORDER.filter((s) => ["awaiting_transfer", "transfer_received", "onramp_paid", "in_wallet", "in_vault"].includes(s)).map((s): StepperStep => {
-              const idx = STEP_ORDER.indexOf(s);
-              const active = record.status === s || (s === "transfer_received" && record.status === "onramp_pending") || (s === "onramp_paid" && record.status === "forwarded");
-              const state: StepperStep["state"] = record.status === "failed" ? (idx < currentIndex ? "done" : idx === currentIndex ? "failed" : "idle") : idx < currentIndex && !active ? "done" : active || idx === currentIndex ? (s === "in_vault" ? "done" : "current") : "idle";
-              return { key: s, label: t.deposit.steps[s], owner: s === "in_vault" ? undefined : s === "in_wallet" ? "you" : "us", state, since: state === "current" ? record.updatedAt : undefined, typicalSeconds: state === "current" ? TYPICAL_SECONDS[record.status] : undefined };
-            })}
-          />
-          <Separator />
           <div className="flex flex-col gap-1">
-            <p className="text-sm font-semibold text-foreground" role="status" aria-live="polite" data-testid="deposit-current">
+            <p className="text-base font-semibold text-foreground" role="status" aria-live="polite" data-testid="deposit-current">
               {t.deposit.steps[record.status]}
             </p>
-            {record.status === "in_wallet" ? (
+            {!done && !awaiting && !needsYou ? <p className="text-sm text-ink-2">{t.deposit.movingLead}</p> : null}
+            {needsYou ? (
               <p className="text-sm text-amber" data-testid="needs-you">
                 {t.deposit.needsYou}
               </p>
@@ -753,31 +777,15 @@ function Deposit() {
                 {t.failures.quoteRefreshing}
               </p>
             ) : null}
-            {record.status === "in_wallet" && autopilot === "signing" ? (
-              <p className="mt-1 flex items-center gap-2 text-sm text-ink-2" role="status">
+            {needsYou && autopilot === "signing" ? (
+              <p className="flex items-center gap-2 text-sm text-ink-2" role="status">
                 <Spinner className="text-plum" />
                 {t.deposit.autopilotSigning}
               </p>
             ) : null}
           </div>
-          {record.status === "in_wallet" && autopilot === "needs_tap" ? (
-            autopilotFailure ? (
-              <FailureScreen
-                failure={autopilotFailure}
-                compact
-                primary={autopilotFailure.kind === "limit_exceeded" ? undefined : { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() }}
-                secondary={autopilotFailure.kind === "limit_exceeded" ? { label: t.deposit.autopilotButton, onClick: () => void runAutopilot() } : null}
-              />
-            ) : (
-              <Alert role="status" data-testid="arrived" className="border-amber/40 bg-amber/5">
-                <AlertTitle className="text-base font-semibold">{t.deposit.arrivedTitle}</AlertTitle>
-                <AlertDescription className="text-ink-2">{t.deposit.autopilotNeedsTap}</AlertDescription>
-                <Button onClick={() => void runAutopilot()} className="mt-2 w-fit">
-                  {t.deposit.autopilotButton}
-                </Button>
-              </Alert>
-            )
-          ) : null}
+          {/* Above the automatic threshold a person approves the deposit; say so, and count the wait. */}
+          {aboveThreshold ? <ApprovalWait createdAt={record.createdAt} approved={record.status !== "awaiting_transfer"} /> : null}
           {record.anchorTxHash || record.forwardTxHash || record.vaultTxHash ? (
             <div className="flex flex-col gap-1">
               {record.anchorTxHash ? <TxLink hash={record.anchorTxHash} label={t.deposit.links.anchor} /> : null}
@@ -787,21 +795,42 @@ function Deposit() {
           ) : null}
         </CardContent>
       </Card>
-      </div>
 
-      <div className="flex flex-col gap-2 lg:col-span-2">
+      {/* The receipt. The visitor typed this reference into their banking app, so it folds away rather than
+          disappearing the moment the lira lands. */}
+      {!awaiting && record.instructions.iban ? (
+        <details className="group rounded-xl border border-border bg-card px-4 py-3" data-testid="deposit-receipt">
+          <summary className="flex items-center justify-between gap-3">
+            <span className="flex min-w-0 flex-col">
+              <span className="flex items-center gap-2 text-sm">
+                <CheckIcon className="size-4 flex-none text-mint" aria-hidden />
+                <span className="truncate font-medium text-foreground">{t.deposit.sentTitle.replace("{amount}", amountShown)}</span>
+              </span>
+              <span className="tnum truncate pl-6 font-mono text-xs text-muted-foreground">{record.instructions.reference}</span>
+            </span>
+            <span className="flex-none text-sm text-plum">{t.deposit.detailsToggle}</span>
+          </summary>
+          <div className="mt-3">
+            <BankFields record={record} />
+          </div>
+        </details>
+      ) : null}
+
+      {failure && record.status !== "failed" ? <FailureScreen failure={failure} compact primary={null} /> : null}
+
+      <div className="flex flex-col gap-2">
         {record.status === "in_vault" ? (
           <Button size="xl" className="w-full" render={<Link href="/kumbara" />}>
             {t.deposit.backToSavings}
           </Button>
         ) : null}
         {record.status === "abandoned" ? <p className="text-center text-sm text-ink-2">{t.deposit.abandoned}</p> : null}
-        {FINAL.includes(record.status) && record.status !== "failed" ? (
+        {done && record.status !== "failed" ? (
           <Button variant="outline" className="w-full" onClick={reset}>
             {t.deposit.newDeposit}
           </Button>
         ) : null}
-        {record.status === "awaiting_transfer" && !timedOut ? (
+        {awaiting && !timedOut ? (
           <>
             <Button variant="outline" className="w-full" onClick={() => void cancel()} disabled={cancelling} aria-busy={cancelling ? "true" : undefined}>
               {cancelling ? <Spinner data-icon="inline-start" /> : null}
@@ -810,7 +839,6 @@ function Deposit() {
             <p className="text-center text-xs text-muted-foreground">{t.deposit.cancelHint}</p>
           </>
         ) : null}
-      </div>
       </div>
     </div>
   );

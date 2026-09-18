@@ -18,3 +18,12 @@ export function formatTry(value: number | null | undefined, locale: "tr" | "en" 
 export function shortAddress(address: string, chars = 6): string {
   return address.length > chars * 2 + 1 ? `${address.slice(0, chars)}…${address.slice(-chars)}` : address;
 }
+
+/**
+ * Lira with the ₺ sign rather than the ISO code, for headlines the visitor reads at a glance
+ * ("₺100.00", not "TRY 100.00"). `formatTry` stays as it is for tables and receipts.
+ */
+export function formatTryNarrow(value: number | null | undefined, locale: "tr" | "en" = "tr"): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return "–";
+  return new Intl.NumberFormat(locale === "tr" ? "tr-TR" : "en-US", { style: "currency", currency: "TRY", currencyDisplay: "narrowSymbol", maximumFractionDigits: 2 }).format(value);
+}

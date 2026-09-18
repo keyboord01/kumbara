@@ -29,6 +29,7 @@
     "e2e:autobank": "E2E_AUTOBANK=1 node --env-file=.env scripts/e2e-deposit.mjs",
     "e2e:withdraw": "node --env-file=.env scripts/e2e-withdraw.mjs",
     "e2e:address": "node --env-file=.env scripts/e2e-address.mjs",
+    "e2e:optout": "node --env-file=.env scripts/e2e-optout.mjs",
     "lint": "eslint .",
     "e2e:booth": "node --env-file=.env scripts/e2e-booth.mjs",
     "e2e:stats": "node scripts/e2e-stats.mjs",

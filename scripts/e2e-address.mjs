@@ -159,7 +159,7 @@ try {
   await b.page.getByTestId("put-in-vault").click();
   let inVault = "";
   for (let i = 0; i < 30; i += 1) {
-    inVault = ((await b.page.locator("section[aria-label='Kumbarada'] p.tnum").first().textContent()) ?? "").trim();
+    inVault = ((await b.page.getByTestId("vault-usdc").textContent()) ?? "").trim();
     if (/^1,00 USDC/.test(inVault)) break;
     const tap = b.page.getByTestId("put-in-vault");
     if (await tap.isVisible().catch(() => false)) await tap.click().catch(() => {});

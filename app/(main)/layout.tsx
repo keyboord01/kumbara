@@ -19,10 +19,13 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     <>
       <Header />
       <OfflineBanner />
-      <main className={cn("mx-auto w-full max-w-xl flex-1 px-4 py-6 lg:max-w-5xl lg:px-8", padding)}>
+      <main className="mx-auto w-full max-w-xl flex-1 px-4 py-6 lg:max-w-5xl lg:px-8">
         <NetworkGuard>{children}</NetworkGuard>
       </main>
       <Footer />
+      {/* The tab bar is fixed over the bottom of the viewport. The room for it goes *below* the footer:
+          padding on <main> alone left the footer underneath the bar, where it could not be read. */}
+      <div className={cn("flex-none", padding)} aria-hidden />
       <BottomNav />
     </>
   );

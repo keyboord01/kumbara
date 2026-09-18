@@ -19,7 +19,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/api";
-import { buildVaultDeposit } from "@/lib/autopilot";
+import { buildVaultDeposit, buildVaultWithdraw } from "@/lib/autopilot";
 import { EXPLORER_BASE, NETWORK, NETWORK_LABEL, sembolConfig } from "@/lib/config";
 import { classifyError, withTimeout, type Failure } from "@/lib/failures";
 import { formatStroops, formatTry, formatUsdc } from "@/lib/format";
@@ -158,6 +158,9 @@ function Savings() {
   const waiting = info && wallet.raw !== null ? wallet.raw : null;
   const sweepable = waiting !== null && waiting >= MIN_SWEEPABLE_STROOPS;
   const xlm = walletXlm.raw !== null && walletXlm.raw >= MIN_VISIBLE_XLM_STROOPS ? walletXlm.raw : null;
+  /** Everything the kumbara holds: the vault position plus any USDC still sitting in the account.
+   *  Showing the vault alone made a kumbara with unswept USDC read "0.00", as if the money were gone. */
+  const total = inVault === null ? null : inVault + (waiting ?? 0n);
 
   // USDC already in the kumbara (sent to its address, or left by an interrupted deposit): one approval puts it in the vault.
   const [sweep, setSweep] = useState<"idle" | "signing">("idle");
@@ -191,6 +194,35 @@ function Savings() {
       setSweep("idle");
     }
   }, [kit, info, address, waiting, signAndSubmit, toast, t, locale, refresh, wallet]);
+  // Out of the vault and back into the kumbara: the opt-out. The USDC stays self-custodial either way;
+  // this is only about whether it sits in the DeFindex position or in the account itself.
+  const [pullOut, setPullOut] = useState<"idle" | "signing">("idle");
+  const [pullOutFailure, setPullOutFailure] = useState<Failure | null>(null);
+  const takeOutOfVault = useCallback(async () => {
+    const shares = position?.shares ?? 0n;
+    if (!kit || !info || !address || inVault === null || inVault <= 0n || shares <= 0n) return;
+    try {
+      setPullOut("signing");
+      setPullOutFailure(null);
+      // Burn every share the account holds and accept a little less than the quoted USDC: the position is
+      // read a moment before the call, and insisting on the exact figure would fail on the rounding.
+      const minOut = (inVault * 99n) / 100n;
+      const tx = await withTimeout(buildVaultWithdraw(kit, info.vault.id, address, shares, minOut), STEP_TIMEOUT_MS, "vault withdrawal simulation");
+      const result = await withTimeout(signAndSubmit(tx), STEP_TIMEOUT_MS, "vault withdrawal");
+      console.info(`[kumbara] vault opt-out ${result.hash.slice(0, 8)} confirmed for ${formatUsdc(inVault, locale)} USDC`);
+      toast({ title: t.savings.takeOutDone, body: `${formatUsdc(inVault, locale)} USDC`, variant: "success", key: "sweep" });
+      setEpoch((e) => e + 1);
+      void refresh();
+      void wallet.refetch();
+    } catch (err) {
+      const classified = classifyError(err, "vault");
+      console.error("[kumbara] vault opt-out failed", classified.kind, classified.detail);
+      setPullOutFailure(classified);
+    } finally {
+      setPullOut("idle");
+    }
+  }, [kit, info, address, inVault, position, signAndSubmit, toast, t, locale, refresh, wallet]);
+
   const tryValue = (stroops: bigint | null) => (stroops !== null && rate ? (Number(stroops) / 1e7) * rate.usdTry : null);
   const backupCount = Math.max(0, signers.length - 1);
   const perTx = policy ? policy.periodLedgers === 1 : false;
@@ -245,33 +277,57 @@ function Savings() {
           </CardAction>
         </CardHeader>
         <CardContent className="flex flex-col gap-1">
-          <p className="tnum text-4xl font-bold text-foreground">
-            {inVault === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(inVault, locale)} USDC`}
+          <p className="tnum text-4xl font-bold text-foreground" data-testid="savings-total">
+            {total === null ? <Skeleton className="h-10 w-44" /> : `${formatUsdc(total, locale)} USDC`}
           </p>
           <p className="tnum text-sm text-ink-2">
-            {t.savings.tryEquiv} {formatTry(tryValue(inVault), locale)}
+            {t.savings.tryEquiv} {formatTry(tryValue(total), locale)}
             {rate && <span className="text-muted-foreground"> · {t.savings.rateSource[rate.source]}</span>}
           </p>
-          {sweepable && waiting !== null && (
-            <div className="mt-2 flex flex-col gap-2 rounded-lg bg-blush/40 px-3 py-3">
-              <p className="text-sm text-ink-2">
-                {t.savings.waiting}:{" "}
-                <strong className="tnum text-foreground" data-testid="wallet-usdc">
-                  {formatUsdc(waiting, locale)} USDC
-                </strong>
-                <span className="tnum">
-                  {" "}
-                  · {t.savings.tryEquiv} {formatTry(tryValue(waiting), locale)}
-                </span>
-              </p>
-              <p className="text-xs text-muted-foreground">{t.savings.putInVaultHint}</p>
-              <Button className="w-full sm:w-fit" onClick={() => void putInVault()} disabled={sweep === "signing" || !kit || !info} aria-busy={sweep === "signing" ? "true" : undefined} data-testid="put-in-vault">
-                {sweep === "signing" ? <Spinner data-icon="inline-start" /> : null}
-                {t.savings.putInVault}
-              </Button>
-              {sweepFailure ? <FailureScreen failure={sweepFailure} compact onRetry={() => void putInVault()} /> : null}
+          {/* Where that money actually sits. The vault line is always here, so the headline can never be
+              read as "only the part we moved"; the box goes blush when some of it is waiting on a tap. */}
+          <div className={cn("mt-3 flex flex-col gap-2 rounded-lg p-3", sweepable ? "bg-blush/40" : "bg-muted")}>
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="text-ink-2">{t.savings.inVaultLine}</span>
+              <strong className="tnum text-foreground" data-testid="vault-usdc">
+                {inVault === null ? "–" : `${formatUsdc(inVault, locale)} USDC`}
+              </strong>
             </div>
-          )}
+            {sweepable && waiting !== null && (
+              <>
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className="text-ink-2">{t.savings.waiting}</span>
+                  <strong className="tnum text-foreground" data-testid="wallet-usdc">
+                    {formatUsdc(waiting, locale)} USDC
+                  </strong>
+                </div>
+                <p className="text-xs text-muted-foreground">{t.savings.putInVaultHint}</p>
+                <Button className="w-full sm:w-fit" onClick={() => void putInVault()} disabled={sweep === "signing" || !kit || !info} aria-busy={sweep === "signing" ? "true" : undefined} data-testid="put-in-vault">
+                  {sweep === "signing" ? <Spinner data-icon="inline-start" /> : null}
+                  {t.savings.putInVault}
+                </Button>
+                {sweepFailure ? <FailureScreen failure={sweepFailure} compact onRetry={() => void putInVault()} /> : null}
+              </>
+            )}
+            {inVault !== null && inVault > 0n ? (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-fit"
+                  onClick={() => void takeOutOfVault()}
+                  disabled={pullOut === "signing" || !kit || !info}
+                  aria-busy={pullOut === "signing" ? "true" : undefined}
+                  data-testid="take-out-of-vault"
+                >
+                  {pullOut === "signing" ? <Spinner data-icon="inline-start" /> : null}
+                  {t.savings.takeOut}
+                </Button>
+                <p className="text-xs text-muted-foreground">{t.savings.takeOutHint}</p>
+                {pullOutFailure ? <FailureScreen failure={pullOutFailure} compact onRetry={() => void takeOutOfVault()} /> : null}
+              </>
+            ) : null}
+          </div>
           {xlm !== null && (
             <div className="mt-2 flex flex-col gap-0.5">
               {/* The sentence carries the amount in both languages, so it is split around the placeholder. */}

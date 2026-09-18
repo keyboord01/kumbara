@@ -105,7 +105,7 @@ try {
   await page.waitForURL("**/kumbara", { timeout: 15000 });
   await page.getByText("Kumbara adresi").first().waitFor({ timeout: 30000 });
   for (let i = 0; i < 10; i += 1) {
-    const inVault = ((await page.locator("section[aria-label='Kumbarada'] p.tnum").first().textContent()) ?? "").trim();
+    const inVault = ((await page.getByTestId("vault-usdc").textContent()) ?? "").trim();
     if (/[1-9]/.test(inVault)) break;
     await page.getByRole("button", { name: "Yenile" }).click().catch(() => {});
     await pause(3000);

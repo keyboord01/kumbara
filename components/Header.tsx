@@ -14,7 +14,7 @@ export function Header() {
   const { isConnected } = usePasskeyWallet();
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-3 lg:max-w-5xl">
+      <div className="mx-auto flex w-full max-w-xl items-center justify-between gap-3 px-4 py-3.5 lg:max-w-5xl">
         <Link href={isConnected ? "/kumbara" : "/"} className="flex min-w-0 items-baseline gap-2 rounded-md">
           <PiggyBankIcon className="size-5 self-center text-rose" aria-hidden />
           <span className="text-lg font-bold tracking-tight text-plum">{t.brand}</span>
@@ -22,7 +22,11 @@ export function Header() {
         </Link>
         <HeaderNav />
         <div className="flex items-center gap-2">
-          <NetworkBadge />
+          {/* Every balance and explorer link carries its own TESTNET label, so the header keeps one
+              only where there is room for it; on a phone it crowded the wordmark off its own row. */}
+          <span className="hidden sm:inline-flex">
+            <NetworkBadge />
+          </span>
           <SignOut variant="icon" />
           <ToggleGroup
             variant="segment"

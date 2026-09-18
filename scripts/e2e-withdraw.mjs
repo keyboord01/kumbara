@@ -161,7 +161,7 @@ try {
   const expected = available - 1;
   let inVault = "";
   for (let i = 0; i < 10; i += 1) {
-    inVault = ((await page.locator("section[aria-label='Kumbarada'] p.tnum").first().textContent()) ?? "").trim();
+    inVault = ((await page.getByTestId("vault-usdc").textContent()) ?? "").trim();
     if (Math.abs(parseUsdc(inVault) - expected) <= 0.05) break;
     await page.getByRole("button", { name: "Yenile" }).click().catch(() => {});
     await page.waitForTimeout(3000);

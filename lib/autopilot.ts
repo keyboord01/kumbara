@@ -27,3 +27,21 @@ export async function buildVaultDeposit(kit: SmartAccountKit, vaultId: string, a
     args: [xdr.ScVal.scvVec([amount]), xdr.ScVal.scvVec([amount]), Address.fromString(address).toScVal(), xdr.ScVal.scvBool(invest)],
   });
 }
+
+/**
+ * The reverse of the deposit: take USDC out of the vault and back into the kumbara's own account.
+ * It is the first step the withdrawal flow already takes, on its own — nothing leaves the kumbara —
+ * so someone who would rather not hold a vault position can keep their USDC in the account itself.
+ *
+ * Takes the share balance to burn rather than an amount, because the withdrawal flow's
+ * `sharesForAmount` deliberately rounds up and adds a share so a *partial* withdrawal always clears
+ * the requested amount; asking for every share plus one is more than the account owns, and the
+ * contract rejects it. `minOut` is the least USDC the caller will accept for those shares.
+ */
+export async function buildVaultWithdraw(kit: SmartAccountKit, vaultId: string, address: string, shares: bigint, minOut: bigint) {
+  return buildContractCallTransaction(kit, {
+    contractId: vaultId,
+    method: "withdraw",
+    args: [nativeToScVal(shares, { type: "i128" }), xdr.ScVal.scvVec([nativeToScVal(minOut, { type: "i128" })]), Address.fromString(address).toScVal()],
+  });
+}

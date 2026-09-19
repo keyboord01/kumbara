@@ -82,10 +82,6 @@
   --sidebar-accent-foreground: #33212a;
   --sidebar-border: #f0dbd9;
   --sidebar-ring: #7a2b52;
-  /* Sembol component theming: match the palette. */
-  --sembol-accent: #7a2b52;
-  --sembol-accent-hover: #5f2040;
-  --sembol-radius: 14px;
 }
 
 @theme inline {

@@ -2,6 +2,8 @@
 
 Generated from `pnpm licenses list` on 2026-09-05 (dependencies and devDependencies, transitive included). Packages whose license is not MIT, Apache-2.0, BSD or ISC are flagged in the last section.
 
+`@sembol/passkey-react` was refreshed to 0.4.0 on 2026-09-19; the rest of the table still reflects the 5 September tree and a full regeneration is due.
+
 | Package | Version(s) | License |
 | --- | --- | --- |
 | @alloc/quick-lru | 5.3.0 | MIT |
@@ -18,7 +20,7 @@ Generated from `pnpm licenses list` on 2026-09-05 (dependencies and devDependenc
 | @next/swc-darwin-arm64 | 16.3.4 | MIT |
 | @noble/ed25519 | 3.2.0 | MIT |
 | @noble/hashes | 2.4.0 | MIT |
-| @sembol/passkey-react | 0.3.1 | MIT |
+| @sembol/passkey-react | 0.4.0 | MIT |
 | @simplewebauthn/browser | 13.3.0 | MIT |
 | @stellar/js-xdr | 4.0.0 | Apache-2.0 |
 | @stellar/stellar-sdk | 16.3.0 | Apache-2.0 |

@@ -15,8 +15,8 @@ importers:
         specifier: ^0.18.0
         version: 0.18.0
       '@sembol/passkey-react':
-        specifier: 0.3.1
-        version: 0.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: 0.4.0
+        version: 0.4.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@stellar/stellar-sdk':
         specifier: ^16.3.0
         version: 16.3.0
@@ -938,8 +938,8 @@ packages:
   '@sec-ant/readable-stream@0.4.1':
     resolution: {integrity: sha512-831qok9r2t8AlxLko40y2ebgSDhenenCatLVeW/uBtnHPyhHOvG0C7TvfgecV+wHzIm5KUICgzmVpWS+IMEAeg==}
 
-  '@sembol/passkey-react@0.3.1':
-    resolution: {integrity: sha512-3DpKLgvwpDgrbLft9S8xbrTAJrzeWIiVAEqXJlEhUg/vmP+7rCgRuouc6DobqaV9hqXFJW1iSej9g0oh1baPjg==}
+  '@sembol/passkey-react@0.4.0':
+    resolution: {integrity: sha512-hZX0jVZsgrpKzD+8ZSBOhBzRhkaUnQgRxtWioe9ozGLaVmdLWc7qKox1NuroY32m3QM6FWlXLctAWjxiMgAZJw==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -4515,7 +4515,7 @@ snapshots:
 
   '@sec-ant/readable-stream@0.4.1': {}
 
-  '@sembol/passkey-react@0.3.1(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
+  '@sembol/passkey-react@0.4.0(react-dom@19.2.8(react@19.2.8))(react@19.2.8)':
     dependencies:
       '@simplewebauthn/browser': 13.3.0
       '@stellar/stellar-sdk': 16.3.0

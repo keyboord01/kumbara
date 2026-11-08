@@ -192,7 +192,6 @@ function Stats() {
         <header className="flex items-center justify-between gap-3">
           <Link href="/" className="flex items-baseline gap-2 rounded-md">
             <span className="text-lg font-bold tracking-tight text-plum">{t.brand}</span>
-            <span className="text-xs text-muted-foreground">{t.bySembol}</span>
           </Link>
           <div className="flex items-center gap-2">
             <NetworkBadge />

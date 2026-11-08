@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Kumbara live",
-  description: "Public, read-only traction page for Kumbara by Sembol on Stellar testnet: kumbaras opened, deposits, withdrawals, live vault balance, timings and contracts.",
+  description: "Public, read-only traction page for Kumbara on Stellar testnet: kumbaras opened, deposits, withdrawals, live vault balance, timings and contracts.",
 };
 
 /** Chrome-less shell: the stats page draws its own compact header (hidden in ?mode=tv). */

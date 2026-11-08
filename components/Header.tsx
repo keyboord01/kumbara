@@ -18,7 +18,6 @@ export function Header() {
         <Link href={isConnected ? "/kumbara" : "/"} className="flex min-w-0 items-baseline gap-2 rounded-md">
           <PiggyBankIcon className="size-5 self-center text-rose" aria-hidden />
           <span className="text-lg font-bold tracking-tight text-plum">{t.brand}</span>
-          <span className="hidden whitespace-nowrap text-xs text-muted-foreground min-[400px]:inline">{t.bySembol}</span>
         </Link>
         <HeaderNav />
         <div className="flex items-center gap-2">

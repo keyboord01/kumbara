@@ -9,7 +9,6 @@ const STORAGE_KEY = "kumbara.lang";
 export const dict = {
   tr: {
     brand: "Kumbara",
-    bySembol: "Sembol tarafından",
     network: { testnet: "TESTNET", mainnet: "MAINNET" },
     footer: "Test ağı. Gerçek lira hareket etmez.",
     footerMainnet: "Ana ağ. Gerçek USDC hareket eder.",
@@ -40,7 +39,7 @@ export const dict = {
         steps: {
           passkey: { label: "Passkey anahtarını üretiyor", detail: "Anahtar cihazından çıkmaz. Sunucu da, biz de göremeyiz." },
           deploy: { label: "Akıllı hesabın Stellar'da açılıyor", detail: "OpenZeppelin akıllı hesabı; tek imzacısı senin passkey'in." },
-          relay: { label: "Ağ ücretini relay ödüyor", detail: "XLM almana gerek yok; ücreti Sembol'ün relay'i karşılar." },
+          relay: { label: "Ağ ücretini relay ödüyor", detail: "XLM almana gerek yok; ücreti relay karşılar." },
           ready: { label: "Kumbaran hazır", detail: "Adresin zincirde; kasaya yükleme yapabilirsin." },
         },
         elapsed: "{s} sn",
@@ -106,7 +105,7 @@ export const dict = {
       signersHint: "Kumbaradan bir şey çıkması için bu anahtarlardan birinin imzası gerekir.",
       kumbara: "Kumbara",
       none: "yok",
-      kumbaraHint: "Kumbara'nın (Sembol'ün) bir anahtarı yok. Relay yalnızca ağ ücretini öder; senin adına imzalayamaz.",
+      kumbaraHint: "Kumbara'nın bir anahtarı yok. Relay yalnızca ağ ücretini öder; senin adına imzalayamaz.",
       limitPerTx: "Limit: işlem başına {amount} USDC.",
       limitPerWindow: "Limit: {window} içinde {amount} USDC.",
       limitNone: "Limit: kurulmamış.",
@@ -535,7 +534,6 @@ export const dict = {
   },
   en: {
     brand: "Kumbara",
-    bySembol: "by Sembol",
     network: { testnet: "TESTNET", mainnet: "MAINNET" },
     footer: "Testnet. No real lira moves.",
     footerMainnet: "Mainnet. Real USDC moves.",
@@ -566,7 +564,7 @@ export const dict = {
         steps: {
           passkey: { label: "Your passkey makes the key", detail: "The key never leaves your device. Not the server, not us." },
           deploy: { label: "Your smart account goes on Stellar", detail: "An OpenZeppelin smart account whose only signer is your passkey." },
-          relay: { label: "The relay pays the network fee", detail: "You never need XLM; Sembol's relay covers the fee." },
+          relay: { label: "The relay pays the network fee", detail: "You never need XLM; the relay covers the fee." },
           ready: { label: "Your kumbara is ready", detail: "Your address is on chain and you can put money in." },
         },
         elapsed: "{s} s",
@@ -632,7 +630,7 @@ export const dict = {
       signersHint: "Nothing leaves the kumbara without a signature from one of these keys.",
       kumbara: "Kumbara",
       none: "none",
-      kumbaraHint: "Kumbara (Sembol) holds no key. The relay only pays the network fee; it cannot sign for you.",
+      kumbaraHint: "Kumbara holds no key. The relay only pays the network fee; it cannot sign for you.",
       limitPerTx: "Limit: {amount} USDC per transaction.",
       limitPerWindow: "Limit: {amount} USDC per {window}.",
       limitNone: "Limit: not set.",

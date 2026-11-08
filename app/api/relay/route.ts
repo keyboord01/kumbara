@@ -15,6 +15,7 @@ import { sponsorStatus } from "@/lib/landing.server";
 import { recordEvent } from "@/lib/metrics.server";
 import { registerCredential } from "@/lib/store.server";
 import { guardAccountCreation, guardRelayCall } from "@/lib/ratelimit.server";
+import { checkRelayPayload } from "@/lib/relay-policy.server";
 import { relayForward } from "@/lib/relay.server";
 
 export const runtime = "nodejs";
@@ -111,6 +112,13 @@ export async function POST(request: Request): Promise<Response> {
     } catch (err) {
       return NextResponse.json({ success: false, error: `sponsor check failed: ${err instanceof Error ? err.message : String(err)}`, errorCode: "SPONSOR_UNAVAILABLE" }, { status: 503 });
     }
+  }
+
+  // Only Kumbara's own accounts, and the USDC and vault calls they authorise, travel on Kumbara's fee budget (KB-04).
+  const policy = await checkRelayPayload(payload).catch((err: unknown) => ({ allowed: false as const, reason: `policy check failed: ${err instanceof Error ? err.message : String(err)}` }));
+  if (!policy.allowed) {
+    console.warn(`[kumbara] relay refused: ${policy.reason}`);
+    return NextResponse.json({ success: false, error: `not relayed: ${policy.reason}`, errorCode: "RELAY_POLICY" }, { status: 403 });
   }
 
   let projectId: string;

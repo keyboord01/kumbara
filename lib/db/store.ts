@@ -347,9 +347,12 @@ export interface CredentialRow {
 export async function registerCredential(saltHex: string, contractId: string, kind: "primary" | "backup", verified: boolean): Promise<CredentialRow> {
   const conn = await db();
   const existing = await lookupCredential(saltHex);
-  // A verified mapping (from a confirmed deployment) is never replaced by an unverified one.
-  if (existing?.verified && !verified) return existing;
+  // A verified mapping is never replaced by an unverified one, and never moved to another kumbara: signer key data is
+  // public on chain, so anyone can add a stranger's credential to their own kumbara and claim it there (KB-02).
+  if (existing?.verified && (!verified || existing.contractId !== contractId)) return existing;
   const createdAt = existing?.createdAt ?? new Date().toISOString();
+  // The deployment's own passkey stays "primary" if the browser later reports it again as a backup.
+  if (existing?.kind === "primary" && existing.contractId === contractId) kind = "primary";
   await conn.execute({
     sql: "INSERT INTO credentials (salt_hex, contract_id, kind, verified, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(salt_hex) DO UPDATE SET contract_id = excluded.contract_id, kind = excluded.kind, verified = excluded.verified",
     args: [saltHex, contractId, kind, verified ? 1 : 0, createdAt],

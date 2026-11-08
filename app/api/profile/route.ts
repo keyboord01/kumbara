@@ -1,13 +1,16 @@
 /**
  * A kumbara's name and savings goal. GET ?contractId= is public (a nickname
- * and a number, no personal data). PUT needs the passkey credential id the
- * registry maps to that contract: the credential id is random, never shown
- * anywhere and only the wallet holder's browser has it, so it stands in for
- * a signature without asking for another passkey prompt.
+ * and a number, no personal data). PUT needs a passkey credential id the
+ * registry maps to that contract with a verified row (from the deployment, or
+ * a backup the chain lists as a signer): the credential id is random, never
+ * shown anywhere and only the wallet holder's browser has it, so it stands in
+ * for a signature without asking for another passkey prompt. Unverified rows
+ * (written before KB-02 was fixed) are checked on chain once and upgraded.
  */
 import { NextResponse } from "next/server";
-import { credentialSaltHex, isContractId } from "@/lib/registry.server";
-import { getProfile, lookupCredential, setProfile } from "@/lib/store.server";
+import { credentialIsSigner } from "@/lib/chain-checks.server";
+import { credentialBytes, credentialSaltHex, isContractId } from "@/lib/registry.server";
+import { getProfile, lookupCredential, registerCredential, setProfile } from "@/lib/store.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,7 +39,12 @@ export async function PUT(request: Request): Promise<Response> {
   const saltHex = credentialSaltHex(String(body.credentialId ?? ""));
   if (!saltHex) return NextResponse.json({ error: { code: "invalid_credential", message: "credentialId must be a WebAuthn credential id" } }, { status: 400, headers: NO_STORE });
   const registered = await lookupCredential(saltHex);
-  if (!registered || registered.contractId !== contractId) {
+  let owner = Boolean(registered && registered.contractId === contractId && registered.verified);
+  if (registered && registered.contractId === contractId && !registered.verified) {
+    owner = await credentialIsSigner(contractId, credentialBytes(String(body.credentialId ?? ""))!).catch(() => false);
+    if (owner) await registerCredential(saltHex, contractId, registered.kind, true);
+  }
+  if (!owner) {
     return NextResponse.json({ error: { code: "not_owner", message: "this passkey is not registered for that kumbara" } }, { status: 403, headers: NO_STORE });
   }
   const name = String(body.name ?? "").replace(/\s+/g, " ").trim().slice(0, NAME_MAX);

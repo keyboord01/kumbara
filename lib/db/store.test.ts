@@ -131,4 +131,17 @@ describe("libsql store", () => {
     expect((await store.rateLimitHit(old, 1, 50)).allowed).toBe(true);
     expect((await store.rateLimitHit("other", 0, 200)).allowed).toBe(true); // 0 = unlimited
   });
+
+  it("never moves a verified passkey mapping to another kumbara (KB-02)", async () => {
+    const salt = "ab".repeat(32);
+    await store.registerCredential(salt, "CVICTIM", "primary", true);
+    expect((await store.registerCredential(salt, "CATTACKER", "backup", true)).contractId).toBe("CVICTIM");
+    expect((await store.registerCredential(salt, "CATTACKER", "backup", false)).contractId).toBe("CVICTIM");
+    expect((await store.lookupCredential(salt))?.contractId).toBe("CVICTIM");
+    expect((await store.registerCredential(salt, "CVICTIM", "backup", true)).kind).toBe("primary");
+    // An unverified row (written before the fix) can still be upgraded in place.
+    const old = "cd".repeat(32);
+    await store.registerCredential(old, "COWNER", "backup", false);
+    expect(await store.registerCredential(old, "COWNER", "backup", true)).toMatchObject({ contractId: "COWNER", verified: true });
+  });
 });

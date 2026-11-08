@@ -18,7 +18,7 @@ export function credentialSaltHex(credentialId: string): string | null {
 }
 
 /** Accepts the id as base64url (WebAuthn), standard base64 (CDP, some libraries) or hex. */
-function credentialBytes(id: string): Buffer | null {
+export function credentialBytes(id: string): Buffer | null {
   const trimmed = id.trim();
   if (!trimmed) return null;
   if (/^[0-9a-fA-F]+$/.test(trimmed) && trimmed.length % 2 === 0 && trimmed.length >= 32) return Buffer.from(trimmed, "hex");

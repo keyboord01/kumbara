@@ -8,6 +8,7 @@
 import { isInviteRef } from "./referral.server";
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
+import { clientIpFrom } from "./client-ip";
 import { countEvents, rateLimitHit, sourceOfRef } from "./db/store";
 
 const HOUR_MS = 3_600_000;
@@ -33,12 +34,9 @@ export const limits = {
   relayPerIpPerHour: () => numberEnv("RATE_LIMIT_RELAY_PER_IP_HOUR", 120),
 };
 
+/** See lib/client-ip.ts: only the header the hosting platform writes is trusted. */
 export function clientIp(request: Request): string {
-  const fly = request.headers.get("fly-client-ip");
-  if (fly) return fly.trim();
-  const xff = request.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim();
-  return request.headers.get("x-real-ip")?.trim() || "unknown";
+  return clientIpFrom(request.headers);
 }
 
 function bucket(kind: string, ip: string): string {

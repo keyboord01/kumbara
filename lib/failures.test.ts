@@ -22,6 +22,8 @@ describe("classifyError", () => {
     expect(classifyError(sembol("submission_failed", "project budget exhausted"), "relay").kind).toBe("relay_budget");
     expect(classifyError(sembol("submission_failed", "Unauthorized function call"), "relay").kind).toBe("relay_rejected");
     expect(classifyError(sembol("network_error", "Unexpected token '<', \"<!doctype \"... is not valid JSON"), "relay").kind).toBe("deployment_protected");
+    // The relay's upstream answered with its gateway page (seen 8 Nov 2026): that is the relay being down, not Vercel login.
+    expect(classifyError(sembol("submission_failed", "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> 504 Gateway time-out"), "relay").kind).toBe("relay_unreachable");
   });
 
   it("classifies vault calls by context", () => {

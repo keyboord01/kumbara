@@ -78,13 +78,17 @@ const REF_CAP_RE = /booth ref|per booth|reached its cap of/i;
 const SPONSOR_RE = /onboarding paused|sponsor account holds|sponsor .* holds|SPONSOR_UNDERFUNDED|sponsor_underfunded/i;
 const BUDGET_RE = /budget|quota exceeded|insufficient (funds|balance)|underfunded relayer|402/i;
 const UNREACHABLE_RE = /unreachable|fetch failed|failed to fetch|timed out|timeout|ECONN|ETIMEDOUT|network error|HTTP 50[234]|502|503|504/i;
-const HTML_RE = /Unexpected token '<'|<!doctype|<html|text\/html|sso-api|vercel\.com|Authentication Required|deployment_protected/i;
+/** Our own origin answered with Vercel's login page: the browser failed to parse it as JSON, or it carries Vercel's markers. */
+const HTML_RE = /Unexpected token '<'|sso-api|vercel\.com|Authentication Required|deployment_protected/i;
+/** An HTML page quoted inside a relay error is the upstream's gateway page (a 502/504), i.e. the relay is down, not Vercel login. */
+const UPSTREAM_HTML_RE = /<!doctype|<html|text\/html/i;
 const STRATEGY_RE = /strateg/i;
 const QUOTE_RE = /quote (has )?expired|quote_expired/i;
 const LIMIT_RE = /spending limit|spending_limit|SpendingLimit/i;
 
 function fromRelayMessage(message: string, fallback: FailureKind): FailureKind {
   if (HTML_RE.test(message)) return "deployment_protected";
+  if (UPSTREAM_HTML_RE.test(message)) return "relay_unreachable";
   if (REF_CAP_RE.test(message)) return "rate_limited_ref";
   if (RATE_LIMIT_RE.test(message)) return "rate_limited_ip";
   if (SPONSOR_RE.test(message)) return "onboarding_paused";

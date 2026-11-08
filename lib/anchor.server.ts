@@ -111,11 +111,32 @@ async function readStatusPage(base: string): Promise<{ treasury: AnchorDiscovery
   }
 }
 
-/** Discovery for one anchor (default: the active one). Fetched with the framework data cache (10 min), never held in process memory. */
+/**
+ * Discovery for one anchor, or, with no domain, for the active one. When the active anchor does not answer, the other
+ * configured anchors are tried in order: the hackathon's mock anchor disappeared from DNS in November 2026 and, with it
+ * still first in ANCHOR_HOME_DOMAINS, every screen that needs the USDC contract failed with "fetch failed".
+ */
 export async function discoverAnchor(homeDomain?: string): Promise<AnchorDiscovery> {
-  const domain = (homeDomain ?? (await activeAnchorHomeDomain())).toLowerCase();
+  if (homeDomain) return discoverOne(homeDomain);
+  const active = await activeAnchorHomeDomain();
+  const order = [active, ...configuredAnchors().filter((d) => d !== active)];
+  let firstError: unknown = null;
+  for (const domain of order) {
+    try {
+      return await discoverOne(domain);
+    } catch (err) {
+      firstError ??= err;
+      console.warn(`[kumbara] anchor ${domain} unavailable: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+  throw firstError;
+}
+
+/** Fetched with the framework data cache (10 min), never held in process memory. */
+async function discoverOne(homeDomain: string): Promise<AnchorDiscovery> {
+  const domain = homeDomain.toLowerCase();
   const base = `https://${domain}`;
-  const res = await fetch(`${base}/.well-known/stellar.toml`, { next: { revalidate: 600 } });
+  const res = await fetch(`${base}/.well-known/stellar.toml`, { next: { revalidate: 600 }, signal: AbortSignal.timeout(8_000) });
   if (!res.ok) throw new Error(`anchor stellar.toml unavailable at ${domain} (${res.status})`);
   const raw = await res.text();
   const endpoints: Record<string, string> = {};

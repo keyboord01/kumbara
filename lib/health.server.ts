@@ -46,11 +46,14 @@ async function timed(fn: () => Promise<string>): Promise<DependencyStatus> {
 
 async function checkAnchor(): Promise<string> {
   // Reachability is measured live on the signboard itself; the parsed discovery may come from the data cache.
-  const domain = await activeAnchorHomeDomain();
+  // The app falls back to the next configured anchor when the chosen one is gone, so the dot follows the one serving.
+  const chosen = await activeAnchorHomeDomain();
+  const anchor = await discoverAnchor();
+  const domain = anchor.homeDomain;
   const res = await fetch(`https://${domain}/.well-known/stellar.toml`, { signal: AbortSignal.timeout(TIMEOUT_MS), cache: "no-store" });
   if (!res.ok) throw new Error(`stellar.toml HTTP ${res.status}`);
-  const anchor = await discoverAnchor(domain);
   const parts = [anchor.orgName ?? domain, `SEP-6 deposit ${anchor.sep6?.deposit?.enabled ? "on" : "off"}`];
+  if (domain !== chosen) parts.push(`fallback: ${chosen} unreachable`);
   if (anchor.treasury) parts.push(`treasury ${anchor.treasury.balance ?? "?"} ${anchor.usdc.code}${anchor.treasury.low ? " (low)" : ""}`);
   return parts.join(", ");
 }

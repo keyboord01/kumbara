@@ -9,7 +9,7 @@
  * written.
  */
 import { createClient, type Client, type InValue } from "@libsql/client";
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { assertNoSecret } from "../landing/secret-guard";
@@ -322,10 +322,16 @@ export async function rateLimitHit(bucket: string, limit: number, windowMs: numb
   return { allowed: true, count: count + 1 };
 }
 
+/** Record ids are handed to the browser and act as the handle for its reports, so they come from the CSPRNG (KB-03). */
 export function newId(prefix: string): string {
   const alphabet = "abcdefghijklmnopqrstuvwxyz0123456789";
   let out = "";
-  for (let i = 0; i < 16; i += 1) out += alphabet[Math.floor(Math.random() * alphabet.length)];
+  // 252 = 7 × 36: bytes at or above it are dropped so every character is equally likely.
+  while (out.length < 16) {
+    for (const byte of randomBytes(32)) {
+      if (byte < 252 && out.length < 16) out += alphabet[byte % 36];
+    }
+  }
   return `${prefix}_${out}`;
 }
 

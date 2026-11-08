@@ -30,6 +30,7 @@ import { assertSponsorReady, landingDeps } from "./landing.server";
 import { LandingError, createLandingAccount, submitPreauthorized, type LandingPlan } from "./landing/landing";
 import { recordEvent } from "./metrics.server";
 import { newId, withLease, withdrawalStore, type StoredRecord } from "./store.server";
+import { reportedTxProblem } from "./chain-checks.server";
 import { readTokenBalance, readVaultPosition } from "./vault";
 
 const MAX_STEP_ATTEMPTS = 6;
@@ -399,6 +400,13 @@ export async function recordUsdcSent(id: string, input: { vaultTx: string; trans
   for (const [name, value] of Object.entries(input)) {
     if (!/^[0-9a-f]{64}$/.test(value)) throw new WithdrawError(400, "invalid_hash", `${name} must be a 64-hex transaction hash`);
   }
+  // Both hashes must be real transactions of this kumbara: a made-up pair would send the pipeline after USDC that never moved (KB-03).
+  const before = await loadWithdrawal(id);
+  if (before.status !== "awaiting_usdc") return before;
+  for (const hash of [input.vaultTx, input.transferTx]) {
+    const problem = await reportedTxProblem(hash, before.contractId);
+    if (problem) throw new WithdrawError(400, "tx_not_verified", problem);
+  }
   return withLease(`withdrawal:${id}`, 30_000, async () => {
     const record = await loadWithdrawal(id);
     if (record.status !== "awaiting_usdc") return record;
@@ -415,6 +423,10 @@ export async function recordUsdcSent(id: string, input: { vaultTx: string; trans
  */
 export async function recordVaultTx(id: string, vaultTx: string): Promise<WithdrawalRecord> {
   if (!/^[0-9a-f]{64}$/.test(vaultTx)) throw new WithdrawError(400, "invalid_hash", "vaultTx must be a 64-hex transaction hash");
+  const before = await loadWithdrawal(id);
+  if (before.vaultTxHash) return before;
+  const problem = await reportedTxProblem(vaultTx, before.contractId);
+  if (problem) throw new WithdrawError(400, "tx_not_verified", problem);
   return withLease(`withdrawal:${id}`, 30_000, async () => {
     const record = await loadWithdrawal(id);
     if (record.vaultTxHash) return record;

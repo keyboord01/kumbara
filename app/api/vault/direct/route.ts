@@ -5,6 +5,7 @@
  * deposit record, no pipeline; the transaction hash is the proof.
  */
 import { NextResponse } from "next/server";
+import { reportedTxProblem } from "@/lib/chain-checks.server";
 import { serverEnv } from "@/lib/env.server";
 import { recordEvent } from "@/lib/metrics.server";
 import { isContractId } from "@/lib/registry.server";
@@ -32,6 +33,9 @@ export async function POST(request: Request): Promise<Response> {
   if (!isContractId(contractId)) return NextResponse.json({ error: { code: "invalid_contract", message: "contractId must be a C… address" } }, { status: 400 });
   if (!/^[0-9a-f]{64}$/.test(hash)) return NextResponse.json({ error: { code: "invalid_hash", message: "hash must be a 64-hex transaction hash" } }, { status: 400 });
   if (!/^\d{1,12}(\.\d{1,7})?$/.test(usdc) || Number(usdc) <= 0) return NextResponse.json({ error: { code: "invalid_amount", message: "usdc must be a positive decimal with up to 7 places" } }, { status: 400 });
+  // The feed counts toward public metrics; only a real vault deposit of this kumbara goes in (KB-05).
+  const problem = await reportedTxProblem(hash, contractId);
+  if (problem) return NextResponse.json({ error: { code: "tx_not_verified", message: problem } }, { status: 400 });
   await recordEvent({
     type: "vault_deposit",
     ts: Date.now(),

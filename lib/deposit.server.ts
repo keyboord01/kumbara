@@ -27,6 +27,7 @@ import { SepError, fiatAsset, sep10Authenticate, sep12AnswerForTransaction, sep1
 import { serverEnv } from "./env.server";
 import { assertSponsorReady, landingDeps } from "./landing.server";
 import { LandingError, createLandingAccount, submitPreauthorized, type LandingPlan } from "./landing/landing";
+import { reportedTxProblem } from "./chain-checks.server";
 import { recordEvent } from "./metrics.server";
 import { depositStore, newId, withLease, type StoredRecord } from "./store.server";
 
@@ -496,6 +497,11 @@ export async function listStuckDeposits(limit = 10): Promise<DepositRecord[]> {
 
 export async function recordVaultDeposit(id: string, input: { hash: string; amountUsdc: string; ref?: string | null }): Promise<DepositRecord> {
   if (!/^[0-9a-f]{64}$/.test(input.hash)) throw new DepositError(400, "invalid_hash", "hash must be a 64-hex transaction hash");
+  // Deposit ids are listed for any public kumbara address, so the hash itself has to prove the vault deposit (KB-03).
+  const before = await loadDeposit(id);
+  if (before.status === "in_vault") return before;
+  const problem = await reportedTxProblem(input.hash, before.contractId);
+  if (problem) throw new DepositError(400, "tx_not_verified", problem);
   return withLease(`deposit:${id}`, 30_000, async () => {
     const record = await loadDeposit(id);
     if (record.status === "in_vault") return record;

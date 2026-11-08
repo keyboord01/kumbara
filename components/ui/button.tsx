@@ -42,27 +42,30 @@ const buttonVariants = cva(
 )
 
 /**
- * A Button rendered as something else (`render={<Link />}`, `render={<a />}`) is a link, not a native button:
- * Base UI must then add the button role and keyboard handling itself instead of assuming a <button>, or it
- * logs an accessibility error and the element loses its button semantics. Callers can still pass `nativeButton`.
+ * A Button rendered as something else (`render={<Link />}`, `render={<a />}`) is a link that looks like a button. It
+ * is rendered as that element with the button's classes, outside Base UI's Button: the primitive would either log an
+ * accessibility error (assuming a native <button>) or, told otherwise, add role="button" and turn the link into a
+ * button for screen readers. Everything else goes through the primitive as before.
  */
-function rendersNativeButton(render: ButtonPrimitive.Props["render"]): boolean {
-  if (!render) return true
-  return React.isValidElement(render) && render.type === "button"
-}
-
 function Button({
   className,
   variant = "default",
   size = "default",
+  render,
   nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+  const classes = cn(buttonVariants({ variant, size, className }))
+  if (React.isValidElement<{ className?: string }>(render) && render.type !== "button") {
+    const own = render.props.className
+    return React.cloneElement(render, { ...(props as object), "data-slot": "button", className: cn(classes, own) } as Record<string, unknown>)
+  }
   return (
     <ButtonPrimitive
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      nativeButton={nativeButton ?? rendersNativeButton(props.render)}
+      className={classes}
+      render={render}
+      nativeButton={nativeButton}
       {...props}
     />
   )

@@ -62,7 +62,9 @@ function alreadySent(key: string): boolean {
 export function reportError(kind: string, detail: string | undefined, source: "failure_screen" | "window"): void {
   const context = clientContext();
   if (alreadySent(`${source}:${kind}:${context.path}`)) return;
-  void fetch("/api/errors", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, detail: detail?.slice(0, 240), source, context }), keepalive: true }).catch(() => undefined);
+  // No `keepalive`: the page is alive when it reports, and Chrome never marks a keepalive request finished for
+  // DevTools, so every page with a failure screen looked busy forever to tools that wait for the network to settle.
+  void fetch("/api/errors", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ kind, detail: detail?.slice(0, 240), source, context }) }).catch(() => undefined);
 }
 
 export function reportFailure(failure: Failure): void {

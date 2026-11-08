@@ -29,6 +29,8 @@ interface Props {
   /** Smaller card for inline use inside a flow. */
   compact?: boolean;
   className?: string;
+  /** False for sample screens (the /failures gallery): they are not real failures and must not reach the monitor. */
+  report?: boolean;
 }
 
 function fill(text: string, values: Record<string, string> | undefined): string {
@@ -59,13 +61,13 @@ function ActionButton({ action, primary }: { action: FailureAction; primary: boo
  * a primary action, the raw detail behind an expander, the bridge account
  * when funds are visibly parked, and the runbook section for the presenter.
  */
-export function FailureScreen({ failure, primary, onRetry, secondary, compact = false, className = "" }: Props) {
+export function FailureScreen({ failure, primary, onRetry, secondary, compact = false, className = "", report = true }: Props) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
   // Every failure screen a user sees is counted (once per kind and page per tab) for the presenter's monitor.
   useEffect(() => {
-    reportFailure(failure);
-  }, [failure]);
+    if (report) reportFailure(failure);
+  }, [failure, report]);
   const kinds = t.failures.kinds as Record<string, FailureCopy>;
   const copy: FailureCopy = kinds[failure.kind] ?? (t.failures.kinds.unknown as FailureCopy);
   const presenter = isPresenterState(failure.kind);
@@ -140,7 +142,7 @@ export function FailureScreen({ failure, primary, onRetry, secondary, compact = 
         {action ? <ActionButton action={action} primary /> : null}
         {secondary ? <ActionButton action={secondary} primary={false} /> : null}
         {/* One tap sends this failure (kind, code, page, browser family) to the presenter's monitor. */}
-        <FeedbackButton failure={failure} instant className="self-center" />
+        {report ? <FeedbackButton failure={failure} instant className="self-center" /> : null}
       </CardFooter>
     </Card>
   );

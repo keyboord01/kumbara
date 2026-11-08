@@ -52,7 +52,7 @@ export function FailureGallery() {
       {kinds.map((k) => (
         <div key={k} data-testid={`gallery-${k}`}>
           <p className="microlabel mb-1">{k}</p>
-          <FailureScreen failure={SAMPLE_FAILURES[k]} onRetry={() => undefined} secondary={k === "transfer_timeout" ? { label: t.failures.kinds.transfer_timeout.secondary, onClick: () => undefined } : null} />
+          <FailureScreen failure={SAMPLE_FAILURES[k]} report={false} onRetry={() => undefined} secondary={k === "transfer_timeout" ? { label: t.failures.kinds.transfer_timeout.secondary, onClick: () => undefined } : null} />
         </div>
       ))}
     </div>

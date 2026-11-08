@@ -1,3 +1,4 @@
+import * as React from "react"
 import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
@@ -40,16 +41,28 @@ const buttonVariants = cva(
   }
 )
 
+/**
+ * A Button rendered as something else (`render={<Link />}`, `render={<a />}`) is a link, not a native button:
+ * Base UI must then add the button role and keyboard handling itself instead of assuming a <button>, or it
+ * logs an accessibility error and the element loses its button semantics. Callers can still pass `nativeButton`.
+ */
+function rendersNativeButton(render: ButtonPrimitive.Props["render"]): boolean {
+  if (!render) return true
+  return React.isValidElement(render) && render.type === "button"
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
+  nativeButton,
   ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
   return (
     <ButtonPrimitive
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
+      nativeButton={nativeButton ?? rendersNativeButton(props.render)}
       {...props}
     />
   )

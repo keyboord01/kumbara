@@ -904,9 +904,17 @@ export default function BoothAdminPage() {
               </Card>
 
               <div className="flex items-center justify-between text-xs">
-                <Link href="/booth?n=1" className="rounded-sm text-plum underline-offset-4 hover:underline">
-                  {t.admin.qr} →
-                </Link>
+                <span className="flex gap-4">
+                  <Link href="/booth?n=1" className="rounded-sm text-plum underline-offset-4 hover:underline">
+                    {t.admin.qr} →
+                  </Link>
+                  <Link href="/booth/admin/funds" className="rounded-sm text-plum underline-offset-4 hover:underline">
+                    Test funds →
+                  </Link>
+                  <Link href="/booth/admin/monitor" className="rounded-sm text-plum underline-offset-4 hover:underline">
+                    Errors and feedback →
+                  </Link>
+                </span>
                 <Button
                   variant="ghost"
                   size="xs"

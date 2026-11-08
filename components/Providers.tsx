@@ -3,6 +3,7 @@
 import { PasskeyWalletProvider, type SembolTheme } from "@sembol/passkey-react";
 import { sembolConfig } from "@/lib/config";
 import { LocaleProvider } from "@/lib/i18n";
+import { MonitorListener } from "./MonitorListener";
 import { ToastProvider } from "./Toaster";
 
 /**
@@ -37,7 +38,10 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <LocaleProvider>
       <PasskeyWalletProvider config={sembolConfig} theme={sembolTheme}>
-        <ToastProvider>{children}</ToastProvider>
+        <ToastProvider>
+          <MonitorListener />
+          {children}
+        </ToastProvider>
       </PasskeyWalletProvider>
     </LocaleProvider>
   );

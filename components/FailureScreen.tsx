@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronDownIcon, ExternalLinkIcon } from "lucide-react";
+import { FeedbackButton } from "@/components/FeedbackButton";
 import { Spinner } from "@/components/Spinner";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
 import { RUNBOOK_SECTION, isPresenterState, type Failure } from "@/lib/failures";
 import { useLocale, type FailureCopy } from "@/lib/i18n";
+import { reportFailure } from "@/lib/monitor";
 
 export interface FailureAction {
   label: string;
@@ -60,6 +62,10 @@ function ActionButton({ action, primary }: { action: FailureAction; primary: boo
 export function FailureScreen({ failure, primary, onRetry, secondary, compact = false, className = "" }: Props) {
   const { t } = useLocale();
   const [open, setOpen] = useState(false);
+  // Every failure screen a user sees is counted (once per kind and page per tab) for the presenter's monitor.
+  useEffect(() => {
+    reportFailure(failure);
+  }, [failure]);
   const kinds = t.failures.kinds as Record<string, FailureCopy>;
   const copy: FailureCopy = kinds[failure.kind] ?? (t.failures.kinds.unknown as FailureCopy);
   const presenter = isPresenterState(failure.kind);
@@ -130,12 +136,12 @@ export function FailureScreen({ failure, primary, onRetry, secondary, compact = 
         </CardContent>
       ) : null}
 
-      {action || secondary ? (
-        <CardFooter className="flex-col items-stretch gap-2">
-          {action ? <ActionButton action={action} primary /> : null}
-          {secondary ? <ActionButton action={secondary} primary={false} /> : null}
-        </CardFooter>
-      ) : null}
+      <CardFooter className="flex-col items-stretch gap-2">
+        {action ? <ActionButton action={action} primary /> : null}
+        {secondary ? <ActionButton action={secondary} primary={false} /> : null}
+        {/* One tap sends this failure (kind, code, page, browser family) to the presenter's monitor. */}
+        <FeedbackButton failure={failure} instant className="self-center" />
+      </CardFooter>
     </Card>
   );
 }

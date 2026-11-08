@@ -13,6 +13,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from "@/
 import { api } from "@/lib/api";
 import { formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
+import { provePasskey } from "@/lib/passkey-proof";
 
 interface Profile {
   contractId: string;
@@ -40,8 +41,8 @@ function Ring({ fraction, label }: { fraction: number; label: string }) {
 /**
  * Name and goal for this kumbara, kept per contract on the server (a nickname
  * and a number, no personal data). The ring compares what is in the vault
- * with the goal. Saving needs the passkey credential the registry maps to
- * this kumbara, which only this browser has.
+ * with the goal. Saving asks the passkey to sign a one-time challenge (one
+ * prompt), which the server checks against the signer on chain.
  */
 export function GoalCard({ inVault }: { inVault: bigint | null }) {
   const { t, locale } = useLocale();
@@ -77,7 +78,8 @@ export function GoalCard({ inVault }: { inVault: bigint | null }) {
     setSaving(true);
     setError(null);
     try {
-      const res = await api<{ profile: Profile }>("/api/profile", { method: "PUT", body: JSON.stringify({ contractId: address, credentialId, name, goalUsdc: goal.trim() === "" ? null : goal.trim() }) });
+      const proof = await provePasskey(address, credentialId);
+      const res = await api<{ profile: Profile }>("/api/profile", { method: "PUT", body: JSON.stringify({ contractId: address, proof, name, goalUsdc: goal.trim() === "" ? null : goal.trim() }) });
       setProfile(res.profile);
       setEditing(false);
       toast({ title: t.goal.saved, body: res.profile.name, variant: "success", key: "goal" });

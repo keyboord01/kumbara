@@ -28,6 +28,7 @@ import { EXPLORER_BASE, NETWORK_LABEL } from "@/lib/config";
 import { StepTimeoutError, classifyError, classifyRecordError, withTimeout, type Failure } from "@/lib/failures";
 import { formatTryNarrow, formatUsdc } from "@/lib/format";
 import { useLocale } from "@/lib/i18n";
+import { provePasskey } from "@/lib/passkey-proof";
 import { DEFAULT_LIMIT_USDC } from "@/lib/limits";
 import { useAnchorInfo } from "@/lib/useAnchorInfo";
 
@@ -254,7 +255,7 @@ function TxLink({ hash, label }: { hash: string; label: string }) {
 
 function Deposit() {
   const { t, locale } = useLocale();
-  const { kit, address } = usePasskeyWallet();
+  const { kit, address, credentialId } = usePasskeyWallet();
   const { info } = useAnchorInfo();
   const { signAndSubmit } = useSignTransaction();
   const { toast } = useToast();
@@ -294,7 +295,8 @@ function Deposit() {
     if (!record) return;
     setCancelling(true);
     try {
-      const next = await api<DepositRecord>(`/api/deposit/${record.id}/cancel`, { method: "POST", body: "{}" });
+      const proof = address && credentialId ? await provePasskey(address, credentialId) : undefined;
+      const next = await api<DepositRecord>(`/api/deposit/${record.id}/cancel`, { method: "POST", body: JSON.stringify({ proof }) });
       setRecord(next);
     } catch (err) {
       setFailure(classifyError(err, "generic"));

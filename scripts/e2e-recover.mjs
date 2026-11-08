@@ -2,7 +2,8 @@
 // passkey (virtual authenticator credential) into fresh contexts, and reach
 // Savings both through "Sign in with your passkey" and through the recovery
 // screen, with no third-party indexer. Also checks the registry the relay
-// wrote at deployment and the backup-passkey write path.
+// wrote at deployment and that the backup-passkey write path only accepts
+// passkeys the chain lists as signers.
 //   pnpm e2e:recover   (APP_URL defaults to http://localhost:3100)
 import { chromium } from "playwright";
 
@@ -99,16 +100,20 @@ try {
   if (backIn !== contract) throw new Error(`signing back in reached ${backIn}, expected ${contract}`);
   log("  ✓ the same passkey opened the same kumbara again");
 
-  log("registry: a backup passkey can be registered and looked up (unverified)");
+  log("registry: a passkey that is not a signer on chain cannot be registered (KB-02)");
   const fake = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64url");
   const post = await fetch(`${APP}/api/registry`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ credentialId: fake, contractId: contract }) });
   const posted = await post.json();
-  if (post.status !== 201 || posted.contractId !== contract || posted.verified !== false) throw new Error(`backup registration answered ${post.status} ${JSON.stringify(posted)}`);
-  const get = await (await fetch(`${APP}/api/registry?credential=${fake}`)).json();
-  if (get.contractId !== contract || get.kind !== "backup") throw new Error(`backup lookup answered ${JSON.stringify(get)}`);
+  if (post.status !== 403 || posted.error?.code !== "not_a_signer") throw new Error(`a made-up backup passkey answered ${post.status} ${JSON.stringify(posted)}, expected 403 not_a_signer`);
+  const get = await fetch(`${APP}/api/registry?credential=${fake}`);
+  if (get.status !== 404) throw new Error(`the refused passkey is still looked up (${get.status})`);
+  // The real passkey is on chain: reporting it again succeeds and keeps it the verified primary.
+  const again = await fetch(`${APP}/api/registry`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ credentialId: credential.credentialId, contractId: contract }) });
+  const againBody = await again.json();
+  if (again.status !== 201 || againBody.contractId !== contract || againBody.kind !== "primary" || againBody.verified !== true) throw new Error(`the real passkey answered ${again.status} ${JSON.stringify(againBody)}`);
   const bogus = await fetch(`${APP}/api/registry?credential=not-a-credential!`);
   if (bogus.status !== 400) throw new Error(`malformed credential answered ${bogus.status}`);
-  log("  ✓ backup registered as unverified; malformed ids refused");
+  log("  ✓ made-up passkey refused (not a signer), the real one verified on chain, malformed ids refused");
 
   console.log("\nE2E RECOVER OK. console errors:", consoleErrors.length ? consoleErrors : "none");
   console.log("CONTRACT=" + contract);

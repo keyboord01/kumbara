@@ -13,7 +13,7 @@ await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.l
 const page = await context.newPage();
 const cdp = await context.newCDPSession(page);
 await cdp.send("WebAuthn.enable");
-await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
+const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", { options: { protocol: "ctap2", transport: "internal", hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true } });
 const consoleErrors = [];
 page.on("pageerror", (e) => consoleErrors.push(`pageerror: ${String(e).slice(0, 200)}`));
 page.on("console", (m) => {
@@ -58,7 +58,14 @@ try {
   if (forged.status !== 403) throw new Error(`write with a foreign credential answered ${forged.status}`);
   const after = await (await fetch(`${APP}/api/profile?contractId=${contract}`)).json();
   if (after.profile?.name !== "Tatil kumbarası") throw new Error("a forged write changed the name");
-  log("  ✓ a write without this kumbara's passkey credential is refused (403) and changes nothing");
+  // KB-06: the real credential id is public in the signer's key data on chain, so knowing it must not be enough.
+  const { credentials } = await cdp.send("WebAuthn.getCredentials", { authenticatorId });
+  const realId = Buffer.from(credentials[0].credentialId, "base64").toString("base64url");
+  const copied = await fetch(`${APP}/api/profile`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ contractId: contract, credentialId: realId, name: "Hacked", goalUsdc: "1" }) });
+  if (copied.status !== 403) throw new Error(`write with the real credential id but no signature answered ${copied.status}`);
+  const after2 = await (await fetch(`${APP}/api/profile?contractId=${contract}`)).json();
+  if (after2.profile?.name !== "Tatil kumbarası") throw new Error("a write without a passkey signature changed the name");
+  log("  ✓ refused (403) without a passkey signature, even with the kumbara's real credential id; nothing changed");
   console.log("\nE2E GOAL OK. console errors:", consoleErrors.length ? consoleErrors : "none");
   console.log("CONTRACT=" + contract);
 } catch (err) {

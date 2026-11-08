@@ -257,7 +257,7 @@ try {
     const pending = await (await fetch(`${APP}/api/booth/admin/pending`, { headers: adminHeaders })).json();
     const mine = (pending.pending ?? []).find((d) => d.reference === reference);
     if (!mine) throw new Error("deposit not listed for the presenter");
-    const cancel = await fetch(`${APP}/api/deposit/${mine.id}/cancel`, { method: "POST", headers: { "content-type": "application/json" }, body: "{}" });
+    const cancel = await fetch(`${APP}/api/deposit/${mine.id}/cancel`, { method: "POST", headers: adminHeaders, body: "{}" });
     const cancelled = await cancel.json();
     if (!cancel.ok || cancelled.status !== "cancelled") throw new Error(`cancel failed: ${JSON.stringify(cancelled).slice(0, 200)}`);
     log(`✓ instructions rendered from ${E2E_ANCHOR || "the active anchor"}; deposit ${mine.id} cancelled${cancelled.abortTxHash ? `, bridge merged back (${cancelled.abortTxHash.slice(0, 8)}…)` : ""}`);

@@ -1,16 +1,15 @@
 /**
  * A kumbara's name and savings goal. GET ?contractId= is public (a nickname
- * and a number, no personal data). PUT needs a passkey credential id the
- * registry maps to that contract with a verified row (from the deployment, or
- * a backup the chain lists as a signer): the credential id is random, never
- * shown anywhere and only the wallet holder's browser has it, so it stands in
- * for a signature without asking for another passkey prompt. Unverified rows
- * (written before KB-02 was fixed) are checked on chain once and upgraded.
+ * and a number, no personal data). PUT needs a passkey proof: the browser signs
+ * a one-time challenge with a passkey the chain lists as a signer of that
+ * kumbara (lib/passkey-proof.server.ts). The credential id alone is not enough;
+ * it is public in the signer's key data (SECURITY.md, KB-02 and KB-06).
  */
 import { NextResponse } from "next/server";
-import { credentialIsSigner } from "@/lib/chain-checks.server";
-import { credentialBytes, credentialSaltHex, isContractId } from "@/lib/registry.server";
-import { getProfile, lookupCredential, registerCredential, setProfile } from "@/lib/store.server";
+import { provesOwnership } from "@/lib/ownership.server";
+import type { PasskeyProof } from "@/lib/passkey-proof.server";
+import { isContractId } from "@/lib/registry.server";
+import { getProfile, setProfile } from "@/lib/store.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +27,7 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  let body: { contractId?: string; credentialId?: string; name?: string; goalUsdc?: string | null } = {};
+  let body: { contractId?: string; proof?: Partial<PasskeyProof>; name?: string; goalUsdc?: string | null } = {};
   try {
     body = (await request.json()) as typeof body;
   } catch {
@@ -36,16 +35,9 @@ export async function PUT(request: Request): Promise<Response> {
   }
   const contractId = String(body.contractId ?? "").trim();
   if (!isContractId(contractId)) return NextResponse.json({ error: { code: "invalid_contract", message: "contractId must be a C… address" } }, { status: 400, headers: NO_STORE });
-  const saltHex = credentialSaltHex(String(body.credentialId ?? ""));
-  if (!saltHex) return NextResponse.json({ error: { code: "invalid_credential", message: "credentialId must be a WebAuthn credential id" } }, { status: 400, headers: NO_STORE });
-  const registered = await lookupCredential(saltHex);
-  let owner = Boolean(registered && registered.contractId === contractId && registered.verified);
-  if (registered && registered.contractId === contractId && !registered.verified) {
-    owner = await credentialIsSigner(contractId, credentialBytes(String(body.credentialId ?? ""))!).catch(() => false);
-    if (owner) await registerCredential(saltHex, contractId, registered.kind, true);
-  }
+  const owner = await provesOwnership(request, contractId, body.proof);
   if (!owner) {
-    return NextResponse.json({ error: { code: "not_owner", message: "this passkey is not registered for that kumbara" } }, { status: 403, headers: NO_STORE });
+    return NextResponse.json({ error: { code: "not_owner", message: "sign with a passkey of that kumbara to change it" } }, { status: 403, headers: NO_STORE });
   }
   const name = String(body.name ?? "").replace(/\s+/g, " ").trim().slice(0, NAME_MAX);
   if (!name) return NextResponse.json({ error: { code: "invalid_name", message: `name must be 1–${NAME_MAX} characters` } }, { status: 400, headers: NO_STORE });

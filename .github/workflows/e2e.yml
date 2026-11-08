@@ -68,7 +68,7 @@ jobs:
       - name: Install Chromium
         if: steps.gate.outputs.ok == 'true'
         run: pnpm exec playwright install --with-deps chromium
-      - name: Round trip (onboard, deposit, withdraw, booth, stats)
+      - name: Round trip (onboard, recovery, goal, test funds, stats, failure screens)
         if: steps.gate.outputs.ok == 'true'
         env:
           APP_URL: ${{ steps.deploy.outputs.url }}
@@ -80,12 +80,9 @@ jobs:
           node scripts/e2e-proof.mjs
           node scripts/e2e-goal.mjs
           node scripts/e2e-invite.mjs
-          node scripts/e2e-deposit.mjs
-          E2E_LEAVE_AFTER_IBAN=1 node scripts/e2e-deposit.mjs
-          E2E_AUTOBANK=1 node scripts/e2e-deposit.mjs
-          node scripts/e2e-withdraw.mjs
-          node scripts/e2e-address.mjs
-          node scripts/e2e-booth.mjs
+          # The TR mock anchor these steps played the bank on is gone (DNS, Nov 2026): deposit, leave, autobank,
+          # withdraw-to-IBAN, address and booth wait for a lira anchor (SOW 2). Money now comes in through test funds.
+          node scripts/e2e-testfunds.mjs
           node scripts/e2e-stats.mjs
           node scripts/e2e-funnel.mjs
           node scripts/e2e-failures.mjs
@@ -152,44 +149,24 @@ jobs:
         id: invite
         if: steps.preflight.outputs.skip != 'true'
         run: node scripts/e2e-invite.mjs
-      - name: Deposit
+      # The TR mock anchor the deposit, leave, autobank, withdraw, address and booth steps played the bank on is gone
+      # (DNS, Nov 2026). They come back with a lira anchor (SOW 2); until then money comes in through test funds and
+      # testanchor.stellar.org, which funds its own deposits.
+      - name: Deposit (testanchor.stellar.org funds itself)
         id: deposit
         if: steps.preflight.outputs.skip != 'true'
         env:
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
+          E2E_ANCHOR: testanchor.stellar.org
+          E2E_EXPECT: autofund
+          E2E_DEPOSIT_AMOUNT: "5"
         run: node scripts/e2e-deposit.mjs
-      - name: Deposit with the visitor away (driver)
-        id: leave
+      - name: Test funds (one tap, per-account limit)
+        id: testfunds
         if: steps.preflight.outputs.skip != 'true'
         env:
           BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
-          E2E_LEAVE_AFTER_IBAN: "1"
-        run: node scripts/e2e-deposit.mjs
-      - name: Deposit with nobody on the console (auto bank)
-        id: autobank
-        if: steps.preflight.outputs.skip != 'true'
-        env:
-          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
-          E2E_AUTOBANK: "1"
-        run: node scripts/e2e-deposit.mjs
-      - name: Withdraw
-        id: withdraw
-        if: steps.preflight.outputs.skip != 'true'
-        env:
-          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
-        run: node scripts/e2e-withdraw.mjs
-      - name: Withdraw to a Stellar address
-        id: address
-        if: steps.preflight.outputs.skip != 'true'
-        env:
-          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
-        run: node scripts/e2e-address.mjs
-      - name: Booth
-        id: booth
-        if: steps.preflight.outputs.skip != 'true'
-        env:
-          BOOTH_ADMIN_TOKEN: ${{ secrets.BOOTH_ADMIN_TOKEN }}
-        run: node scripts/e2e-booth.mjs
+        run: node scripts/e2e-testfunds.mjs
       - name: Stats
         id: stats
         if: steps.preflight.outputs.skip != 'true'
@@ -216,7 +193,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           CI_STATUS_TOKEN: ${{ secrets.CI_STATUS_TOKEN }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.proof.outcome == 'failure' && 'proof' || steps.goal.outcome == 'failure' && 'goal' || steps.invite.outcome == 'failure' && 'invite' || steps.deposit.outcome == 'failure' && 'deposit' || steps.leave.outcome == 'failure' && 'leave' || steps.autobank.outcome == 'failure' && 'autobank' || steps.withdraw.outcome == 'failure' && 'withdraw' || steps.address.outcome == 'failure' && 'address' || steps.booth.outcome == 'failure' && 'booth' || steps.stats.outcome == 'failure' && 'stats' || steps.funnel.outcome == 'failure' && 'funnel' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
+          STEP: ${{ steps.onboard.outcome == 'failure' && 'onboard' || steps.recover.outcome == 'failure' && 'recover' || steps.proof.outcome == 'failure' && 'proof' || steps.goal.outcome == 'failure' && 'goal' || steps.invite.outcome == 'failure' && 'invite' || steps.deposit.outcome == 'failure' && 'deposit' || steps.testfunds.outcome == 'failure' && 'testfunds' || steps.stats.outcome == 'failure' && 'stats' || steps.funnel.outcome == 'failure' && 'funnel' || steps.failures.outcome == 'failure' && 'failures' || 'preflight' }}
           ARTIFACT_URL: ${{ steps.shots.outputs.artifact-url }}
         run: |
           TITLE="Scheduled E2E failed at step: $STEP"

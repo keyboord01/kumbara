@@ -8,6 +8,7 @@ import { cn } from "cn";
 import { ArrowRightIcon, ExternalLinkIcon, RefreshCwIcon } from "lucide-react";
 import { AddressCard } from "@/components/AddressCard";
 import { GoalCard } from "@/components/GoalCard";
+import { TestFundsCard } from "@/components/TestFundsCard";
 import { InviteCard } from "@/components/InviteCard";
 import { FailureScreen } from "@/components/FailureScreen";
 import { NetworkBadge } from "@/components/NetworkBadge";
@@ -161,6 +162,7 @@ function Savings() {
   /** Everything the kumbara holds: the vault position plus any USDC still sitting in the account.
    *  Showing the vault alone made a kumbara with unswept USDC read "0.00", as if the money were gone. */
   const total = inVault === null ? null : inVault + (waiting ?? 0n);
+  const [fundsAsked, setFundsAsked] = useState(false);
 
   // USDC already in the kumbara (sent to its address, or left by an interrupted deposit): one approval puts it in the vault.
   const [sweep, setSweep] = useState<"idle" | "signing">("idle");
@@ -357,6 +359,18 @@ function Savings() {
           </Button>
         </CardFooter>
       </Card>
+
+          {/* An empty kumbara on testnet is offered test money; once asked, the card stays for this visit to show the result. */}
+          {total === 0n || fundsAsked ? (
+            <div className="max-lg:order-1 lg:order-none">
+              <TestFundsCard
+                onGranted={() => {
+                  setFundsAsked(true);
+                  void wallet.refetch();
+                }}
+              />
+            </div>
+          ) : null}
 
           <Card render={<section aria-label={t.savings.vault} />} className="max-lg:order-3 lg:order-none">
         <CardHeader>

@@ -83,6 +83,7 @@ jobs:
           # The TR mock anchor these steps played the bank on is gone (DNS, Nov 2026): deposit, leave, autobank,
           # withdraw-to-IBAN, address and booth wait for a lira anchor (SOW 2). Money now comes in through test funds.
           node scripts/e2e-testfunds.mjs
+          node scripts/e2e-monitor.mjs
           node scripts/e2e-stats.mjs
           node scripts/e2e-funnel.mjs
           node scripts/e2e-failures.mjs

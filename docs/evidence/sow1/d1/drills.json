@@ -1,0 +1,29 @@
+{
+  "at": "2026-11-09T10:56:22.292Z",
+  "app": "http://localhost:3100",
+  "results": [
+    {
+      "drill": "passkey prompt cancelled halfway",
+      "ok": true,
+      "seconds": 22.1,
+      "screen": "passkey_cancelled",
+      "message": "ProblemTESTNETNo passkey approval arrived.The request was cancelled, timed out after 60 seconds, or this browser has no passkey provider. Nothing changed. Try again with Touch ID, Windows Hello or a p",
+      "recovery": "Try again with the passkey approved: kumbara created",
+      "contract": "CBWF7OJ7MPQ4QX6ZJZA7VAPAWBGNUG2HQWBNVISWMH5EVFVMMED5LIAY"
+    },
+    {
+      "drill": "relay down",
+      "ok": true,
+      "seconds": 57.7,
+      "screen": "relay_unreachable",
+      "message": "ProblemTESTNETThe relay is not answering.Kumbara sends your signed request through Sembol's relay so you never need XLM. The relay could not be reached just now. Nothing was sent and nothing changed i",
+      "recovery": "relay back, Try again: kumbara created",
+      "contract": "CAYO3DNFWZ3N7GRGTG2QKQGAOFKBR7JUNCNPPXY5ZNCBFBWI2CDAK3X6"
+    },
+    {
+      "drill": "slow network",
+      "ok": false,
+      "error": "TimeoutError: page.waitForURL: Timeout 300000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"**/kumbara**\" until \"load\"\n============================================================"
+    }
+  ]
+}

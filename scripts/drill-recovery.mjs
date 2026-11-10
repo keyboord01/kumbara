@@ -27,6 +27,7 @@ async function device(credential, record = false) {
   });
   await context.addInitScript(() => { try { window.localStorage.setItem("kumbara.lang", "en"); } catch { /* storage off */ } });
   const page = await context.newPage();
+  page.setDefaultTimeout(120000);
   const cdp = await context.newCDPSession(page);
   await cdp.send("WebAuthn.enable");
   const { authenticatorId } = await cdp.send("WebAuthn.addVirtualAuthenticator", { options: AUTH });
@@ -50,7 +51,7 @@ try {
   log("  kumbara", contract, "primary passkey", before[0].credentialId.slice(0, 12) + "…");
 
   log("device A: enrol a recovery passkey on the Security page");
-  await a.page.goto(`${APP}/kumbara/guvenlik`, { waitUntil: "networkidle" });
+  await a.page.goto(`${APP}/kumbara/guvenlik`, { waitUntil: "load" });
   await a.page.getByRole("button", { name: /Recovery passkey/ }).click();
   const registered = a.page.waitForResponse((r) => r.url().includes("/api/registry") && r.request().method() === "POST", { timeout: 180000 });
   await a.page.getByRole("button", { name: /Create recovery passkey/ }).click();
@@ -69,7 +70,7 @@ try {
   log("device B: a fresh browser that holds ONLY the backup passkey");
   const b = await device({ credentialId: backup.credentialId, isResidentCredential: true, rpId: backup.rpId, privateKey: backup.privateKey, userHandle: backup.userHandle, signCount: backup.signCount }, true);
   const bAt = Date.now();
-  await b.page.goto(`${APP}/kurtar`, { waitUntil: "networkidle" });
+  await b.page.goto(`${APP}/kurtar`, { waitUntil: "load" });
   await shot(b.page, "recovery-2-recovery-screen");
   await b.page.getByTestId("recover-find").click();
   await b.page.waitForURL("**/kumbara**", { timeout: 120000 });
@@ -98,6 +99,7 @@ try {
   await browser.close();
 } catch (err) {
   console.error("DRILL RECOVERY FAILED:", err);
+  for (const ctx of browser.contexts()) for (const p of ctx.pages()) if (EVIDENCE) await p.screenshot({ path: path.join(EVIDENCE, "recovery-failure.png"), fullPage: true }).catch(() => undefined);
   await browser.close();
   process.exit(1);
 }
